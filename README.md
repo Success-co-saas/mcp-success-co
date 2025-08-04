@@ -81,6 +81,40 @@ This will:
 Open the MCP Server Inspector on the browser:
 http://localhost:6274/
 
+## Setting Environment Variables for Testing
+
+To test the `getApiKey` tool with different API keys, you can set environment variables before running the inspector:
+
+**Linux/macOS (Bash/Zsh):**
+
+```bash
+# Temporary (current session only)
+export API_KEY="your-test-key"
+npm run inspector
+
+# Or set for single command
+API_KEY="your-test-key" npm run inspector
+```
+
+**Windows (Command Prompt):**
+
+```cmd
+# Set for current session
+set API_KEY=your-test-key
+npm run inspector
+```
+
+**Windows (PowerShell):**
+
+```powershell
+# Set for current session
+$env:API_KEY="your-test-key"
+npm run inspector
+
+# Or set for single command
+$env:API_KEY="your-test-key"; npm run inspector
+```
+
 ## Integrating with Cursor AI
 
 This project includes a `./cursor` subdirectory that contains an `mcp.json` file for configuring the MCP server. Cursor IDE uses this file to automatically discover and launch your MCP server. Open the file and update the fields as follows:
@@ -89,12 +123,30 @@ This project includes a `./cursor` subdirectory that contains an `mcp.json` file
 
 Below is the full JSON structure of the configuration file:
 
+**Linux/macOS example:**
+
 ```json
 {
   "mcpServers": {
     "MCP Server Boilerplate": {
       "command": "node",
-      "args": ["/path/to/mcp-server.js"],
+      "args": ["/home/john/mcp-server-node/mcp-server.js"],
+      "env": {
+        "API_KEY": "abc-1234567890"
+      }
+    }
+  }
+}
+```
+
+**Windows example:**
+
+```json
+{
+  "mcpServers": {
+    "MCP Server Boilerplate": {
+      "command": "node",
+      "args": ["C:\\Users\\john\\mcp-server-node\\mcp-server.js"],
       "env": {
         "API_KEY": "abc-1234567890"
       }
@@ -115,17 +167,42 @@ Below is the full JSON structure of the configuration file:
   - `"node"` (if Node.js is in your PATH)
   - The full path to your Node.js executable (if needed)
 
-  To find your Node.js path, run `which node` in your terminal. Example:
+  **Finding your Node.js path:**
 
+  **Linux/macOS:**
+
+  ```bash
+  which node
+  # Example output: /home/john/.nvm/versions/node/v20.13.1/bin/node
   ```
-  /home/john/.nvm/versions/node/v20.13.1/bin/node
+
+  **Windows (Command Prompt):**
+
+  ```cmd
+  where node
+  # Example output: C:\Program Files\nodejs\node.exe
+  ```
+
+  **Windows (PowerShell):**
+
+  ```powershell
+  Get-Command node
+  # Example output: C:\Program Files\nodejs\node.exe
   ```
 
 - **args:**  
-  An array containing the absolute path to your MCP server file. For example:
+  An array containing the absolute path to your MCP server file.
 
+  **Linux/macOS examples:**
+
+  ```json
+  ["/home/john/mcp-server-node/mcp-server.js"]
   ```
-  ["/home/john/mcp-server-node/index.js"]
+
+  **Windows examples:**
+
+  ```json
+  ["C:\\Users\\john\\mcp-server-node\\mcp-server.js"]
   ```
 
 - **env:** (Optional)  
