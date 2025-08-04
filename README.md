@@ -44,18 +44,46 @@ This project demonstrates an MCP server built in Node.js that provides two basic
    If you prefer, delete the existing `package.json` and install the required packages manually:
 
    ```bash
-   npm install @modelcontextprotocol/sdk @coinpaprika/api-nodejs-client zod
+   npm install @modelcontextprotocol/sdk zod
    ```
 
-   Then, update the newly generated `package.json` file to include the following line, which enables ES Modules:
+   Then, update the newly generated `package.json` file to include the following lines, which enables ES Modules and adds the mcp inspector command:
 
    ```json
-   "type": "module"
+   "type": "module",
+   "scripts": {
+    "inspector": "npx @modelcontextprotocol/inspector node ./mcp-server.js"
+   }
    ```
+
+## Testing with MCP Inspector
+
+The MCP Inspector is a debugging tool that lets you test your server's tools interactively before integrating with an IDE.
+
+**Option 1: Run directly with npx**
+
+```bash
+npx @modelcontextprotocol/inspector node ./mcp-server.js
+```
+
+**Option 2: Use the npm script**
+
+```bash
+npm run inspector
+```
+
+This will:
+
+1. Start the MCP inspector server
+2. Open your browser to the inspector interface
+3. Allow you to test tools, resources, and prompts
+
+Open the MCP Server Inspector on the browser:
+http://localhost:6274/
 
 ## Integrating with Cursor AI
 
-This project includes a `./cursor` subdirectory that contains an `mcp.json` file for configuring the MCP server. Cursor AI uses this file to automatically discover and launch your MCP server. Open the file and update the fields as follows:
+This project includes a `./cursor` subdirectory that contains an `mcp.json` file for configuring the MCP server. Cursor IDE uses this file to automatically discover and launch your MCP server. Open the file and update the fields as follows:
 
 ### The `./cursor/mcp.json` Structure
 
@@ -65,7 +93,7 @@ Below is the full JSON structure of the configuration file:
 {
   "mcpServers": {
     "MCP Server Boilerplate": {
-      "command": "/path/to/node",
+      "command": "node",
       "args": ["/path/to/mcp-server.js"],
       "env": {
         "API_KEY": "abc-1234567890"
@@ -82,7 +110,12 @@ Below is the full JSON structure of the configuration file:
   This is the key for your server configuration. You can name it as you like.
 
 - **command:**  
-  Specifies the absolute path to your Node.js executable. For example:
+  The Node.js executable to run your server. You can use either:
+
+  - `"node"` (if Node.js is in your PATH)
+  - The full path to your Node.js executable (if needed)
+
+  To find your Node.js path, run `which node` in your terminal. Example:
 
   ```
   /home/john/.nvm/versions/node/v20.13.1/bin/node
@@ -98,26 +131,9 @@ Below is the full JSON structure of the configuration file:
 - **env:** (Optional)  
   Defines environment variables for your MCP server process. In this example, the `API_KEY` is set to `"abc-1234567890"`. Adjust this value as needed for your environment.
 
-You can verify the absolute path to your Node.js executable by running `which node` in your terminal.
+## Using the MCP Tool in Cursor (Agent Mode)
 
-### Optional: Configuration Automation Scripts
-
-Easily configure your local environment by automatically updating the mcp.json file with the correct absolute paths. To apply your local settings, run the following commands from your project root:
-
-```bash
-chmod +x ./scripts/update_config.sh
-./scripts/update_config.sh
-```
-
-This script replaces the placeholder paths in mcp.json with your machine’s absolute paths for Python and the server script, ensuring your configuration settings are always accurate.
-
-### Optional: Global Cursor settings
-
-You can also move the `mcp.json` file to your global Cursor AI configuration directory located at `~/.cursor` to make the configuration available globally.
-
-## Using the MCP Tool in Cursor Composer (Agent Mode)
-
-With the MCP server integrated into Cursor AI and with Agent mode enabled in Cursor Composer, simply use a natural language prompt like:
+With the MCP server integrated into Cursor IDE and with Agent mode enabled, simply use a natural language prompt like:
 
 ```
 add 3 and 5

@@ -1,7 +1,7 @@
 {
   "mcpServers": {
     "Node.js MCP Server": {
-      "command": "/path/to/node",
+      "command": "node",
       "args": ["/path/to/mcp-server.js"],
       "env": {
         "API_KEY": "abc-1234567890"
