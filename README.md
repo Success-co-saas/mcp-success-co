@@ -117,17 +117,58 @@ $env:API_KEY="your-test-key"; npm run inspector
 
 ## Integrating with Cursor AI
 
-This project includes a `./cursor` subdirectory that contains an `mcp.json` file for configuring the MCP server. Cursor IDE uses this file to automatically discover and launch your MCP server. Open the file and update the fields as follows:
+To integrate this MCP server with Cursor IDE, you need to add the configuration through Cursor's settings interface:
 
-### The `./cursor/mcp.json` Structure
+1. Open Cursor IDE
+2. Go to **Settings** → **Tools & Integrations**
+3. Click on **Add Custom MCP Server**
+4. Add the configuration below
 
-Below is the full JSON structure of the configuration file:
+**Important:** If you already have other MCP servers configured, don't overwrite the entire configuration. Instead, add the `"MCP Server Boilerplate"` object to the existing `"mcpServers"` object.
+
+**Sample Configuration File:** This project includes a sample configuration file at [`./cursor/mcp.json`](./cursor/mcp.json) that you can reference or copy from.
+
+### Configuration Structure
+
+Below is the configuration you need to add:
 
 **Linux/macOS example:**
 
 ```json
 {
+  "MCP Server Boilerplate": {
+    "command": "node",
+    "args": ["/home/john/mcp-server-node/mcp-server.js"],
+    "env": {
+      "API_KEY": "abc-1234567890"
+    }
+  }
+}
+```
+
+**Windows example:**
+
+```json
+{
+  "MCP Server Boilerplate": {
+    "command": "node",
+    "args": ["C:\\Users\\john\\mcp-server-node\\mcp-server.js"],
+    "env": {
+      "API_KEY": "abc-1234567890"
+    }
+  }
+}
+```
+
+**If you have existing MCP servers configured, your full configuration might look like this:**
+
+```json
+{
   "mcpServers": {
+    "existing-server": {
+      "command": "python",
+      "args": ["/path/to/existing/server.py"]
+    },
     "MCP Server Boilerplate": {
       "command": "node",
       "args": ["/home/john/mcp-server-node/mcp-server.js"],
@@ -139,24 +180,7 @@ Below is the full JSON structure of the configuration file:
 }
 ```
 
-**Windows example:**
-
-```json
-{
-  "mcpServers": {
-    "MCP Server Boilerplate": {
-      "command": "node",
-      "args": ["C:\\Users\\john\\mcp-server-node\\mcp-server.js"],
-      "env": {
-        "API_KEY": "abc-1234567890"
-      }
-    }
-  }
-}
-```
-
-- **mcpServers:**  
-  An object mapping server names to their configuration.
+### Configuration Parameters
 
 - **MCP Server Boilerplate:**  
   This is the key for your server configuration. You can name it as you like.
