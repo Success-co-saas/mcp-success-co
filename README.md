@@ -10,7 +10,7 @@
 
 **MCP (Model Context Protocol)** is a framework that allows you to integrate custom tools into AI-assisted development environments—such as Cursor AI. MCP servers expose functionality (like data retrieval or code analysis) so that an LLM-based IDE can call these tools on demand. Learn more about MCP in the [Model Context Protocol Introduction](https://modelcontextprotocol.io/introduction).
 
-This project demonstrates an MCP server implemented in JavaScript using Node.js (ESM). It defines two tools: **add**, which takes two numeric inputs and returns their sum, and **getApiKey**, which retrieves the API key from the `API_KEY` environment variable.
+This project demonstrates an MCP server implemented in JavaScript using Node.js. It defines two tools: **add**, which takes two numeric inputs and returns their sum, and **getApiKey**, which retrieves the API key from the `API_KEY` environment variable.
 
 ## Requirements
 
