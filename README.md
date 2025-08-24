@@ -285,8 +285,6 @@ Type the following prompt in the chat:
 /add_numbers
 ```
 
-**Note**: The prompt name is "add_numbers" and you can invoke it by typing `/add_numbers` in the chat.
-
 When you press Enter after typing this prompt, Cursor will automatically:
 
 1. Recognize that you want to use the `add` tool from the Node Server
