@@ -10,7 +10,7 @@
 
 **MCP (Model Context Protocol)** is a framework that allows you to integrate custom tools into AI-assisted development environments—such as Cursor AI. MCP servers expose functionality (like data retrieval or code analysis) so that an LLM-based IDE can call these tools on demand. Learn more about MCP in the [Model Context Protocol Introduction](https://modelcontextprotocol.io/introduction).
 
-This project demonstrates an MCP server implemented in JavaScript using Node.js. It defines two tools: **add**, which takes two numeric inputs and returns their sum, and **getApiKey**, which retrieves the API key from the `API_KEY` environment variable.
+This project demonstrates an MCP server implemented in JavaScript using Node.js. It defines two tools: **add**, which takes two numeric inputs and returns their sum, and **getApiKey**, which retrieves the API key from the `API_KEY` environment variable. It also provides a predefined prompt **add_numbers** that allows AI models to infer the usage of the addition tool.
 
 ## Requirements
 
@@ -20,6 +20,7 @@ This project demonstrates an MCP server implemented in JavaScript using Node.js.
 
 - **MCP Integration:** Exposes tool functionality to LLM-based IDEs.
 - **Addition Tool:** Accepts two numeric parameters and returns their sum.
+- **MCP Prompt:** Provides predefined prompts (like "add_numbers") that allow AI models to infer tool usage.
 - **Env Var Retrieval:** Demonstrates how to load an example environment variable from the configuration file.
 - **Input Validation:** Uses [Zod](https://github.com/colinhacks/zod) for schema validation.
 - **Standard I/O Transport:** Connects via `StdioServerTransport` for integration with development environments.
@@ -238,22 +239,6 @@ Below is the configuration you need to add:
 - **env:** (Optional)  
   Defines environment variables for your MCP server process. In this example, the `API_KEY` is set to `"abc-1234567890"`. Adjust this value as needed for your environment.
 
-## Using the MCP Tool in Cursor (Agent Mode)
-
-With the MCP server integrated into Cursor IDE and with Agent mode enabled, simply use a natural language prompt like:
-
-```
-add 3 and 5
-```
-
-or
-
-```
-what is my API key?
-```
-
-The AI agent will infer the available `add` or `getApiKey` tool from your MCP server and execute it accordingly.
-
 ## Code Overview
 
 The project comprises the following key parts:
@@ -262,14 +247,73 @@ The project comprises the following key parts:
   The MCP server is instantiated using `McpServer` from the MCP SDK and connected via `StdioServerTransport`.
 
 - **Tool Definitions:**
+
   - **add:**  
     Defined with a Zod schema that accepts two numbers (`a` and `b`) and returns their sum as text.
   - **getApiKey:**  
     Retrieves the API key from the environment variable `API_KEY` and returns it as text.
 
-## What is MCP?
+- **Prompt Definition:**
+  - **add_numbers:**  
+    A predefined prompt that allows AI models to infer the usage of the addition tool.
 
-**Model Context Protocol (MCP)** provides a standardized approach to integrate custom tools into AI-assisted development environments. With MCP, you can define tools that perform specific tasks—such as retrieving external data, validating code, or enforcing coding standards—and the AI assistant in your IDE can call these tools automatically based on context. This helps improve developer productivity, ensures consistent quality, and streamlines workflows.
+**Important Note**: It's not required to have a prompt defined for a tool. The examples below demonstrate one of the capabilities of prompts, allowing the AI model to infer which tool to use based on your input. The AI can also use tools directly when it determines they're needed for a task.
+
+## Using the MCP Tool in Cursor (Agent Mode)
+
+With the MCP server integrated into Cursor IDE and with Agent mode enabled, you can use the tools in several ways:
+
+### Addition Tool Usage
+
+**Method 1: Natural Language Prompt**
+Simply use a natural language prompt like:
+
+```
+add 3 and 5
+```
+
+or
+
+```
+what is 7 plus 12?
+```
+
+**Method 2: Prompt-Based Tool Invocation**
+Type the following prompt in the chat:
+
+```
+/add_numbers
+```
+
+**Note**: The prompt name is "add_numbers" and you can invoke it by typing `/add_numbers` in the chat.
+
+When you press Enter after typing this prompt, Cursor will automatically:
+
+1. Recognize that you want to use the `add` tool from the Node Server
+2. Display a GUI prompt asking for the two number parameters
+3. The AI model will infer that it needs to use the `add` tool to calculate the result
+
+**Parameters for the Addition Tool:**
+
+- **Parameter `a`**: First number to add
+- **Parameter `b`**: Second number to add
+- **Returns**: The sum of the two numbers as text
+
+### API Key Tool Usage
+
+For the `getApiKey` tool, you can use:
+
+```
+what is my API key?
+```
+
+or
+
+```
+get my API key
+```
+
+The AI agent will automatically infer the appropriate tool to use based on your request.
 
 ## References & Resources
 
