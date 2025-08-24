@@ -257,7 +257,7 @@ The project comprises the following key parts:
   - **add_numbers:**  
     A predefined prompt that allows AI models to infer the usage of the addition tool.
 
-**Important Note**: It's not required to have a prompt defined for a tool. The examples below demonstrate one of the capabilities of prompts, allowing the AI model to infer which tool to use based on your input. The AI can also use tools directly when it determines they're needed for a task.
+**Important Note**: It's not required to have a prompt defined for a tool. This example just demonstrates one of the capabilities of prompts, allowing the AI model to infer which tool to use based on your input. The AI can also use tools directly when it determines they're needed for a task.
 
 ## Using the MCP Tool in Cursor (Agent Mode)
 
