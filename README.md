@@ -20,7 +20,7 @@ This project demonstrates an MCP server implemented in JavaScript using Node.js.
 
 - **MCP Integration:** Exposes tool functionality to LLM-based IDEs.
 - **Addition Tool:** Accepts two numeric parameters and returns their sum.
-- **MCP Prompt:** Provides predefined prompts (like "add_numbers") that allow AI models to infer tool usage.
+- **MCP Prompt:** Provides a predefined prompt ("add_numbers") that allow AI models to infer tool usage.
 - **Env Var Retrieval:** Demonstrates how to load an example environment variable from the configuration file.
 - **Input Validation:** Uses [Zod](https://github.com/colinhacks/zod) for schema validation.
 - **Standard I/O Transport:** Connects via `StdioServerTransport` for integration with development environments.
