@@ -4,7 +4,7 @@
 
 ## Build and run a custom MCP Server in Node.js in just 2 minutes ⏱️
 
-[Overview](#overview) · [Features](#features) · [Installation](#installation) · [Testing with MCP Inspector](#testing-with-mcp-inspector) · [Setting Environment Variables for Testing](#setting-environment-variables-for-testing) · [Integrating with Cursor AI](#integrating-with-cursor-ai) · [Using the MCP Tool in Cursor (Agent Mode)](#using-the-mcp-tool-in-cursor-agent-mode) · [Code Overview](#code-overview) · [What is MCP?](#what-is-mcp) · [References & Resources](#references--resources) · [License](#license)
+[Overview](#overview) · [Features](#features) · [Installation](#installation) · [Testing with MCP Inspector](#testing-with-mcp-inspector) · [Setting Environment Variables for Testing](#setting-environment-variables-for-testing) · [Integrating with Cursor AI](#integrating-with-cursor-ai) · [Using the MCP Tool in Cursor (Agent Mode)](#using-the-mcp-tool-in-cursor-agent-mode) · [Code Overview](#code-overview) · [References & Resources](#references--resources) · [License](#license)
 
 ## Overview
 
