@@ -184,7 +184,14 @@ server.tool(
             } {
               nodes {
                 id
+                badgeUrl
                 name
+                desc
+                color
+                isLeadership
+                createdAt
+                stateId
+                companyId
               }
             }
           }
