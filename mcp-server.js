@@ -7,17 +7,15 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 
+// Ensure Node 18+ for global fetch.
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const API_KEY_FILE = path.join(__dirname, ".api_key");
 
-// Function to manage the Success.co API key
-const getSuccessCoApiKey = () => {
-  // First check environment variable
-  if (process.env.SUCCESS_CO_API_KEY) {
-    return process.env.SUCCESS_CO_API_KEY;
-  }
+// --- Success.co API key management ------------------------------------------
 
-  // Then check for stored API key
+const getSuccessCoApiKey = () => {
+  if (process.env.SUCCESS_CO_API_KEY) return process.env.SUCCESS_CO_API_KEY;
   try {
     if (fs.existsSync(API_KEY_FILE)) {
       return fs.readFileSync(API_KEY_FILE, "utf8").trim();
@@ -25,11 +23,9 @@ const getSuccessCoApiKey = () => {
   } catch (error) {
     console.error("Error reading API key file:", error);
   }
-
   return null;
 };
 
-// Function to store the Success.co API key
 const storeSuccessCoApiKey = (apiKey) => {
   try {
     fs.writeFileSync(API_KEY_FILE, apiKey, "utf8");
@@ -40,43 +36,53 @@ const storeSuccessCoApiKey = (apiKey) => {
   }
 };
 
+// --- Small helper to call Success.co GraphQL --------------------------------
+
+async function callSuccessCoGraphQL(query) {
+  const apiKey = getSuccessCoApiKey();
+  if (!apiKey) {
+    return {
+      ok: false,
+      error:
+        "Success.co API key not set. Use the setSuccessCoApiKey tool first.",
+    };
+  }
+
+  const url = "https://www.success.co/graphql";
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ query }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    return {
+      ok: false,
+      error: `API request failed with status ${response.status}: ${errorText}`,
+    };
+  }
+
+  const data = await response.json();
+  if (data.errors) {
+    return {
+      ok: false,
+      error: `GraphQL errors: ${JSON.stringify(data.errors)}`,
+    };
+  }
+
+  return { ok: true, data };
+}
+
+// --- MCP server --------------------------------------------------------------
+
 const server = new McpServer({
   name: "Success.co MCP Server",
-  version: "0.0.1",
+  version: "0.0.3",
 });
-
-server.tool(
-  "add",
-  "Add two numbers",
-  {
-    a: z.number().describe("The first number"),
-    b: z.number().describe("The second number"),
-  },
-  async ({ a, b }) => ({
-    content: [{ type: "text", text: String(a + b) }],
-  })
-);
-
-server.tool(
-  "addx",
-  "Add two numbers",
-  {
-    a: z.number().describe("The first number"),
-    b: z.number().describe("The second number"),
-  },
-  async ({ a, b }) => ({
-    content: [{ type: "text", text: String(a + b) }],
-  })
-);
-
-server.tool("getApiKey", "Get the API key", {}, async ({}) => ({
-  content: [
-    {
-      type: "text",
-      text: process.env.API_KEY || "API_KEY environment variable not set",
-    },
-  ],
-}));
 
 // Tool to set the Success.co API key
 server.tool(
@@ -100,12 +106,12 @@ server.tool(
   }
 );
 
-// Tool to get the Success.co API key
+// Tool to get the Success.co API key (consistent with storage)
 server.tool(
   "getSuccessCoApiKey",
-  "Get the Success.co API key",
+  "Get the Success.co API key (env or stored file)",
   {},
-  async ({}) => {
+  async () => {
     const apiKey = getSuccessCoApiKey();
     return {
       content: [
@@ -118,7 +124,247 @@ server.tool(
   }
 );
 
-// Register the Success.co teams as a resource
+// ---------- Teams tool (kept) -----------------------------------------------
+
+server.tool(
+  "getTeams",
+  "List Success.co teams v2",
+  {
+    first: z.number().int().optional().describe("Optional page size"),
+    offset: z.number().int().optional().describe("Optional offset"),
+  },
+  async ({ first, offset }) => {
+    const args =
+      first !== undefined || offset !== undefined
+        ? `(${[
+            first !== undefined ? `first: ${first}` : "",
+            offset !== undefined ? `offset: ${offset}` : "",
+          ]
+            .filter(Boolean)
+            .join(", ")})`
+        : "";
+
+    const query = `
+      query {
+        teams${args} {
+          nodes {
+            id
+            badgeUrl
+            name
+            desc
+            color
+            isLeadership
+            createdAt
+            stateId
+            companyId
+          }
+          totalCount
+        }
+      }
+    `;
+
+    const result = await callSuccessCoGraphQL(query);
+    if (!result.ok) {
+      return { content: [{ type: "text", text: result.error }] };
+    }
+
+    const data = result.data;
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify({
+            totalCount: data.data.teams.totalCount,
+            results: data.data.teams.nodes.map((team) => ({
+              id: team.id,
+              title: team.name,
+              description: team.desc || "",
+              color: team.color,
+              status: team.stateId,
+            })),
+          }),
+        },
+      ],
+    };
+  }
+);
+
+// ---------- NEW: `search` tool for natural queries like “List my teams” ------
+
+// --- Replace your existing `search` and `fetch` with these -------------------
+
+// SEARCH: natural language -> list of hits with ids
+server.tool(
+  "search",
+  "Search Success.co data (supports: teams).",
+  {
+    query: z.string().describe("What to look up, e.g., 'list my teams'"),
+  },
+  async ({ query }) => {
+    const q = (query || "").toLowerCase();
+    const wantsTeams =
+      /\b(team|teams|my team|my teams)\b/.test(q) ||
+      /list.*team/.test(q) ||
+      /show.*team/.test(q);
+
+    if (!wantsTeams) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: "I currently only support team search. Try: 'List my teams'.",
+          },
+        ],
+      };
+    }
+
+    const gql = `
+      query {
+        teams {
+          nodes {
+            id
+            name
+            desc
+          }
+          totalCount
+        }
+      }
+    `;
+    const result = await callSuccessCoGraphQL(gql);
+    if (!result.ok) return { content: [{ type: "text", text: result.error }] };
+
+    const { data } = result;
+    const hits = (data?.data?.teams?.nodes || []).map((t) => ({
+      id: String(t.id), // REQUIRED by ChatGPT's fetch contract
+      title: t.name ?? String(t.id),
+      snippet: t.desc || "",
+      // optional extras are fine, but keep required ones present
+    }));
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify({
+            kind: "teams",
+            totalCount: data?.data?.teams?.totalCount ?? hits.length,
+            hits,
+          }),
+        },
+      ],
+    };
+  }
+);
+
+// FETCH: fetch the full item by id (REQUIRED: id)
+server.tool(
+  "fetch",
+  "Fetch a single Success.co item by id returned from search.",
+  {
+    id: z.string().describe("The id from a previous search hit."),
+  },
+  async ({ id }) => {
+    // Accept both raw ids like "123" and URIs like "success-co://teams/123"
+    const match = /^success-co:\/\/teams\/(.+)$/.exec(id);
+    const teamId = match ? match[1] : id;
+
+    // If Success.co GraphQL supports a 'team(id: ...)' query, use it:
+    const gql = `
+      query ($id: ID!) {
+        team(id: $id) {
+          id
+          name
+          desc
+          badgeUrl
+          color
+          isLeadership
+          createdAt
+          stateId
+          companyId
+        }
+      }
+    `;
+
+    // Some Success.co deployments use only GET-by-list; if your endpoint
+    // doesn't support team(id:), you can emulate by filtering from teams{}.
+    // Prefer the direct form above if it's available.
+
+    const apiKey = getSuccessCoApiKey();
+    if (!apiKey) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: "Success.co API key not set. Use setSuccessCoApiKey first.",
+          },
+        ],
+      };
+    }
+
+    const url = "https://www.success.co/graphql";
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ query: gql, variables: { id: teamId } }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      return {
+        content: [
+          {
+            type: "text",
+            text: `API request failed with status ${response.status}: ${errorText}`,
+          },
+        ],
+      };
+    }
+
+    const data = await response.json();
+    if (data.errors) {
+      // Fallback: if single-item query isn't supported, try list+filter:
+      // (Uncomment this block if your schema lacks team(id:))
+      // const listQuery = `
+      //   query {
+      //     teams {
+      //       nodes { id name desc badgeUrl color isLeadership createdAt stateId companyId }
+      //     }
+      //   }
+      // `;
+      // const listRes = await callSuccessCoGraphQL(listQuery);
+      // if (!listRes.ok) return { content: [{ type: "text", text: listRes.error }] };
+      // const item = (listRes.data?.data?.teams?.nodes || []).find(n => String(n.id) === String(teamId));
+      // if (!item) return { content: [{ type: "text", text: `No team found for id ${teamId}` }] };
+      // return { content: [{ type: "text", text: JSON.stringify(item) }] };
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: `GraphQL errors: ${JSON.stringify(data.errors)}`,
+          },
+        ],
+      };
+    }
+
+    const item = data?.data?.team;
+    if (!item) {
+      return {
+        content: [{ type: "text", text: `No team found for id ${teamId}` }],
+      };
+    }
+
+    return {
+      content: [{ type: "text", text: JSON.stringify(item) }],
+    };
+  }
+);
+
+// ---------- Resource (kept) --------------------------------------------------
+
 server.registerResource(
   "Get teams",
   "success-co://teams",
@@ -137,10 +383,8 @@ server.registerResource(
     }
 
     try {
-      // GraphQL endpoint
       const url = "https://www.success.co/graphql";
 
-      // Parse URI parameters if any
       const searchParams = new URLSearchParams(uri.search);
       const first = searchParams.get("first")
         ? parseInt(searchParams.get("first"))
@@ -149,19 +393,19 @@ server.registerResource(
         ? parseInt(searchParams.get("offset"))
         : undefined;
 
-      // Construct the GraphQL query with optional pagination
-      let query = `
+      const args =
+        first !== undefined || offset !== undefined
+          ? `(${[
+              first !== undefined ? `first: ${first}` : "",
+              offset !== undefined ? `offset: ${offset}` : "",
+            ]
+              .filter(Boolean)
+              .join(", ")})`
+          : "";
+
+      const query = `
         query {
-          teams${
-            first || offset
-              ? `(${[
-                  first ? `first: ${first}` : "",
-                  offset ? `offset: ${offset}` : "",
-                ]
-                  .filter(Boolean)
-                  .join(", ")})`
-              : ""
-          } {
+          teams${args} {
             nodes {
               id
               badgeUrl
@@ -178,16 +422,13 @@ server.registerResource(
         }
       `;
 
-      // Make the GraphQL request to the Success.co API
       const response = await fetch(url, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${apiKey}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          query: query,
-        }),
+        body: JSON.stringify({ query }),
       });
 
       if (!response.ok) {
@@ -199,12 +440,10 @@ server.registerResource(
 
       const data = await response.json();
 
-      // Check for GraphQL errors
       if (data.errors) {
         throw new Error(`GraphQL errors: ${JSON.stringify(data.errors)}`);
       }
 
-      // Return the teams data in the correct format for resources
       return {
         contents: data.data.teams.nodes.map((team) => ({
           uri: `success-co://teams/${team.id}`,
@@ -218,6 +457,8 @@ server.registerResource(
   }
 );
 
+// --- HTTP transports ---------------------------------------------------------
+
 const app = express();
 app.use(express.json());
 
@@ -229,14 +470,36 @@ const transports = {
 
 // Modern Streamable HTTP endpoint
 app.all("/mcp", async (req, res) => {
-  // Handle Streamable HTTP transport for modern clients
-  // Implementation as shown in the "With Session Management" example
-  // ...
+  let key = req.query.sessionId ? String(req.query.sessionId) : null;
+
+  // If no key, create a new transport and remember it under its own sessionId
+  if (!key) {
+    const transport = new StreamableHTTPServerTransport();
+    transports.streamable[transport.sessionId] = transport;
+    await server.connect(transport);
+    key = transport.sessionId; // <-- important: use this for the rest of the request
+    // You can expose the session id back to the client in a header:
+    res.setHeader("x-mcp-session-id", key);
+  }
+
+  // Now we must have a key
+  const transport = transports.streamable[key];
+  if (!transport) {
+    res.status(400).send("No transport found for sessionId");
+    return;
+  }
+
+  try {
+    await transport.handleRequest(req, res);
+  } finally {
+    if (transport.isComplete) {
+      delete transports.streamable[transport.sessionId];
+    }
+  }
 });
 
 // Legacy SSE endpoint for older clients
 app.get("/sse", async (req, res) => {
-  // Create SSE transport for legacy clients
   const transport = new SSEServerTransport("/messages", res);
   transports.sse[transport.sessionId] = transport;
 
@@ -249,7 +512,7 @@ app.get("/sse", async (req, res) => {
 
 // Legacy message endpoint for older clients
 app.post("/messages", async (req, res) => {
-  const sessionId = req.query.sessionId;
+  const sessionId = String(req.query.sessionId || "");
   const transport = transports.sse[sessionId];
   if (transport) {
     await transport.handlePostMessage(req, res, req.body);
@@ -258,4 +521,5 @@ app.post("/messages", async (req, res) => {
   }
 });
 
+console.log("Server is running on port 3001");
 app.listen(3001);
