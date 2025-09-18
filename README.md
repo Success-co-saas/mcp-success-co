@@ -357,7 +357,8 @@ The tool uses GraphQL to fetch team data with the following query structure:
 
 ```graphql
 query {
-  teams {
+  teams(first: 10) {
+    # Example with pagination
     nodes {
       id
       badgeUrl

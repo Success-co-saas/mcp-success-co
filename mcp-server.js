@@ -148,7 +148,10 @@ server.tool(
   "getSuccessCoTeams",
   "Get a list of teams from the Success.co API",
   {
-    limit: z.number().optional().describe("Limit the number of teams returned"),
+    limit: z
+      .number()
+      .optional()
+      .describe("First N teams to return (GraphQL 'first' parameter)"),
     offset: z.number().optional().describe("Offset for pagination"),
   },
   async ({ limit, offset }) => {
@@ -175,7 +178,7 @@ server.tool(
             teams${
               limit || offset
                 ? `(${[
-                    limit ? `limit: ${limit}` : "",
+                    limit ? `first: ${limit}` : "",
                     offset ? `offset: ${offset}` : "",
                   ]
                     .filter(Boolean)
@@ -193,6 +196,7 @@ server.tool(
                 stateId
                 companyId
               }
+              totalCount
             }
           }
         `;
