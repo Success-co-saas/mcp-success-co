@@ -2,9 +2,11 @@
   "type": "module",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.7.0",
+    "express": "^5.1.0",
     "zod": "^3.24.2"
   },
   "scripts": {
-    "inspector": "npx @modelcontextprotocol/inspector node ./mcp-server.js"
+    "inspector": "npx @modelcontextprotocol/inspector node ./mcp-server.js",
+    "start": "node ./mcp-server.js"
   }
 }
