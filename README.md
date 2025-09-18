@@ -22,6 +22,7 @@ This project demonstrates an MCP server implemented in JavaScript using Node.js.
 - **Addition Tool:** Accepts two numeric parameters and returns their sum.
 - **MCP Prompt:** Provides a predefined prompt ("add_numbers") that allow AI models to infer tool usage.
 - **Success.co GraphQL API Integration:** Connects to the Success.co GraphQL API to retrieve team data.
+- **Resource Support:** Provides a teams resource for direct data access.
 - **API Key Management:** Securely stores and retrieves the Success.co API key.
 - **Env Var Retrieval:** Demonstrates how to load an example environment variable from the configuration file.
 - **Input Validation:** Uses [Zod](https://github.com/colinhacks/zod) for schema validation.
@@ -267,6 +268,11 @@ The project comprises the following key parts:
   - **getSuccessCoTeams:**  
     Fetches a list of teams from the Success.co GraphQL API with optional pagination parameters. Uses GraphQL to query team data with the proper nodes structure.
 
+- **Resource Definitions:**
+
+  - **successco_teams:**  
+    Provides direct access to teams data from the Success.co GraphQL API. Supports pagination with `first` and `offset` parameters.
+
 - **Prompt Definition:**
   - **add_numbers:**  
     A predefined prompt that allows AI models to infer the usage of the addition tool.
@@ -341,7 +347,7 @@ set my Success.co API key to "your-api-key-here"
 what is my Success.co API key?
 ```
 
-**Getting Teams via GraphQL:**
+**Getting Teams via GraphQL (Tool):**
 
 ```
 get teams from Success.co
@@ -353,7 +359,15 @@ or with pagination:
 get the first 10 teams from Success.co
 ```
 
-The tool uses GraphQL to fetch team data with the following query structure:
+**Accessing Teams Resource:**
+
+The teams resource can be accessed directly by the AI when it needs to retrieve team data. This is more efficient than using the tool when the AI needs to work with the data directly.
+
+```
+I need information about the teams at Success.co
+```
+
+The GraphQL query structure used by both the tool and resource:
 
 ```graphql
 query {
@@ -370,6 +384,7 @@ query {
       stateId
       companyId
     }
+    totalCount
   }
 }
 ```

@@ -67,33 +67,6 @@ server.tool(
   })
 );
 
-server.prompt(
-  "add_numbers",
-  "Given two numbers, add them together to find their sum",
-  {
-    a: z.string().describe("The first number"),
-    b: z.string().describe("The second number"),
-  },
-  async ({ a, b }) => ({
-    messages: [
-      {
-        role: "assistant",
-        content: {
-          type: "text",
-          text: "You are a math assistant.",
-        },
-      },
-      {
-        role: "user",
-        content: {
-          type: "text",
-          text: `The numbers are: ${a} and ${b}`,
-        },
-      },
-    ],
-  })
-);
-
 server.tool("getApiKey", "Get the API key", {}, async ({}) => ({
   content: [
     {
@@ -143,63 +116,65 @@ server.tool(
   }
 );
 
-// Tool to get teams from the Success.co API using GraphQL
-server.tool(
-  "getSuccessCoTeams",
-  "Get a list of teams from the Success.co API",
+// Register the Success.co teams as a resource
+server.registerResource(
+  "Get teams",
+  "success-co://teams",
   {
-    limit: z
-      .number()
-      .optional()
-      .describe("First N teams to return (GraphQL 'first' parameter)"),
-    offset: z.number().optional().describe("Offset for pagination"),
+    title: "List teams",
+    description: "List of all teams setup on Success.co",
+    mimeType: "application/json",
   },
-  async ({ limit, offset }) => {
+  async (uri) => {
     const apiKey = getSuccessCoApiKey();
 
     if (!apiKey) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: "Success.co API key not set. Please set it using the setSuccessCoApiKey tool.",
-          },
-        ],
-      };
+      throw new Error(
+        "Success.co API key not set. Please set it using the setSuccessCoApiKey tool."
+      );
     }
 
     try {
       // GraphQL endpoint
       const url = "https://www.success.co/graphql";
 
+      // Parse URI parameters if any
+      const searchParams = new URLSearchParams(uri.search);
+      const first = searchParams.get("first")
+        ? parseInt(searchParams.get("first"))
+        : undefined;
+      const offset = searchParams.get("offset")
+        ? parseInt(searchParams.get("offset"))
+        : undefined;
+
       // Construct the GraphQL query with optional pagination
       let query = `
-          query {
-            teams${
-              limit || offset
-                ? `(${[
-                    limit ? `first: ${limit}` : "",
-                    offset ? `offset: ${offset}` : "",
-                  ]
-                    .filter(Boolean)
-                    .join(", ")})`
-                : ""
-            } {
-              nodes {
-                id
-                badgeUrl
-                name
-                desc
-                color
-                isLeadership
-                createdAt
-                stateId
-                companyId
-              }
-              totalCount
+        query {
+          teams${
+            first || offset
+              ? `(${[
+                  first ? `first: ${first}` : "",
+                  offset ? `offset: ${offset}` : "",
+                ]
+                  .filter(Boolean)
+                  .join(", ")})`
+              : ""
+          } {
+            nodes {
+              id
+              badgeUrl
+              name
+              desc
+              color
+              isLeadership
+              createdAt
+              stateId
+              companyId
             }
+            totalCount
           }
-        `;
+        }
+      `;
 
       // Make the GraphQL request to the Success.co API
       const response = await fetch(url, {
@@ -227,23 +202,16 @@ server.tool(
         throw new Error(`GraphQL errors: ${JSON.stringify(data.errors)}`);
       }
 
+      // Return the teams data in the correct format for resources
       return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify(data.data, null, 2),
-          },
-        ],
+        contents: data.data.teams.nodes.map((team) => ({
+          uri: `success-co://teams/${team.id}`,
+          text: JSON.stringify(team),
+        })),
+        totalCount: data.data.teams.totalCount,
       };
     } catch (error) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error fetching teams: ${error.message}`,
-          },
-        ],
-      };
+      throw new Error(`Error fetching teams: ${error.message}`);
     }
   }
 );
