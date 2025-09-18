@@ -21,6 +21,8 @@ This project demonstrates an MCP server implemented in JavaScript using Node.js.
 - **MCP Integration:** Exposes tool functionality to LLM-based IDEs.
 - **Addition Tool:** Accepts two numeric parameters and returns their sum.
 - **MCP Prompt:** Provides a predefined prompt ("add_numbers") that allow AI models to infer tool usage.
+- **Success.co GraphQL API Integration:** Connects to the Success.co GraphQL API to retrieve team data.
+- **API Key Management:** Securely stores and retrieves the Success.co API key.
 - **Env Var Retrieval:** Demonstrates how to load an example environment variable from the configuration file.
 - **Input Validation:** Uses [Zod](https://github.com/colinhacks/zod) for schema validation.
 - **Standard I/O Transport:** Connects via `StdioServerTransport` for integration with development environments.
@@ -90,17 +92,18 @@ http://localhost:6274/
 
 ## Setting Environment Variables for Testing
 
-To test the `getApiKey` tool with different API keys, you can set environment variables before running the inspector:
+To test the API key tools with different keys, you can set environment variables before running the inspector:
 
 **Linux/macOS (Bash/Zsh):**
 
 ```bash
 # Temporary (current session only)
 export API_KEY="your-test-key"
+export SUCCESS_CO_API_KEY="your-success-co-api-key"
 npm run inspector
 
 # Or set for single command
-API_KEY="your-test-key" npm run inspector
+API_KEY="your-test-key" SUCCESS_CO_API_KEY="your-success-co-api-key" npm run inspector
 ```
 
 **Windows (Command Prompt):**
@@ -108,6 +111,7 @@ API_KEY="your-test-key" npm run inspector
 ```cmd
 # Set for current session
 set API_KEY=your-test-key
+set SUCCESS_CO_API_KEY=your-success-co-api-key
 npm run inspector
 ```
 
@@ -116,10 +120,11 @@ npm run inspector
 ```powershell
 # Set for current session
 $env:API_KEY="your-test-key"
+$env:SUCCESS_CO_API_KEY="your-success-co-api-key"
 npm run inspector
 
 # Or set for single command
-$env:API_KEY="your-test-key"; npm run inspector
+$env:API_KEY="your-test-key"; $env:SUCCESS_CO_API_KEY="your-success-co-api-key"; npm run inspector
 ```
 
 ## Integrating with Cursor AI
@@ -147,7 +152,8 @@ Below is the configuration you need to add:
     "command": "node",
     "args": ["/home/john/mcp-server-node/mcp-server.js"],
     "env": {
-      "API_KEY": "abc-1234567890"
+      "API_KEY": "abc-1234567890",
+      "SUCCESS_CO_API_KEY": "your-success-co-api-key"
     }
   }
 }
@@ -161,7 +167,8 @@ Below is the configuration you need to add:
     "command": "node",
     "args": ["C:\\Users\\john\\mcp-server-node\\mcp-server.js"],
     "env": {
-      "API_KEY": "abc-1234567890"
+      "API_KEY": "abc-1234567890",
+      "SUCCESS_CO_API_KEY": "your-success-co-api-key"
     }
   }
 }
@@ -180,7 +187,8 @@ Below is the configuration you need to add:
       "command": "node",
       "args": ["/home/john/mcp-server-node/mcp-server.js"],
       "env": {
-        "API_KEY": "abc-1234567890"
+        "API_KEY": "abc-1234567890",
+        "SUCCESS_CO_API_KEY": "your-success-co-api-key"
       }
     }
   }
@@ -237,7 +245,7 @@ Below is the configuration you need to add:
   ```
 
 - **env:** (Optional)  
-  Defines environment variables for your MCP server process. In this example, the `API_KEY` is set to `"abc-1234567890"`. Adjust this value as needed for your environment.
+  Defines environment variables for your MCP server process. In this example, the `API_KEY` is set to `"abc-1234567890"` and `SUCCESS_CO_API_KEY` is set to `"your-success-co-api-key"`. Adjust these values as needed for your environment.
 
 ## Code Overview
 
@@ -252,6 +260,12 @@ The project comprises the following key parts:
     Defined with a Zod schema that accepts two numbers (`a` and `b`) and returns their sum as text.
   - **getApiKey:**  
     Retrieves the API key from the environment variable `API_KEY` and returns it as text.
+  - **setSuccessCoApiKey:**  
+    Stores the Success.co API key securely for future use.
+  - **getSuccessCoApiKey:**  
+    Retrieves the stored Success.co API key.
+  - **getSuccessCoTeams:**  
+    Fetches a list of teams from the Success.co GraphQL API with optional pagination parameters. Uses GraphQL to query team data with the proper nodes structure.
 
 - **Prompt Definition:**
   - **add_numbers:**  
@@ -311,6 +325,47 @@ or
 get my API key
 ```
 
+### Success.co API Tools Usage
+
+For the Success.co API tools, you can use:
+
+**Setting the API Key:**
+
+```
+set my Success.co API key to "your-api-key-here"
+```
+
+**Getting the API Key:**
+
+```
+what is my Success.co API key?
+```
+
+**Getting Teams via GraphQL:**
+
+```
+get teams from Success.co
+```
+
+or with pagination:
+
+```
+get the first 10 teams from Success.co
+```
+
+The tool uses GraphQL to fetch team data with the following query structure:
+
+```graphql
+query {
+  teams {
+    nodes {
+      id
+      name
+    }
+  }
+}
+```
+
 The AI agent will automatically infer the appropriate tool to use based on your request.
 
 ## References & Resources
@@ -318,6 +373,7 @@ The AI agent will automatically infer the appropriate tool to use based on your 
 - [Model Context Protocol: typescript-sdk](https://github.com/modelcontextprotocol/typescript-sdk)
 - [Use Your Own MCP on Cursor in 5 Minutes](https://dev.to/andyrewlee/use-your-own-mcp-on-cursor-in-5-minutes-1ag4)
 - [Model Context Protocol Introduction](https://modelcontextprotocol.io/introduction)
+- [Success.co API Documentation](https://coda.io/@successco/success-co-api)
 
 ## License
 
