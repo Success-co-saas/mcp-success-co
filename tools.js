@@ -405,3 +405,78 @@ export async function getMeetings(args) {
     ],
   };
 }
+
+/**
+ * List Success.co issues
+ * @param {Object} args - Arguments object
+ * @param {number} [args.first] - Optional page size
+ * @param {number} [args.offset] - Optional offset
+ * @returns {Promise<{content: Array<{type: string, text: string}>}>}
+ */
+export async function getIssues(args) {
+  const { first, offset } = args;
+  const argsStr =
+    first !== undefined || offset !== undefined
+      ? `(${[
+          first !== undefined ? `first: ${first}` : "",
+          offset !== undefined ? `offset: ${offset}` : "",
+        ]
+          .filter(Boolean)
+          .join(", ")})`
+      : "";
+
+  const query = `
+    query {
+      issues${argsStr} {
+        nodes {
+          id
+          issueStatusId
+          name
+          desc
+          teamId
+          userId
+          type
+          priorityNo
+          priorityOrder
+          statusUpdatedAt
+          meetingId
+          createdAt
+          stateId
+          companyId
+        }
+        totalCount
+      }
+    }
+  `;
+
+  const result = await callSuccessCoGraphQL(query);
+  if (!result.ok) {
+    return { content: [{ type: "text", text: result.error }] };
+  }
+
+  const data = result.data;
+  return {
+    content: [
+      {
+        type: "text",
+        text: JSON.stringify({
+          totalCount: data.data.issues.totalCount,
+          results: data.data.issues.nodes.map((issue) => ({
+            id: issue.id,
+            name: issue.name,
+            description: issue.desc || "",
+            status: issue.issueStatusId,
+            type: issue.type,
+            priority: issue.priorityNo,
+            priorityOrder: issue.priorityOrder,
+            teamId: issue.teamId,
+            userId: issue.userId,
+            meetingId: issue.meetingId,
+            createdAt: issue.createdAt,
+            statusUpdatedAt: issue.statusUpdatedAt,
+          })),
+        }),
+      },
+    ],
+  };
+}
