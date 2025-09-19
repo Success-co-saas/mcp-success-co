@@ -2059,52 +2059,1468 @@ server.registerResource(
 const app = express();
 app.use(express.json());
 
+// Add CORS middleware for cross-origin requests
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+  res.header(
+    "Access-Control-Allow-Headers",
+    "Origin, X-Requested-With, Content-Type, Accept, Authorization, x-mcp-session-id"
+  );
+
+  // Handle preflight requests
+  if (req.method === "OPTIONS") {
+    res.sendStatus(200);
+    return;
+  }
+
+  next();
+});
+
+// Add authentication middleware for MCP endpoints
+app.use("/mcp", (req, res, next) => {
+  const authHeader = req.headers.authorization;
+
+  // Log authentication attempts
+  if (authHeader) {
+    console.error(`[AUTH] Authorization header: "${authHeader}"`);
+  }
+
+  // For now, allow all requests to pass through
+  // In production, you might want to validate the token
+  next();
+});
+
 // Store transports for each session type
 const transports = {
   streamable: {},
   sse: {},
 };
 
-// Modern Streamable HTTP endpoint
+// Health check endpoint
+app.get("/health", (req, res) => {
+  res.json({
+    status: "healthy",
+    transports: {
+      streamable: Object.keys(transports.streamable).length,
+      sse: Object.keys(transports.sse).length,
+    },
+    timestamp: new Date().toISOString(),
+  });
+});
+
+// Note: We'll create transport instances per request instead of a global one
+// This avoids the "Server already initialized" error
+
+// Helper function to create a fresh MCP server with all tools
+function createFreshMcpServer() {
+  const freshServer = new McpServer({
+    name: "Success.co MCP Server",
+    version: "0.0.3",
+  });
+
+  // Add all tools to the fresh server
+  // Tool to set the Success.co API key
+  freshServer.tool(
+    "setSuccessCoApiKey",
+    "Set the Success.co API key",
+    {
+      apiKey: z.string().describe("The API key for Success.co"),
+    },
+    async ({ apiKey }) => {
+      const stored = storeSuccessCoApiKey(apiKey);
+      return {
+        content: [
+          {
+            type: "text",
+            text: stored
+              ? "Success.co API key stored successfully"
+              : "Failed to store Success.co API key",
+          },
+        ],
+      };
+    }
+  );
+
+  // Tool to get the Success.co API key
+  freshServer.tool(
+    "getSuccessCoApiKey",
+    "Get the Success.co API key (env or stored file)",
+    {},
+    async () => {
+      const apiKey = getSuccessCoApiKey();
+      return {
+        content: [
+          {
+            type: "text",
+            text: apiKey || "Success.co API key not set",
+          },
+        ],
+      };
+    }
+  );
+
+  // Add all tools from the main server
+  // Teams tool
+  freshServer.tool(
+    "getTeams",
+    "List Success.co teams",
+    {
+      first: z.number().int().optional().describe("Optional page size"),
+      offset: z.number().int().optional().describe("Optional offset"),
+    },
+    async ({ first, offset }) => {
+      const args =
+        first !== undefined || offset !== undefined
+          ? `(${[
+              first !== undefined ? `first: ${first}` : "",
+              offset !== undefined ? `offset: ${offset}` : "",
+            ]
+              .filter(Boolean)
+              .join(", ")})`
+          : "";
+
+      const query = `
+        query {
+          teams${args} {
+            nodes {
+              id
+              badgeUrl
+              name
+              desc
+              color
+              isLeadership
+              createdAt
+              stateId
+              companyId
+            }
+            totalCount
+          }
+        }
+      `;
+
+      const result = await callSuccessCoGraphQL(query);
+      if (!result.ok) {
+        return { content: [{ type: "text", text: result.error }] };
+      }
+
+      const data = result.data;
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              totalCount: data.data.teams.totalCount,
+              results: data.data.teams.nodes.map((team) => ({
+                id: team.id,
+                title: team.name,
+                description: team.desc || "",
+                color: team.color,
+                status: team.stateId,
+              })),
+            }),
+          },
+        ],
+      };
+    }
+  );
+
+  // Users tool
+  freshServer.tool(
+    "getUsers",
+    "List Success.co users",
+    {
+      first: z.number().int().optional().describe("Optional page size"),
+      offset: z.number().int().optional().describe("Optional offset"),
+    },
+    async ({ first, offset }) => {
+      const args =
+        first !== undefined || offset !== undefined
+          ? `(${[
+              first !== undefined ? `first: ${first}` : "",
+              offset !== undefined ? `offset: ${offset}` : "",
+            ]
+              .filter(Boolean)
+              .join(", ")})`
+          : "";
+
+      const query = `
+        query {
+          users${args} {
+            nodes {
+              id
+              userName
+              firstName
+              lastName
+              jobTitle
+              desc
+              avatar
+              email
+              userPermissionId
+              userStatusId
+              languageId
+              timeZone
+              companyId
+            }
+            totalCount
+          }
+        }
+      `;
+
+      const result = await callSuccessCoGraphQL(query);
+      if (!result.ok) {
+        return { content: [{ type: "text", text: result.error }] };
+      }
+
+      const data = result.data;
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              totalCount: data.data.users.totalCount,
+              results: data.data.users.nodes.map((user) => ({
+                id: user.id,
+                name: `${user.firstName} ${user.lastName}`,
+                email: user.email,
+                jobTitle: user.jobTitle || "",
+                description: user.desc || "",
+                userName: user.userName || "",
+                avatar: user.avatar || "",
+                status: user.userStatusId,
+                language: user.languageId,
+                timeZone: user.timeZone,
+              })),
+            }),
+          },
+        ],
+      };
+    }
+  );
+
+  // Todos tool
+  freshServer.tool(
+    "getTodos",
+    "List Success.co todos",
+    {
+      first: z.number().int().optional().describe("Optional page size"),
+      offset: z.number().int().optional().describe("Optional offset"),
+    },
+    async ({ first, offset }) => {
+      const args =
+        first !== undefined || offset !== undefined
+          ? `(${[
+              first !== undefined ? `first: ${first}` : "",
+              offset !== undefined ? `offset: ${offset}` : "",
+            ]
+              .filter(Boolean)
+              .join(", ")})`
+          : "";
+
+      const query = `
+        query {
+          todos${args} {
+            nodes {
+              id
+              todoStatusId
+              name
+              desc
+              teamId
+              userId
+              statusUpdatedAt
+              type
+              dueDate
+              priorityNo
+              createdAt
+              stateId
+              companyId
+              meetingId
+            }
+            totalCount
+          }
+        }
+      `;
+
+      const result = await callSuccessCoGraphQL(query);
+      if (!result.ok) {
+        return { content: [{ type: "text", text: result.error }] };
+      }
+
+      const data = result.data;
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              totalCount: data.data.todos.totalCount,
+              results: data.data.todos.nodes.map((todo) => ({
+                id: todo.id,
+                name: todo.name,
+                description: todo.desc || "",
+                status: todo.todoStatusId,
+                type: todo.type,
+                priority: todo.priorityNo,
+                dueDate: todo.dueDate,
+                teamId: todo.teamId,
+                userId: todo.userId,
+                meetingId: todo.meetingId,
+                createdAt: todo.createdAt,
+                statusUpdatedAt: todo.statusUpdatedAt,
+              })),
+            }),
+          },
+        ],
+      };
+    }
+  );
+
+  // Rocks tool
+  freshServer.tool(
+    "getRocks",
+    "List Success.co rocks",
+    {
+      first: z.number().int().optional().describe("Optional page size"),
+      offset: z.number().int().optional().describe("Optional offset"),
+    },
+    async ({ first, offset }) => {
+      const args =
+        first !== undefined || offset !== undefined
+          ? `(${[
+              first !== undefined ? `first: ${first}` : "",
+              offset !== undefined ? `offset: ${offset}` : "",
+            ]
+              .filter(Boolean)
+              .join(", ")})`
+          : "";
+
+      const query = `
+        query {
+          rocks${args} {
+            nodes {
+              id
+              rockStatusId
+              name
+              desc
+              statusUpdatedAt
+              type
+              dueDate
+              createdAt
+              stateId
+              companyId
+            }
+            totalCount
+          }
+        }
+      `;
+
+      const result = await callSuccessCoGraphQL(query);
+      if (!result.ok) {
+        return { content: [{ type: "text", text: result.error }] };
+      }
+
+      const data = result.data;
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              totalCount: data.data.rocks.totalCount,
+              results: data.data.rocks.nodes.map((rock) => ({
+                id: rock.id,
+                name: rock.name,
+                description: rock.desc || "",
+                status: rock.rockStatusId,
+                type: rock.type,
+                dueDate: rock.dueDate,
+                createdAt: rock.createdAt,
+                statusUpdatedAt: rock.statusUpdatedAt,
+              })),
+            }),
+          },
+        ],
+      };
+    }
+  );
+
+  // Meetings tool
+  freshServer.tool(
+    "getMeetings",
+    "List Success.co meetings",
+    {
+      first: z.number().int().optional().describe("Optional page size"),
+      offset: z.number().int().optional().describe("Optional offset"),
+    },
+    async ({ first, offset }) => {
+      const args =
+        first !== undefined || offset !== undefined
+          ? `(${[
+              first !== undefined ? `first: ${first}` : "",
+              offset !== undefined ? `offset: ${offset}` : "",
+            ]
+              .filter(Boolean)
+              .join(", ")})`
+          : "";
+
+      const query = `
+        query {
+          meetings${args} {
+            nodes {
+              id
+              meetingInfoId
+              date
+              startTime
+              endTime
+              averageRating
+              meetingStatusId
+              createdAt
+              stateId
+              companyId
+            }
+            totalCount
+          }
+        }
+      `;
+
+      const result = await callSuccessCoGraphQL(query);
+      if (!result.ok) {
+        return { content: [{ type: "text", text: result.error }] };
+      }
+
+      const data = result.data;
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              totalCount: data.data.meetings.totalCount,
+              results: data.data.meetings.nodes.map((meeting) => ({
+                id: meeting.id,
+                meetingInfoId: meeting.meetingInfoId,
+                date: meeting.date,
+                startTime: meeting.startTime,
+                endTime: meeting.endTime,
+                averageRating: meeting.averageRating,
+                status: meeting.meetingStatusId,
+                createdAt: meeting.createdAt,
+              })),
+            }),
+          },
+        ],
+      };
+    }
+  );
+
+  // Issues tool
+  freshServer.tool(
+    "getIssues",
+    "List Success.co issues",
+    {
+      first: z.number().int().optional().describe("Optional page size"),
+      offset: z.number().int().optional().describe("Optional offset"),
+    },
+    async ({ first, offset }) => {
+      const args =
+        first !== undefined || offset !== undefined
+          ? `(${[
+              first !== undefined ? `first: ${first}` : "",
+              offset !== undefined ? `offset: ${offset}` : "",
+            ]
+              .filter(Boolean)
+              .join(", ")})`
+          : "";
+
+      const query = `
+        query {
+          issues${args} {
+            nodes {
+              id
+              issueStatusId
+              name
+              desc
+              teamId
+              userId
+              type
+              priorityNo
+              priorityOrder
+              statusUpdatedAt
+              meetingId
+              createdAt
+              stateId
+              companyId
+            }
+            totalCount
+          }
+        }
+      `;
+
+      const result = await callSuccessCoGraphQL(query);
+      if (!result.ok) {
+        return { content: [{ type: "text", text: result.error }] };
+      }
+
+      const data = result.data;
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              totalCount: data.data.issues.totalCount,
+              results: data.data.issues.nodes.map((issue) => ({
+                id: issue.id,
+                name: issue.name,
+                description: issue.desc || "",
+                status: issue.issueStatusId,
+                type: issue.type,
+                priority: issue.priorityNo,
+                priorityOrder: issue.priorityOrder,
+                teamId: issue.teamId,
+                userId: issue.userId,
+                meetingId: issue.meetingId,
+                createdAt: issue.createdAt,
+                statusUpdatedAt: issue.statusUpdatedAt,
+              })),
+            }),
+          },
+        ],
+      };
+    }
+  );
+
+  // Headlines tool
+  freshServer.tool(
+    "getHeadlines",
+    "List Success.co headlines",
+    {
+      first: z.number().int().optional().describe("Optional page size"),
+      offset: z.number().int().optional().describe("Optional offset"),
+    },
+    async ({ first, offset }) => {
+      const args =
+        first !== undefined || offset !== undefined
+          ? `(${[
+              first !== undefined ? `first: ${first}` : "",
+              offset !== undefined ? `offset: ${offset}` : "",
+            ]
+              .filter(Boolean)
+              .join(", ")})`
+          : "";
+
+      const query = `
+        query {
+          headlines${args} {
+            nodes {
+              id
+              name
+              desc
+              userId
+              teamId
+              headlineStatusId
+              statusUpdatedAt
+              meetingId
+              createdAt
+              stateId
+              companyId
+              isCascadingMessage
+            }
+            totalCount
+          }
+        }
+      `;
+
+      const result = await callSuccessCoGraphQL(query);
+      if (!result.ok) {
+        return { content: [{ type: "text", text: result.error }] };
+      }
+
+      const data = result.data;
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              totalCount: data.data.headlines.totalCount,
+              results: data.data.headlines.nodes.map((headline) => ({
+                id: headline.id,
+                name: headline.name,
+                description: headline.desc || "",
+                status: headline.headlineStatusId,
+                teamId: headline.teamId,
+                userId: headline.userId,
+                meetingId: headline.meetingId,
+                isCascadingMessage: headline.isCascadingMessage,
+                createdAt: headline.createdAt,
+                statusUpdatedAt: headline.statusUpdatedAt,
+              })),
+            }),
+          },
+        ],
+      };
+    }
+  );
+
+  // Search tool
+  freshServer.tool(
+    "search",
+    "Search Success.co data (supports: teams, users, todos, rocks, meetings, issues, headlines).",
+    {
+      query: z
+        .string()
+        .describe(
+          "What to look up, e.g., 'list my teams', 'show users', 'find todos', 'get meetings'"
+        ),
+    },
+    async ({ query }) => {
+      const q = (query || "").toLowerCase();
+
+      const wantsTeams =
+        /\b(team|teams|my team|my teams)\b/.test(q) ||
+        /list.*team/.test(q) ||
+        /show.*team/.test(q);
+
+      const wantsUsers =
+        /\b(user|users|people|person|employee|employees)\b/.test(q) ||
+        /list.*user/.test(q) ||
+        /show.*user/.test(q) ||
+        /list.*people/.test(q) ||
+        /show.*people/.test(q);
+
+      const wantsTodos =
+        /\b(todo|todos|task|tasks|to-do|to-dos)\b/.test(q) ||
+        /list.*todo/.test(q) ||
+        /show.*todo/.test(q) ||
+        /find.*todo/.test(q) ||
+        /get.*todo/.test(q);
+
+      const wantsRocks =
+        /\b(rock|rocks|priority|priorities)\b/.test(q) ||
+        /list.*rock/.test(q) ||
+        /show.*rock/.test(q) ||
+        /find.*rock/.test(q) ||
+        /get.*rock/.test(q);
+
+      const wantsMeetings =
+        /\b(meeting|meetings|session|sessions)\b/.test(q) ||
+        /list.*meeting/.test(q) ||
+        /show.*meeting/.test(q) ||
+        /find.*meeting/.test(q) ||
+        /get.*meeting/.test(q);
+
+      const wantsIssues =
+        /\b(issue|issues|problem|problems|concern|concerns)\b/.test(q) ||
+        /list.*issue/.test(q) ||
+        /show.*issue/.test(q) ||
+        /find.*issue/.test(q) ||
+        /get.*issue/.test(q);
+
+      const wantsHeadlines =
+        /\b(headline|headlines|news|update|updates|announcement|announcements)\b/.test(
+          q
+        ) ||
+        /list.*headline/.test(q) ||
+        /show.*headline/.test(q) ||
+        /find.*headline/.test(q) ||
+        /get.*headline/.test(q);
+
+      if (wantsTeams) {
+        const gql = `
+          query {
+            teams {
+              nodes {
+                id
+                name
+                desc
+              }
+              totalCount
+            }
+          }
+        `;
+        const result = await callSuccessCoGraphQL(gql);
+        if (!result.ok)
+          return { content: [{ type: "text", text: result.error }] };
+
+        const { data } = result;
+        const hits = (data?.data?.teams?.nodes || []).map((t) => ({
+          id: String(t.id),
+          title: t.name ?? String(t.id),
+          snippet: t.desc || "",
+        }));
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                kind: "teams",
+                totalCount: data?.data?.teams?.totalCount ?? hits.length,
+                hits,
+              }),
+            },
+          ],
+        };
+      }
+
+      if (wantsUsers) {
+        const gql = `
+        query {
+            users {
+              nodes {
+                id
+                firstName
+                lastName
+                email
+                jobTitle
+                desc
+              }
+              totalCount
+            }
+          }
+        `;
+        const result = await callSuccessCoGraphQL(gql);
+        if (!result.ok)
+          return { content: [{ type: "text", text: result.error }] };
+
+        const { data } = result;
+        const hits = (data?.data?.users?.nodes || []).map((u) => ({
+          id: String(u.id),
+          title: `${u.firstName} ${u.lastName}`,
+          snippet: `${u.jobTitle || ""} ${u.desc || ""}`.trim() || u.email,
+        }));
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                kind: "users",
+                totalCount: data?.data?.users?.totalCount ?? hits.length,
+                hits,
+              }),
+            },
+          ],
+        };
+      }
+
+      if (wantsTodos) {
+        const gql = `
+          query {
+            todos {
+            nodes {
+              id
+              name
+              desc
+                type
+                priorityNo
+                dueDate
+            }
+            totalCount
+          }
+        }
+      `;
+        const result = await callSuccessCoGraphQL(gql);
+        if (!result.ok)
+          return { content: [{ type: "text", text: result.error }] };
+
+        const { data } = result;
+        const hits = (data?.data?.todos?.nodes || []).map((t) => ({
+          id: String(t.id),
+          title: t.name ?? String(t.id),
+          snippet:
+            `${t.type || ""} ${t.desc || ""}`.trim() ||
+            `Priority: ${t.priorityNo}`,
+        }));
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                kind: "todos",
+                totalCount: data?.data?.todos?.totalCount ?? hits.length,
+                hits,
+              }),
+            },
+          ],
+        };
+      }
+
+      if (wantsRocks) {
+        const gql = `
+          query {
+            rocks {
+              nodes {
+                id
+                name
+                desc
+                type
+                dueDate
+              }
+              totalCount
+            }
+          }
+        `;
+        const result = await callSuccessCoGraphQL(gql);
+        if (!result.ok)
+          return { content: [{ type: "text", text: result.error }] };
+
+        const { data } = result;
+        const hits = (data?.data?.rocks?.nodes || []).map((r) => ({
+          id: String(r.id),
+          title: r.name ?? String(r.id),
+          snippet:
+            `${r.type || ""} ${r.desc || ""}`.trim() || `Due: ${r.dueDate}`,
+        }));
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                kind: "rocks",
+                totalCount: data?.data?.rocks?.totalCount ?? hits.length,
+                hits,
+              }),
+            },
+          ],
+        };
+      }
+
+      if (wantsMeetings) {
+        const gql = `
+          query {
+            meetings {
+              nodes {
+                id
+                date
+                startTime
+                endTime
+                averageRating
+              }
+              totalCount
+            }
+          }
+        `;
+        const result = await callSuccessCoGraphQL(gql);
+        if (!result.ok)
+          return { content: [{ type: "text", text: result.error }] };
+
+        const { data } = result;
+        const hits = (data?.data?.meetings?.nodes || []).map((m) => ({
+          id: String(m.id),
+          title: `Meeting on ${m.date}`,
+          snippet: `${m.startTime || ""} - ${m.endTime || ""} (Rating: ${
+            m.averageRating || "N/A"
+          })`,
+        }));
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                kind: "meetings",
+                totalCount: data?.data?.meetings?.totalCount ?? hits.length,
+                hits,
+              }),
+            },
+          ],
+        };
+      }
+
+      if (wantsIssues) {
+        const gql = `
+          query {
+            issues {
+              nodes {
+                id
+                name
+                desc
+                type
+                priorityNo
+              }
+              totalCount
+            }
+          }
+        `;
+        const result = await callSuccessCoGraphQL(gql);
+        if (!result.ok)
+          return { content: [{ type: "text", text: result.error }] };
+
+        const { data } = result;
+        const hits = (data?.data?.issues?.nodes || []).map((i) => ({
+          id: String(i.id),
+          title: i.name ?? String(i.id),
+          snippet:
+            `${i.type || ""} ${i.desc || ""}`.trim() ||
+            `Priority: ${i.priorityNo}`,
+        }));
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                kind: "issues",
+                totalCount: data?.data?.issues?.totalCount ?? hits.length,
+                hits,
+              }),
+            },
+          ],
+        };
+      }
+
+      if (wantsHeadlines) {
+        const gql = `
+          query {
+            headlines {
+              nodes {
+                id
+                name
+                desc
+                headlineStatusId
+              }
+              totalCount
+            }
+          }
+        `;
+        const result = await callSuccessCoGraphQL(gql);
+        if (!result.ok)
+          return { content: [{ type: "text", text: result.error }] };
+
+        const { data } = result;
+        const hits = (data?.data?.headlines?.nodes || []).map((h) => ({
+          id: String(h.id),
+          title: h.name ?? String(h.id),
+          snippet: h.desc || `Status: ${h.headlineStatusId}`,
+        }));
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                kind: "headlines",
+                totalCount: data?.data?.headlines?.totalCount ?? hits.length,
+                hits,
+              }),
+            },
+          ],
+        };
+      }
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: "I support searching for: teams, users, todos, rocks, meetings, issues, headlines. Try: 'List my teams', 'Show users', 'Find todos', 'Get meetings', etc.",
+          },
+        ],
+      };
+    }
+  );
+
+  // Fetch tool
+  freshServer.tool(
+    "fetch",
+    "Fetch a single Success.co item by id returned from search.",
+    {
+      id: z.string().describe("The id from a previous search hit."),
+    },
+    async ({ id }) => {
+      // Accept both raw ids like "123" and URIs like "success-co://teams/123", "success-co://users/123", etc.
+      const teamMatch = /^success-co:\/\/teams\/(.+)$/.exec(id);
+      const userMatch = /^success-co:\/\/users\/(.+)$/.exec(id);
+      const todoMatch = /^success-co:\/\/todos\/(.+)$/.exec(id);
+      const rockMatch = /^success-co:\/\/rocks\/(.+)$/.exec(id);
+      const meetingMatch = /^success-co:\/\/meetings\/(.+)$/.exec(id);
+      const issueMatch = /^success-co:\/\/issues\/(.+)$/.exec(id);
+      const headlineMatch = /^success-co:\/\/headlines\/(.+)$/.exec(id);
+
+      const teamId = teamMatch ? teamMatch[1] : null;
+      const userId = userMatch ? userMatch[1] : null;
+      const todoId = todoMatch ? todoMatch[1] : null;
+      const rockId = rockMatch ? rockMatch[1] : null;
+      const meetingId = meetingMatch ? meetingMatch[1] : null;
+      const issueId = issueMatch ? issueMatch[1] : null;
+      const headlineId = headlineMatch ? headlineMatch[1] : null;
+      const rawId =
+        teamId ||
+        userId ||
+        todoId ||
+        rockId ||
+        meetingId ||
+        issueId ||
+        headlineId ||
+        id;
+
+      const apiKey = getSuccessCoApiKey();
+      if (!apiKey) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: "Success.co API key not set. Use setSuccessCoApiKey first.",
+            },
+          ],
+        };
+      }
+
+      // Helper function to make GraphQL requests
+      const makeGraphQLRequest = async (query, variables = {}) => {
+        const url = "https://www.success.co/graphql";
+        const response = await fetch(url, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ query, variables }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (!data.errors) {
+            return data;
+          }
+        }
+        return null;
+      };
+
+      // Try to fetch as team
+      if (
+        teamId ||
+        (!userId &&
+          !todoId &&
+          !rockId &&
+          !meetingId &&
+          !issueId &&
+          !headlineId &&
+          !teamMatch &&
+          !userMatch &&
+          !todoMatch &&
+          !rockMatch &&
+          !meetingMatch &&
+          !issueMatch &&
+          !headlineMatch)
+      ) {
+        const gql = `
+        query ($id: ID!) {
+          team(id: $id) {
+            id
+            name
+            desc
+            badgeUrl
+            color
+            isLeadership
+            createdAt
+            stateId
+            companyId
+          }
+        }
+      `;
+
+        const result = await makeGraphQLRequest(gql, { id: rawId });
+        if (result?.data?.team) {
+          return {
+            content: [{ type: "text", text: JSON.stringify(result.data.team) }],
+          };
+        }
+      }
+
+      // Try to fetch as user
+      if (
+        userId ||
+        (!teamId &&
+          !todoId &&
+          !rockId &&
+          !meetingId &&
+          !issueId &&
+          !headlineId &&
+          !teamMatch &&
+          !userMatch &&
+          !todoMatch &&
+          !rockMatch &&
+          !meetingMatch &&
+          !issueMatch &&
+          !headlineMatch)
+      ) {
+        const gql = `
+          query ($id: ID!) {
+            user(id: $id) {
+              id
+              userName
+              firstName
+              lastName
+              jobTitle
+              desc
+              avatar
+              email
+              userPermissionId
+              userStatusId
+              languageId
+              timeZone
+              companyId
+            }
+          }
+        `;
+
+        const result = await makeGraphQLRequest(gql, { id: rawId });
+        if (result?.data?.user) {
+          return {
+            content: [{ type: "text", text: JSON.stringify(result.data.user) }],
+          };
+        }
+      }
+
+      // Try to fetch as todo
+      if (
+        todoId ||
+        (!teamId &&
+          !userId &&
+          !rockId &&
+          !meetingId &&
+          !issueId &&
+          !headlineId &&
+          !teamMatch &&
+          !userMatch &&
+          !todoMatch &&
+          !rockMatch &&
+          !meetingMatch &&
+          !issueMatch &&
+          !headlineMatch)
+      ) {
+        const gql = `
+          query ($id: ID!) {
+            todo(id: $id) {
+              id
+              todoStatusId
+              name
+              desc
+              teamId
+              userId
+              statusUpdatedAt
+              type
+              dueDate
+              priorityNo
+              createdAt
+              stateId
+              companyId
+              meetingId
+            }
+          }
+        `;
+
+        const result = await makeGraphQLRequest(gql, { id: rawId });
+        if (result?.data?.todo) {
+          return {
+            content: [{ type: "text", text: JSON.stringify(result.data.todo) }],
+          };
+        }
+      }
+
+      // Try to fetch as rock
+      if (
+        rockId ||
+        (!teamId &&
+          !userId &&
+          !todoId &&
+          !meetingId &&
+          !issueId &&
+          !headlineId &&
+          !teamMatch &&
+          !userMatch &&
+          !todoMatch &&
+          !rockMatch &&
+          !meetingMatch &&
+          !issueMatch &&
+          !headlineMatch)
+      ) {
+        const gql = `
+          query ($id: ID!) {
+            rock(id: $id) {
+              id
+              rockStatusId
+              name
+              desc
+              statusUpdatedAt
+              type
+              dueDate
+              createdAt
+              stateId
+              companyId
+            }
+          }
+        `;
+
+        const result = await makeGraphQLRequest(gql, { id: rawId });
+        if (result?.data?.rock) {
+          return {
+            content: [{ type: "text", text: JSON.stringify(result.data.rock) }],
+          };
+        }
+      }
+
+      // Try to fetch as meeting
+      if (
+        meetingId ||
+        (!teamId &&
+          !userId &&
+          !todoId &&
+          !rockId &&
+          !issueId &&
+          !headlineId &&
+          !teamMatch &&
+          !userMatch &&
+          !todoMatch &&
+          !rockMatch &&
+          !meetingMatch &&
+          !issueMatch &&
+          !headlineMatch)
+      ) {
+        const gql = `
+          query ($id: ID!) {
+            meeting(id: $id) {
+              id
+              meetingInfoId
+              date
+              startTime
+              endTime
+              averageRating
+              meetingStatusId
+              createdAt
+              stateId
+              companyId
+            }
+          }
+        `;
+
+        const result = await makeGraphQLRequest(gql, { id: rawId });
+        if (result?.data?.meeting) {
+          return {
+            content: [
+              { type: "text", text: JSON.stringify(result.data.meeting) },
+            ],
+          };
+        }
+      }
+
+      // Try to fetch as issue
+      if (
+        issueId ||
+        (!teamId &&
+          !userId &&
+          !todoId &&
+          !rockId &&
+          !meetingId &&
+          !headlineId &&
+          !teamMatch &&
+          !userMatch &&
+          !todoMatch &&
+          !rockMatch &&
+          !meetingMatch &&
+          !issueMatch &&
+          !headlineMatch)
+      ) {
+        const gql = `
+          query ($id: ID!) {
+            issue(id: $id) {
+              id
+              issueStatusId
+              name
+              desc
+              teamId
+              userId
+              type
+              priorityNo
+              priorityOrder
+              statusUpdatedAt
+              meetingId
+              createdAt
+              stateId
+              companyId
+            }
+          }
+        `;
+
+        const result = await makeGraphQLRequest(gql, { id: rawId });
+        if (result?.data?.issue) {
+          return {
+            content: [
+              { type: "text", text: JSON.stringify(result.data.issue) },
+            ],
+          };
+        }
+      }
+
+      // Try to fetch as headline
+      if (
+        headlineId ||
+        (!teamId &&
+          !userId &&
+          !todoId &&
+          !rockId &&
+          !meetingId &&
+          !issueId &&
+          !teamMatch &&
+          !userMatch &&
+          !todoMatch &&
+          !rockMatch &&
+          !meetingMatch &&
+          !issueMatch &&
+          !headlineMatch)
+      ) {
+        const gql = `
+          query ($id: ID!) {
+            headline(id: $id) {
+              id
+              name
+              desc
+              userId
+              teamId
+              headlineStatusId
+              statusUpdatedAt
+              meetingId
+              createdAt
+              stateId
+              companyId
+              isCascadingMessage
+            }
+          }
+        `;
+
+        const result = await makeGraphQLRequest(gql, { id: rawId });
+        if (result?.data?.headline) {
+          return {
+            content: [
+              { type: "text", text: JSON.stringify(result.data.headline) },
+            ],
+          };
+        }
+      }
+
+      // If none worked, return error
+      return {
+        content: [
+          {
+            type: "text",
+            text: `No team, user, todo, rock, meeting, issue, or headline found for id ${rawId}`,
+          },
+        ],
+      };
+    }
+  );
+
+  return freshServer;
+}
+
+// Create a single transport instance for Streamable HTTP
+const streamableTransport = new StreamableHTTPServerTransport({
+  sessionIdGenerator: () =>
+    `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+});
+
+// HTTP endpoint for MCP requests - use the global server instance
 app.all("/mcp", async (req, res) => {
-  let key = req.query.sessionId ? String(req.query.sessionId) : null;
-
-  // If no key, create a new transport and remember it under its own sessionId
-  if (!key) {
-    const transport = new StreamableHTTPServerTransport();
-    transports.streamable[transport.sessionId] = transport;
-    await server.connect(transport);
-    key = transport.sessionId; // <-- important: use this for the rest of the request
-    // You can expose the session id back to the client in a header:
-    res.setHeader("x-mcp-session-id", key);
-  }
-
-  // Now we must have a key
-  const transport = transports.streamable[key];
-  if (!transport) {
-    res.status(400).send("No transport found for sessionId");
-    return;
-  }
-
   try {
-    await transport.handleRequest(req, res);
-  } finally {
-    if (transport.isComplete) {
-      delete transports.streamable[transport.sessionId];
+    console.error(`[MCP] Received ${req.method} request to /mcp`);
+    console.error(`[MCP] Query params:`, req.query);
+    console.error(`[MCP] Headers:`, req.headers);
+    console.error(`[MCP] Body:`, req.body);
+
+    // Check authorization header
+    const authHeader = req.headers.authorization;
+    if (authHeader) {
+      console.error(`[MCP] Authorization header: "${authHeader}"`);
+      if (authHeader === "Bearer" || authHeader === "Bearer ") {
+        console.error(`[MCP] WARNING: Empty Bearer token detected`);
+        // For now, we'll allow empty Bearer tokens to pass through
+        // This might be expected behavior for some MCP clients
+      }
+    }
+
+    // Process MCP request directly using the server's internal methods
+    const mcpRequest = req.body;
+    console.error(`[MCP] Processing MCP request:`, mcpRequest);
+
+    // Create a fresh server instance for this request
+    const requestServer = createFreshMcpServer();
+
+    // Process the request directly
+    try {
+      // Handle the initialize request
+      if (mcpRequest.method === "initialize") {
+        const response = {
+          jsonrpc: "2.0",
+          id: mcpRequest.id,
+          result: {
+            protocolVersion: "2025-06-18",
+            capabilities: {
+              tools: {},
+              resources: {},
+              prompts: {},
+            },
+            serverInfo: {
+              name: "Success.co MCP Server",
+              version: "0.0.3",
+            },
+          },
+        };
+        console.error(`[MCP] Sending initialize response:`, response);
+        res.json(response);
+        return;
+      }
+
+      // For other requests, we need to process them through the server
+      // This is a simplified approach - in production you'd want proper MCP handling
+      res.status(501).json({
+        error: "Method not implemented",
+        message: `Method ${mcpRequest.method} not yet implemented for HTTP endpoint`,
+      });
+    } catch (mcpError) {
+      console.error(`[MCP] Error processing MCP request:`, mcpError);
+      res.status(500).json({
+        error: "MCP processing error",
+        details: mcpError.message,
+      });
+    }
+
+    console.error(`[MCP] Request handled successfully`);
+  } catch (error) {
+    console.error(`[MCP] Error in /mcp endpoint:`, error);
+    console.error(`[MCP] Error stack:`, error.stack);
+    if (!res.headersSent) {
+      res
+        .status(500)
+        .json({ error: "Internal server error", details: error.message });
     }
   }
 });
 
 // Legacy SSE endpoint for older clients
 app.get("/sse", async (req, res) => {
-  const transport = new SSEServerTransport("/messages", res);
-  transports.sse[transport.sessionId] = transport;
+  try {
+    console.error(`[SSE] Received GET request to /sse`);
+    const transport = new SSEServerTransport("/messages", res);
+    transports.sse[transport.sessionId] = transport;
 
-  res.on("close", () => {
-    delete transports.sse[transport.sessionId];
-  });
+    res.on("close", () => {
+      console.error(
+        `[SSE] Connection closed for sessionId: ${transport.sessionId}`
+      );
+      delete transports.sse[transport.sessionId];
+    });
 
-  await server.connect(transport);
+    await server.connect(transport);
+    console.error(
+      `[SSE] Transport connected successfully with sessionId: ${transport.sessionId}`
+    );
+  } catch (error) {
+    console.error(`[SSE] Error in /sse endpoint:`, error);
+    if (!res.headersSent) {
+      res
+        .status(500)
+        .json({ error: "Internal server error", details: error.message });
+    }
+  }
 });
 
 // Legacy message endpoint for older clients
