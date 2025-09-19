@@ -129,7 +129,7 @@ server.tool(
 
 server.tool(
   "getTeams",
-  "List Success.co teams v2",
+  "List Success.co teams",
   {
     first: z.number().int().optional().describe("Optional page size"),
     offset: z.number().int().optional().describe("Optional offset"),
@@ -190,6 +190,80 @@ server.tool(
   }
 );
 
+// ---------- Users tool ------------------------------------------------------
+
+server.tool(
+  "getUsers",
+  "List Success.co users",
+  {
+    first: z.number().int().optional().describe("Optional page size"),
+    offset: z.number().int().optional().describe("Optional offset"),
+  },
+  async ({ first, offset }) => {
+    const args =
+      first !== undefined || offset !== undefined
+        ? `(${[
+            first !== undefined ? `first: ${first}` : "",
+            offset !== undefined ? `offset: ${offset}` : "",
+          ]
+            .filter(Boolean)
+            .join(", ")})`
+        : "";
+
+    const query = `
+      query {
+        users${args} {
+          nodes {
+            id
+            userName
+            firstName
+            lastName
+            jobTitle
+            desc
+            avatar
+            email
+            userPermissionId
+            userStatusId
+            languageId
+            timeZone
+            companyId
+          }
+          totalCount
+        }
+      }
+    `;
+
+    const result = await callSuccessCoGraphQL(query);
+    if (!result.ok) {
+      return { content: [{ type: "text", text: result.error }] };
+    }
+
+    const data = result.data;
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify({
+            totalCount: data.data.users.totalCount,
+            results: data.data.users.nodes.map((user) => ({
+              id: user.id,
+              name: `${user.firstName} ${user.lastName}`,
+              email: user.email,
+              jobTitle: user.jobTitle || "",
+              description: user.desc || "",
+              userName: user.userName || "",
+              avatar: user.avatar || "",
+              status: user.userStatusId,
+              language: user.languageId,
+              timeZone: user.timeZone,
+            })),
+          }),
+        },
+      ],
+    };
+  }
+);
+
 // ---------- NEW: `search` tool for natural queries like “List my teams” ------
 
 // --- Replace your existing `search` and `fetch` with these -------------------
@@ -197,9 +271,11 @@ server.tool(
 // SEARCH: natural language -> list of hits with ids
 server.tool(
   "search",
-  "Search Success.co data (supports: teams).",
+  "Search Success.co data (supports: teams, users).",
   {
-    query: z.string().describe("What to look up, e.g., 'list my teams'"),
+    query: z
+      .string()
+      .describe("What to look up, e.g., 'list my teams', 'show users'"),
   },
   async ({ query }) => {
     const q = (query || "").toLowerCase();
@@ -208,49 +284,99 @@ server.tool(
       /list.*team/.test(q) ||
       /show.*team/.test(q);
 
-    if (!wantsTeams) {
+    const wantsUsers =
+      /\b(user|users|people|person|employee|employees)\b/.test(q) ||
+      /list.*user/.test(q) ||
+      /show.*user/.test(q) ||
+      /list.*people/.test(q) ||
+      /show.*people/.test(q);
+
+    if (wantsTeams) {
+      const gql = `
+        query {
+          teams {
+            nodes {
+              id
+              name
+              desc
+            }
+            totalCount
+          }
+        }
+      `;
+      const result = await callSuccessCoGraphQL(gql);
+      if (!result.ok)
+        return { content: [{ type: "text", text: result.error }] };
+
+      const { data } = result;
+      const hits = (data?.data?.teams?.nodes || []).map((t) => ({
+        id: String(t.id), // REQUIRED by ChatGPT's fetch contract
+        title: t.name ?? String(t.id),
+        snippet: t.desc || "",
+        // optional extras are fine, but keep required ones present
+      }));
+
       return {
         content: [
           {
             type: "text",
-            text: "I currently only support team search. Try: 'List my teams'.",
+            text: JSON.stringify({
+              kind: "teams",
+              totalCount: data?.data?.teams?.totalCount ?? hits.length,
+              hits,
+            }),
           },
         ],
       };
     }
 
-    const gql = `
-      query {
-        teams {
-          nodes {
-            id
-            name
-            desc
+    if (wantsUsers) {
+      const gql = `
+        query {
+          users {
+            nodes {
+              id
+              firstName
+              lastName
+              email
+              jobTitle
+              desc
+            }
+            totalCount
           }
-          totalCount
         }
-      }
-    `;
-    const result = await callSuccessCoGraphQL(gql);
-    if (!result.ok) return { content: [{ type: "text", text: result.error }] };
+      `;
+      const result = await callSuccessCoGraphQL(gql);
+      if (!result.ok)
+        return { content: [{ type: "text", text: result.error }] };
 
-    const { data } = result;
-    const hits = (data?.data?.teams?.nodes || []).map((t) => ({
-      id: String(t.id), // REQUIRED by ChatGPT's fetch contract
-      title: t.name ?? String(t.id),
-      snippet: t.desc || "",
-      // optional extras are fine, but keep required ones present
-    }));
+      const { data } = result;
+      const hits = (data?.data?.users?.nodes || []).map((u) => ({
+        id: String(u.id), // REQUIRED by ChatGPT's fetch contract
+        title: `${u.firstName} ${u.lastName}`,
+        snippet: `${u.jobTitle || ""} ${u.desc || ""}`.trim() || u.email,
+        // optional extras are fine, but keep required ones present
+      }));
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              kind: "users",
+              totalCount: data?.data?.users?.totalCount ?? hits.length,
+              hits,
+            }),
+          },
+        ],
+      };
+    }
 
     return {
       content: [
         {
           type: "text",
-          text: JSON.stringify({
-            kind: "teams",
-            totalCount: data?.data?.teams?.totalCount ?? hits.length,
-            hits,
-          }),
+          text: "I currently support team and user search. Try: 'List my teams' or 'Show users'.",
         },
       ],
     };
@@ -265,30 +391,13 @@ server.tool(
     id: z.string().describe("The id from a previous search hit."),
   },
   async ({ id }) => {
-    // Accept both raw ids like "123" and URIs like "success-co://teams/123"
-    const match = /^success-co:\/\/teams\/(.+)$/.exec(id);
-    const teamId = match ? match[1] : id;
+    // Accept both raw ids like "123" and URIs like "success-co://teams/123" or "success-co://users/123"
+    const teamMatch = /^success-co:\/\/teams\/(.+)$/.exec(id);
+    const userMatch = /^success-co:\/\/users\/(.+)$/.exec(id);
 
-    // If Success.co GraphQL supports a 'team(id: ...)' query, use it:
-    const gql = `
-      query ($id: ID!) {
-        team(id: $id) {
-          id
-          name
-          desc
-          badgeUrl
-          color
-          isLeadership
-          createdAt
-          stateId
-          companyId
-        }
-      }
-    `;
-
-    // Some Success.co deployments use only GET-by-list; if your endpoint
-    // doesn't support team(id:), you can emulate by filtering from teams{}.
-    // Prefer the direct form above if it's available.
+    const teamId = teamMatch ? teamMatch[1] : null;
+    const userId = userMatch ? userMatch[1] : null;
+    const rawId = teamId || userId || id;
 
     const apiKey = getSuccessCoApiKey();
     if (!apiKey) {
@@ -302,64 +411,94 @@ server.tool(
       };
     }
 
-    const url = "https://www.success.co/graphql";
-    const response = await fetch(url, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ query: gql, variables: { id: teamId } }),
-    });
+    // Try to fetch as team first if it looks like a team ID or URI
+    if (teamId || (!userId && !teamMatch && !userMatch)) {
+      const gql = `
+        query ($id: ID!) {
+          team(id: $id) {
+            id
+            name
+            desc
+            badgeUrl
+            color
+            isLeadership
+            createdAt
+            stateId
+            companyId
+          }
+        }
+      `;
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      return {
-        content: [
-          {
-            type: "text",
-            text: `API request failed with status ${response.status}: ${errorText}`,
-          },
-        ],
-      };
+      const url = "https://www.success.co/graphql";
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ query: gql, variables: { id: rawId } }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (!data.errors && data?.data?.team) {
+          return {
+            content: [{ type: "text", text: JSON.stringify(data.data.team) }],
+          };
+        }
+      }
     }
 
-    const data = await response.json();
-    if (data.errors) {
-      // Fallback: if single-item query isn't supported, try list+filter:
-      // (Uncomment this block if your schema lacks team(id:))
-      // const listQuery = `
-      //   query {
-      //     teams {
-      //       nodes { id name desc badgeUrl color isLeadership createdAt stateId companyId }
-      //     }
-      //   }
-      // `;
-      // const listRes = await callSuccessCoGraphQL(listQuery);
-      // if (!listRes.ok) return { content: [{ type: "text", text: listRes.error }] };
-      // const item = (listRes.data?.data?.teams?.nodes || []).find(n => String(n.id) === String(teamId));
-      // if (!item) return { content: [{ type: "text", text: `No team found for id ${teamId}` }] };
-      // return { content: [{ type: "text", text: JSON.stringify(item) }] };
+    // Try to fetch as user if it looks like a user ID or URI
+    if (userId || (!teamId && !teamMatch && !userMatch)) {
+      const gql = `
+        query ($id: ID!) {
+          user(id: $id) {
+            id
+            userName
+            firstName
+            lastName
+            jobTitle
+            desc
+            avatar
+            email
+            userPermissionId
+            userStatusId
+            languageId
+            timeZone
+            companyId
+          }
+        }
+      `;
 
-      return {
-        content: [
-          {
-            type: "text",
-            text: `GraphQL errors: ${JSON.stringify(data.errors)}`,
-          },
-        ],
-      };
+      const url = "https://www.success.co/graphql";
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ query: gql, variables: { id: rawId } }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (!data.errors && data?.data?.user) {
+          return {
+            content: [{ type: "text", text: JSON.stringify(data.data.user) }],
+          };
+        }
+      }
     }
 
-    const item = data?.data?.team;
-    if (!item) {
-      return {
-        content: [{ type: "text", text: `No team found for id ${teamId}` }],
-      };
-    }
-
+    // If neither worked, return error
     return {
-      content: [{ type: "text", text: JSON.stringify(item) }],
+      content: [
+        {
+          type: "text",
+          text: `No team or user found for id ${rawId}`,
+        },
+      ],
     };
   }
 );
@@ -454,6 +593,102 @@ server.registerResource(
       };
     } catch (error) {
       throw new Error(`Error fetching teams: ${error.message}`);
+    }
+  }
+);
+
+server.registerResource(
+  "Get users",
+  "success-co://users",
+  {
+    title: "List users",
+    description: "List of all users on Success.co",
+    mimeType: "application/json",
+  },
+  async (uri) => {
+    const apiKey = getSuccessCoApiKey();
+
+    if (!apiKey) {
+      throw new Error(
+        "Success.co API key not set. Please set it using the setSuccessCoApiKey tool."
+      );
+    }
+
+    try {
+      const url = "https://www.success.co/graphql";
+
+      const searchParams = new URLSearchParams(uri.search);
+      const first = searchParams.get("first")
+        ? parseInt(searchParams.get("first"))
+        : undefined;
+      const offset = searchParams.get("offset")
+        ? parseInt(searchParams.get("offset"))
+        : undefined;
+
+      const args =
+        first !== undefined || offset !== undefined
+          ? `(${[
+              first !== undefined ? `first: ${first}` : "",
+              offset !== undefined ? `offset: ${offset}` : "",
+            ]
+              .filter(Boolean)
+              .join(", ")})`
+          : "";
+
+      const query = `
+        query {
+          users${args} {
+            nodes {
+              id
+              userName
+              firstName
+              lastName
+              jobTitle
+              desc
+              avatar
+              email
+              userPermissionId
+              userStatusId
+              languageId
+              timeZone
+              companyId
+            }
+            totalCount
+          }
+        }
+      `;
+
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ query }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(
+          `API request failed with status ${response.status}: ${errorText}`
+        );
+      }
+
+      const data = await response.json();
+
+      if (data.errors) {
+        throw new Error(`GraphQL errors: ${JSON.stringify(data.errors)}`);
+      }
+
+      return {
+        contents: data.data.users.nodes.map((user) => ({
+          uri: `success-co://users/${user.id}`,
+          text: JSON.stringify(user),
+        })),
+        totalCount: data.data.users.totalCount,
+      };
+    } catch (error) {
+      throw new Error(`Error fetching users: ${error.message}`);
     }
   }
 );
