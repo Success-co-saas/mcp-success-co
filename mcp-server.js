@@ -17,6 +17,9 @@ import {
   getHeadlines,
   search,
   fetch,
+  setSuccessCoApiKey,
+  getSuccessCoApiKeyTool,
+  getSuccessCoApiKey,
 } from "./tools.js";
 
 // Ensure Node 18+ for global fetch.
@@ -25,28 +28,6 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const API_KEY_FILE = path.join(__dirname, ".api_key");
 
 // --- Success.co API key management ------------------------------------------
-
-const getSuccessCoApiKey = () => {
-  if (process.env.SUCCESS_CO_API_KEY) return process.env.SUCCESS_CO_API_KEY;
-  try {
-    if (fs.existsSync(API_KEY_FILE)) {
-      return fs.readFileSync(API_KEY_FILE, "utf8").trim();
-    }
-  } catch (error) {
-    console.error("Error reading API key file:", error);
-  }
-  return null;
-};
-
-const storeSuccessCoApiKey = (apiKey) => {
-  try {
-    fs.writeFileSync(API_KEY_FILE, apiKey, "utf8");
-    return true;
-  } catch (error) {
-    console.error("Error storing API key:", error);
-    return false;
-  }
-};
 
 // --- Small helper to call Success.co GraphQL --------------------------------
 
@@ -104,17 +85,7 @@ server.tool(
     apiKey: z.string().describe("The API key for Success.co"),
   },
   async ({ apiKey }) => {
-    const stored = storeSuccessCoApiKey(apiKey);
-    return {
-      content: [
-        {
-          type: "text",
-          text: stored
-            ? "Success.co API key stored successfully"
-            : "Failed to store Success.co API key",
-        },
-      ],
-    };
+    return await setSuccessCoApiKey({ apiKey });
   }
 );
 
@@ -124,15 +95,7 @@ server.tool(
   "Get the Success.co API key (env or stored file)",
   {},
   async () => {
-    const apiKey = getSuccessCoApiKey();
-    return {
-      content: [
-        {
-          type: "text",
-          text: apiKey || "Success.co API key not set",
-        },
-      ],
-    };
+    return await getSuccessCoApiKeyTool({});
   }
 );
 
@@ -985,17 +948,7 @@ function createFreshMcpServer() {
       apiKey: z.string().describe("The API key for Success.co"),
     },
     async ({ apiKey }) => {
-      const stored = storeSuccessCoApiKey(apiKey);
-      return {
-        content: [
-          {
-            type: "text",
-            text: stored
-              ? "Success.co API key stored successfully"
-              : "Failed to store Success.co API key",
-          },
-        ],
-      };
+      return await setSuccessCoApiKey({ apiKey });
     }
   );
 
@@ -1005,15 +958,7 @@ function createFreshMcpServer() {
     "Get the Success.co API key (env or stored file)",
     {},
     async () => {
-      const apiKey = getSuccessCoApiKey();
-      return {
-        content: [
-          {
-            type: "text",
-            text: apiKey || "Success.co API key not set",
-          },
-        ],
-      };
+      return await getSuccessCoApiKeyTool({});
     }
   );
 
@@ -1619,28 +1564,10 @@ app.all("/mcp", async (req, res) => {
     // Create a direct mapping of tool names to handlers for easier access
     const toolHandlers = {
       setSuccessCoApiKey: async (args) => {
-        const stored = storeSuccessCoApiKey(args.apiKey);
-        return {
-          content: [
-            {
-              type: "text",
-              text: stored
-                ? "Success.co API key stored successfully"
-                : "Failed to store Success.co API key",
-            },
-          ],
-        };
+        return await setSuccessCoApiKey(args);
       },
       getSuccessCoApiKey: async () => {
-        const apiKey = getSuccessCoApiKey();
-        return {
-          content: [
-            {
-              type: "text",
-              text: apiKey || "Success.co API key not set",
-            },
-          ],
-        };
+        return await getSuccessCoApiKeyTool({});
       },
       getTeams: async (args) => {
         return await getTeams(args);
