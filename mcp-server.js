@@ -7,6 +7,7 @@ import { z } from "zod";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import { getTeams } from "./tools.js";
 
 // Ensure Node 18+ for global fetch.
 
@@ -135,58 +136,7 @@ server.tool(
     offset: z.number().int().optional().describe("Optional offset"),
   },
   async ({ first, offset }) => {
-    const args =
-      first !== undefined || offset !== undefined
-        ? `(${[
-            first !== undefined ? `first: ${first}` : "",
-            offset !== undefined ? `offset: ${offset}` : "",
-          ]
-            .filter(Boolean)
-            .join(", ")})`
-        : "";
-
-    const query = `
-      query {
-        teams${args} {
-          nodes {
-            id
-            badgeUrl
-            name
-            desc
-            color
-            isLeadership
-            createdAt
-            stateId
-            companyId
-          }
-          totalCount
-        }
-      }
-    `;
-
-    const result = await callSuccessCoGraphQL(query);
-    if (!result.ok) {
-      return { content: [{ type: "text", text: result.error }] };
-    }
-
-    const data = result.data;
-    return {
-      content: [
-        {
-          type: "text",
-          text: JSON.stringify({
-            totalCount: data.data.teams.totalCount,
-            results: data.data.teams.nodes.map((team) => ({
-              id: team.id,
-              title: team.name,
-              description: team.desc || "",
-              color: team.color,
-              status: team.stateId,
-            })),
-          }),
-        },
-      ],
-    };
+    return await getTeams({ first, offset });
   }
 );
 
@@ -2170,58 +2120,7 @@ function createFreshMcpServer() {
       offset: z.number().int().optional().describe("Optional offset"),
     },
     async ({ first, offset }) => {
-      const args =
-        first !== undefined || offset !== undefined
-          ? `(${[
-              first !== undefined ? `first: ${first}` : "",
-              offset !== undefined ? `offset: ${offset}` : "",
-            ]
-              .filter(Boolean)
-              .join(", ")})`
-          : "";
-
-      const query = `
-        query {
-          teams${args} {
-            nodes {
-              id
-              badgeUrl
-              name
-              desc
-              color
-              isLeadership
-              createdAt
-              stateId
-              companyId
-            }
-            totalCount
-          }
-        }
-      `;
-
-      const result = await callSuccessCoGraphQL(query);
-      if (!result.ok) {
-        return { content: [{ type: "text", text: result.error }] };
-      }
-
-      const data = result.data;
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify({
-              totalCount: data.data.teams.totalCount,
-              results: data.data.teams.nodes.map((team) => ({
-                id: team.id,
-                title: team.name,
-                description: team.desc || "",
-                color: team.color,
-                status: team.stateId,
-              })),
-            }),
-          },
-        ],
-      };
+      return await getTeams({ first, offset });
     }
   );
 
@@ -3931,59 +3830,7 @@ app.all("/mcp", async (req, res) => {
         };
       },
       getTeams: async (args) => {
-        const { first, offset } = args;
-        const argsStr =
-          first !== undefined || offset !== undefined
-            ? `(${[
-                first !== undefined ? `first: ${first}` : "",
-                offset !== undefined ? `offset: ${offset}` : "",
-              ]
-                .filter(Boolean)
-                .join(", ")})`
-            : "";
-
-        const query = `
-          query {
-            teams${argsStr} {
-              nodes {
-                id
-                badgeUrl
-                name
-                desc
-                color
-                isLeadership
-                createdAt
-                stateId
-                companyId
-              }
-              totalCount
-            }
-          }
-        `;
-
-        const result = await callSuccessCoGraphQL(query);
-        if (!result.ok) {
-          return { content: [{ type: "text", text: result.error }] };
-        }
-
-        const data = result.data;
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify({
-                totalCount: data.data.teams.totalCount,
-                results: data.data.teams.nodes.map((team) => ({
-                  id: team.id,
-                  title: team.name,
-                  description: team.desc || "",
-                  color: team.color,
-                  status: team.stateId,
-                })),
-              }),
-            },
-          ],
-        };
+        return await getTeams(args);
       },
       getUsers: async (args) => {
         const { first, offset } = args;
