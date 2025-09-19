@@ -3469,11 +3469,357 @@ app.all("/mcp", async (req, res) => {
         return;
       }
 
+      // Handle tools/list request
+      if (mcpRequest.method === "tools/list") {
+        const tools = [
+          {
+            name: "setSuccessCoApiKey",
+            description: "Set the Success.co API key",
+            inputSchema: {
+              type: "object",
+              properties: {
+                apiKey: {
+                  type: "string",
+                  description: "The API key for Success.co",
+                },
+              },
+              required: ["apiKey"],
+            },
+          },
+          {
+            name: "getSuccessCoApiKey",
+            description: "Get the Success.co API key (env or stored file)",
+            inputSchema: {
+              type: "object",
+              properties: {},
+            },
+          },
+          {
+            name: "getTeams",
+            description: "List Success.co teams",
+            inputSchema: {
+              type: "object",
+              properties: {
+                first: {
+                  type: "integer",
+                  description: "Optional page size",
+                },
+                offset: {
+                  type: "integer",
+                  description: "Optional offset",
+                },
+              },
+            },
+          },
+          {
+            name: "getUsers",
+            description: "List Success.co users",
+            inputSchema: {
+              type: "object",
+              properties: {
+                first: {
+                  type: "integer",
+                  description: "Optional page size",
+                },
+                offset: {
+                  type: "integer",
+                  description: "Optional offset",
+                },
+              },
+            },
+          },
+          {
+            name: "getTodos",
+            description: "List Success.co todos",
+            inputSchema: {
+              type: "object",
+              properties: {
+                first: {
+                  type: "integer",
+                  description: "Optional page size",
+                },
+                offset: {
+                  type: "integer",
+                  description: "Optional offset",
+                },
+              },
+            },
+          },
+          {
+            name: "getRocks",
+            description: "List Success.co rocks",
+            inputSchema: {
+              type: "object",
+              properties: {
+                first: {
+                  type: "integer",
+                  description: "Optional page size",
+                },
+                offset: {
+                  type: "integer",
+                  description: "Optional offset",
+                },
+              },
+            },
+          },
+          {
+            name: "getMeetings",
+            description: "List Success.co meetings",
+            inputSchema: {
+              type: "object",
+              properties: {
+                first: {
+                  type: "integer",
+                  description: "Optional page size",
+                },
+                offset: {
+                  type: "integer",
+                  description: "Optional offset",
+                },
+              },
+            },
+          },
+          {
+            name: "getIssues",
+            description: "List Success.co issues",
+            inputSchema: {
+              type: "object",
+              properties: {
+                first: {
+                  type: "integer",
+                  description: "Optional page size",
+                },
+                offset: {
+                  type: "integer",
+                  description: "Optional offset",
+                },
+              },
+            },
+          },
+          {
+            name: "getHeadlines",
+            description: "List Success.co headlines",
+            inputSchema: {
+              type: "object",
+              properties: {
+                first: {
+                  type: "integer",
+                  description: "Optional page size",
+                },
+                offset: {
+                  type: "integer",
+                  description: "Optional offset",
+                },
+              },
+            },
+          },
+          {
+            name: "search",
+            description:
+              "Search Success.co data (supports: teams, users, todos, rocks, meetings, issues, headlines).",
+            inputSchema: {
+              type: "object",
+              properties: {
+                query: {
+                  type: "string",
+                  description:
+                    "What to look up, e.g., 'list my teams', 'show users', 'find todos', 'get meetings'",
+                },
+              },
+              required: ["query"],
+            },
+          },
+          {
+            name: "fetch",
+            description:
+              "Fetch a single Success.co item by id returned from search.",
+            inputSchema: {
+              type: "object",
+              properties: {
+                id: {
+                  type: "string",
+                  description: "The id from a previous search hit.",
+                },
+              },
+              required: ["id"],
+            },
+          },
+        ];
+
+        const response = {
+          jsonrpc: "2.0",
+          id: mcpRequest.id,
+          result: {
+            tools: tools,
+          },
+        };
+        console.error(`[MCP] Sending tools/list response:`, response);
+        res.json(response);
+        return;
+      }
+
+      // Handle tools/call request
+      if (mcpRequest.method === "tools/call") {
+        const { name, arguments: args } = mcpRequest.params;
+        console.error(`[MCP] Tool call: ${name} with args:`, args);
+
+        // Create a fresh server instance and call the tool
+        const requestServer = createFreshMcpServer();
+
+        // Get the tool handler from the server
+        const toolHandler = requestServer._tools?.get(name);
+        if (!toolHandler) {
+          res.status(400).json({
+            jsonrpc: "2.0",
+            id: mcpRequest.id,
+            error: {
+              code: -32601,
+              message: `Tool '${name}' not found`,
+            },
+          });
+          return;
+        }
+
+        try {
+          const result = await toolHandler.handler(args);
+          const response = {
+            jsonrpc: "2.0",
+            id: mcpRequest.id,
+            result: result,
+          };
+          console.error(`[MCP] Tool call result:`, response);
+          res.json(response);
+        } catch (error) {
+          console.error(`[MCP] Tool call error:`, error);
+          res.status(500).json({
+            jsonrpc: "2.0",
+            id: mcpRequest.id,
+            error: {
+              code: -32603,
+              message: "Internal error",
+              data: error.message,
+            },
+          });
+        }
+        return;
+      }
+
+      // Handle resources/list request
+      if (mcpRequest.method === "resources/list") {
+        const resources = [
+          {
+            uri: "success-co://teams",
+            name: "Get teams",
+            description: "List of all teams setup on Success.co",
+            mimeType: "application/json",
+          },
+          {
+            uri: "success-co://users",
+            name: "Get users",
+            description: "List of all users on Success.co",
+            mimeType: "application/json",
+          },
+          {
+            uri: "success-co://todos",
+            name: "Get todos",
+            description: "List of all todos on Success.co",
+            mimeType: "application/json",
+          },
+          {
+            uri: "success-co://rocks",
+            name: "Get rocks",
+            description: "List of all rocks on Success.co",
+            mimeType: "application/json",
+          },
+          {
+            uri: "success-co://meetings",
+            name: "Get meetings",
+            description: "List of all meetings on Success.co",
+            mimeType: "application/json",
+          },
+          {
+            uri: "success-co://issues",
+            name: "Get issues",
+            description: "List of all issues on Success.co",
+            mimeType: "application/json",
+          },
+          {
+            uri: "success-co://headlines",
+            name: "Get headlines",
+            description: "List of all headlines on Success.co",
+            mimeType: "application/json",
+          },
+        ];
+
+        const response = {
+          jsonrpc: "2.0",
+          id: mcpRequest.id,
+          result: {
+            resources: resources,
+          },
+        };
+        console.error(`[MCP] Sending resources/list response:`, response);
+        res.json(response);
+        return;
+      }
+
+      // Handle resources/read request
+      if (mcpRequest.method === "resources/read") {
+        const { uri } = mcpRequest.params;
+        console.error(`[MCP] Resource read request for URI:`, uri);
+
+        // Create a fresh server instance and get the resource handler
+        const requestServer = createFreshMcpServer();
+
+        // Find the resource handler
+        const resourceHandler = requestServer._resources?.get(uri);
+        if (!resourceHandler) {
+          res.status(400).json({
+            jsonrpc: "2.0",
+            id: mcpRequest.id,
+            error: {
+              code: -32601,
+              message: `Resource '${uri}' not found`,
+            },
+          });
+          return;
+        }
+
+        try {
+          // Parse the URI to create a proper URI object
+          const url = new URL(uri);
+          const result = await resourceHandler.handler(url);
+          const response = {
+            jsonrpc: "2.0",
+            id: mcpRequest.id,
+            result: result,
+          };
+          console.error(`[MCP] Resource read result:`, response);
+          res.json(response);
+        } catch (error) {
+          console.error(`[MCP] Resource read error:`, error);
+          res.status(500).json({
+            jsonrpc: "2.0",
+            id: mcpRequest.id,
+            error: {
+              code: -32603,
+              message: "Internal error",
+              data: error.message,
+            },
+          });
+        }
+        return;
+      }
+
       // For other requests, we need to process them through the server
       // This is a simplified approach - in production you'd want proper MCP handling
       res.status(501).json({
-        error: "Method not implemented",
-        message: `Method ${mcpRequest.method} not yet implemented for HTTP endpoint`,
+        jsonrpc: "2.0",
+        id: mcpRequest.id,
+        error: {
+          code: -32601,
+          message: `Method ${mcpRequest.method} not implemented`,
+        },
       });
     } catch (mcpError) {
       console.error(`[MCP] Error processing MCP request:`, mcpError);
