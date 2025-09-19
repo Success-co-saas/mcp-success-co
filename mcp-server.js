@@ -7,7 +7,7 @@ import { z } from "zod";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import { getTeams } from "./tools.js";
+import { getTeams, getUsers } from "./tools.js";
 
 // Ensure Node 18+ for global fetch.
 
@@ -150,67 +150,7 @@ server.tool(
     offset: z.number().int().optional().describe("Optional offset"),
   },
   async ({ first, offset }) => {
-    const args =
-      first !== undefined || offset !== undefined
-        ? `(${[
-            first !== undefined ? `first: ${first}` : "",
-            offset !== undefined ? `offset: ${offset}` : "",
-          ]
-            .filter(Boolean)
-            .join(", ")})`
-        : "";
-
-    const query = `
-      query {
-        users${args} {
-          nodes {
-            id
-            userName
-            firstName
-            lastName
-            jobTitle
-            desc
-            avatar
-            email
-            userPermissionId
-            userStatusId
-            languageId
-            timeZone
-            companyId
-          }
-          totalCount
-        }
-      }
-    `;
-
-    const result = await callSuccessCoGraphQL(query);
-    if (!result.ok) {
-      return { content: [{ type: "text", text: result.error }] };
-    }
-
-    const data = result.data;
-    return {
-      content: [
-        {
-          type: "text",
-          text: JSON.stringify({
-            totalCount: data.data.users.totalCount,
-            results: data.data.users.nodes.map((user) => ({
-              id: user.id,
-              name: `${user.firstName} ${user.lastName}`,
-              email: user.email,
-              jobTitle: user.jobTitle || "",
-              description: user.desc || "",
-              userName: user.userName || "",
-              avatar: user.avatar || "",
-              status: user.userStatusId,
-              language: user.languageId,
-              timeZone: user.timeZone,
-            })),
-          }),
-        },
-      ],
-    };
+    return await getUsers({ first, offset });
   }
 );
 
@@ -2133,67 +2073,7 @@ function createFreshMcpServer() {
       offset: z.number().int().optional().describe("Optional offset"),
     },
     async ({ first, offset }) => {
-      const args =
-        first !== undefined || offset !== undefined
-          ? `(${[
-              first !== undefined ? `first: ${first}` : "",
-              offset !== undefined ? `offset: ${offset}` : "",
-            ]
-              .filter(Boolean)
-              .join(", ")})`
-          : "";
-
-      const query = `
-        query {
-          users${args} {
-            nodes {
-              id
-              userName
-              firstName
-              lastName
-              jobTitle
-              desc
-              avatar
-              email
-              userPermissionId
-              userStatusId
-              languageId
-              timeZone
-              companyId
-            }
-            totalCount
-          }
-        }
-      `;
-
-      const result = await callSuccessCoGraphQL(query);
-      if (!result.ok) {
-        return { content: [{ type: "text", text: result.error }] };
-      }
-
-      const data = result.data;
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify({
-              totalCount: data.data.users.totalCount,
-              results: data.data.users.nodes.map((user) => ({
-                id: user.id,
-                name: `${user.firstName} ${user.lastName}`,
-                email: user.email,
-                jobTitle: user.jobTitle || "",
-                description: user.desc || "",
-                userName: user.userName || "",
-                avatar: user.avatar || "",
-                status: user.userStatusId,
-                language: user.languageId,
-                timeZone: user.timeZone,
-              })),
-            }),
-          },
-        ],
-      };
+      return await getUsers({ first, offset });
     }
   );
 
@@ -3833,68 +3713,7 @@ app.all("/mcp", async (req, res) => {
         return await getTeams(args);
       },
       getUsers: async (args) => {
-        const { first, offset } = args;
-        const argsStr =
-          first !== undefined || offset !== undefined
-            ? `(${[
-                first !== undefined ? `first: ${first}` : "",
-                offset !== undefined ? `offset: ${offset}` : "",
-              ]
-                .filter(Boolean)
-                .join(", ")})`
-            : "";
-
-        const query = `
-          query {
-            users${argsStr} {
-              nodes {
-                id
-                userName
-                firstName
-                lastName
-                jobTitle
-                desc
-                avatar
-                email
-                userPermissionId
-                userStatusId
-                languageId
-                timeZone
-                companyId
-              }
-              totalCount
-            }
-          }
-        `;
-
-        const result = await callSuccessCoGraphQL(query);
-        if (!result.ok) {
-          return { content: [{ type: "text", text: result.error }] };
-        }
-
-        const data = result.data;
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify({
-                totalCount: data.data.users.totalCount,
-                results: data.data.users.nodes.map((user) => ({
-                  id: user.id,
-                  name: `${user.firstName} ${user.lastName}`,
-                  email: user.email,
-                  jobTitle: user.jobTitle || "",
-                  description: user.desc || "",
-                  userName: user.userName || "",
-                  avatar: user.avatar || "",
-                  status: user.userStatusId,
-                  language: user.languageId,
-                  timeZone: user.timeZone,
-                })),
-              }),
-            },
-          ],
-        };
+        return await getUsers(args);
       },
       getTodos: async (args) => {
         const { first, offset } = args;

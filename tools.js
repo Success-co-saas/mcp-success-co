@@ -124,3 +124,75 @@ export async function getTeams(args) {
     ],
   };
 }
+
+/**
+ * List Success.co users
+ * @param {Object} args - Arguments object
+ * @param {number} [args.first] - Optional page size
+ * @param {number} [args.offset] - Optional offset
+ * @returns {Promise<{content: Array<{type: string, text: string}>}>}
+ */
+export async function getUsers(args) {
+  const { first, offset } = args;
+  const argsStr =
+    first !== undefined || offset !== undefined
+      ? `(${[
+          first !== undefined ? `first: ${first}` : "",
+          offset !== undefined ? `offset: ${offset}` : "",
+        ]
+          .filter(Boolean)
+          .join(", ")})`
+      : "";
+
+  const query = `
+    query {
+      users${argsStr} {
+        nodes {
+          id
+          userName
+          firstName
+          lastName
+          jobTitle
+          desc
+          avatar
+          email
+          userPermissionId
+          userStatusId
+          languageId
+          timeZone
+          companyId
+        }
+        totalCount
+      }
+    }
+  `;
+
+  const result = await callSuccessCoGraphQL(query);
+  if (!result.ok) {
+    return { content: [{ type: "text", text: result.error }] };
+  }
+
+  const data = result.data;
+  return {
+    content: [
+      {
+        type: "text",
+        text: JSON.stringify({
+          totalCount: data.data.users.totalCount,
+          results: data.data.users.nodes.map((user) => ({
+            id: user.id,
+            name: `${user.firstName} ${user.lastName}`,
+            email: user.email,
+            jobTitle: user.jobTitle || "",
+            description: user.desc || "",
+            userName: user.userName || "",
+            avatar: user.avatar || "",
+            status: user.userStatusId,
+            language: user.languageId,
+            timeZone: user.timeZone,
+          })),
+        }),
+      },
+    ],
+  };
+}
