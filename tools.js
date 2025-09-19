@@ -480,3 +480,74 @@ export async function getIssues(args) {
     ],
   };
 }
+
+/**
+ * List Success.co headlines
+ * @param {Object} args - Arguments object
+ * @param {number} [args.first] - Optional page size
+ * @param {number} [args.offset] - Optional offset
+ * @returns {Promise<{content: Array<{type: string, text: string}>}>}
+ */
+export async function getHeadlines(args) {
+  const { first, offset } = args;
+  const argsStr =
+    first !== undefined || offset !== undefined
+      ? `(${[
+          first !== undefined ? `first: ${first}` : "",
+          offset !== undefined ? `offset: ${offset}` : "",
+        ]
+          .filter(Boolean)
+          .join(", ")})`
+      : "";
+
+  const query = `
+    query {
+      headlines${argsStr} {
+        nodes {
+          id
+          name
+          desc
+          userId
+          teamId
+          headlineStatusId
+          statusUpdatedAt
+          meetingId
+          createdAt
+          stateId
+          companyId
+          isCascadingMessage
+        }
+        totalCount
+      }
+    }
+  `;
+
+  const result = await callSuccessCoGraphQL(query);
+  if (!result.ok) {
+    return { content: [{ type: "text", text: result.error }] };
+  }
+
+  const data = result.data;
+  return {
+    content: [
+      {
+        type: "text",
+        text: JSON.stringify({
+          totalCount: data.data.headlines.totalCount,
+          results: data.data.headlines.nodes.map((headline) => ({
+            id: headline.id,
+            name: headline.name,
+            description: headline.desc || "",
+            status: headline.headlineStatusId,
+            teamId: headline.teamId,
+            userId: headline.userId,
+            meetingId: headline.meetingId,
+            isCascadingMessage: headline.isCascadingMessage,
+            createdAt: headline.createdAt,
+            statusUpdatedAt: headline.statusUpdatedAt,
+          })),
+        }),
+      },
+    ],
+  };
+}
