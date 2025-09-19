@@ -20,6 +20,7 @@ import {
   setSuccessCoApiKey,
   getSuccessCoApiKeyTool,
   getSuccessCoApiKey,
+  callSuccessCoGraphQL,
 } from "./tools.js";
 
 // Ensure Node 18+ for global fetch.
@@ -28,47 +29,6 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const API_KEY_FILE = path.join(__dirname, ".api_key");
 
 // --- Success.co API key management ------------------------------------------
-
-// --- Small helper to call Success.co GraphQL --------------------------------
-
-async function callSuccessCoGraphQL(query) {
-  const apiKey = getSuccessCoApiKey();
-  if (!apiKey) {
-    return {
-      ok: false,
-      error:
-        "Success.co API key not set. Use the setSuccessCoApiKey tool first.",
-    };
-  }
-
-  const url = "https://www.success.co/graphql";
-  const response = await fetch(url, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ query }),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    return {
-      ok: false,
-      error: `API request failed with status ${response.status}: ${errorText}`,
-    };
-  }
-
-  const data = await response.json();
-  if (data.errors) {
-    return {
-      ok: false,
-      error: `GraphQL errors: ${JSON.stringify(data.errors)}`,
-    };
-  }
-
-  return { ok: true, data };
-}
 
 // --- MCP server --------------------------------------------------------------
 
@@ -268,7 +228,7 @@ server.registerResource(
         }
       `;
 
-      const response = await fetch(url, {
+      const response = await globalThis.fetch(url, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${apiKey}`,
@@ -364,7 +324,7 @@ server.registerResource(
         }
       `;
 
-      const response = await fetch(url, {
+      const response = await globalThis.fetch(url, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${apiKey}`,
@@ -461,7 +421,7 @@ server.registerResource(
         }
       `;
 
-      const response = await fetch(url, {
+      const response = await globalThis.fetch(url, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${apiKey}`,
@@ -554,7 +514,7 @@ server.registerResource(
         }
       `;
 
-      const response = await fetch(url, {
+      const response = await globalThis.fetch(url, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${apiKey}`,
@@ -647,7 +607,7 @@ server.registerResource(
         }
       `;
 
-      const response = await fetch(url, {
+      const response = await globalThis.fetch(url, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${apiKey}`,
@@ -744,7 +704,7 @@ server.registerResource(
         }
       `;
 
-      const response = await fetch(url, {
+      const response = await globalThis.fetch(url, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${apiKey}`,
@@ -839,7 +799,7 @@ server.registerResource(
         }
       `;
 
-      const response = await fetch(url, {
+      const response = await globalThis.fetch(url, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${apiKey}`,
@@ -1125,7 +1085,7 @@ function createFreshMcpServer() {
           }
         `;
 
-        const response = await fetch(url, {
+        const response = await globalThis.fetch(url, {
           method: "POST",
           headers: {
             Authorization: `Bearer ${apiKey}`,
@@ -1223,7 +1183,7 @@ function createFreshMcpServer() {
           }
         `;
 
-        const response = await fetch(url, {
+        const response = await globalThis.fetch(url, {
           method: "POST",
           headers: {
             Authorization: `Bearer ${apiKey}`,
@@ -1465,7 +1425,7 @@ function createFreshMcpServer() {
 
           const query = config.queryTemplate.replace("{ARGS}", args);
 
-          const response = await fetch(url, {
+          const response = await globalThis.fetch(url, {
             method: "POST",
             headers: {
               Authorization: `Bearer ${apiKey}`,
@@ -2124,14 +2084,17 @@ app.all("/mcp", async (req, res) => {
         }
 
         // Make the GraphQL request
-        const response = await fetch("https://www.success.co/graphql", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${apiKey}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ query }),
-        });
+        const response = await globalThis.fetch(
+          "https://www.success.co/graphql",
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${apiKey}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ query }),
+          }
+        );
 
         if (!response.ok) {
           const errorText = await response.text();

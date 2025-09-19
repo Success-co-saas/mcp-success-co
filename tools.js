@@ -10,7 +10,7 @@ import { fileURLToPath } from "url";
  * @param {string} query - The GraphQL query string
  * @returns {Promise<{ok: boolean, data?: any, error?: string}>}
  */
-async function callSuccessCoGraphQL(query) {
+export async function callSuccessCoGraphQL(query) {
   const apiKey = getSuccessCoApiKey();
   if (!apiKey) {
     return {
@@ -21,7 +21,7 @@ async function callSuccessCoGraphQL(query) {
   }
 
   const url = "https://www.success.co/graphql";
-  const response = await fetch(url, {
+  const response = await globalThis.fetch(url, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
@@ -1020,7 +1020,7 @@ export async function fetch(args) {
   // Helper function to make GraphQL requests
   const makeGraphQLRequest = async (query, variables = {}) => {
     const url = "https://www.success.co/graphql";
-    const response = await fetch(url, {
+    const response = await globalThis.fetch(url, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
