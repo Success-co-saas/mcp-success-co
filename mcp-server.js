@@ -2,6 +2,7 @@ import express from "express";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import fs from "fs";
 import path from "path";
@@ -521,5 +522,58 @@ app.post("/messages", async (req, res) => {
   }
 });
 
-console.log("Server is running on port 3001");
-app.listen(3001);
+// Use console.error for operational logs (will appear in mcp.log but not break the protocol)
+console.error("Starting MCP server");
+
+// Always start HTTP server (with error handling for port conflicts)
+console.error("Starting HTTP server on port 3001");
+const httpServer = app
+  .listen(3001, () => {
+    console.error("HTTP server is running on port 3001");
+  })
+  .on("error", (error) => {
+    // Just log the error but don't exit - allow STDIO to work even if HTTP fails
+    console.error(`HTTP server error: ${error.message}`);
+  });
+
+// Check if running in Claude conversation or other non-TTY environment
+// Claude doesn't set CLAUDE_CONVERSATION, so we need to detect it differently
+const isRunningInClaude = true;
+
+if (isRunningInClaude) {
+  console.error("Detected Claude conversation, initializing STDIO transport");
+
+  // Initialize STDIO transport for Claude
+  const stdioTransport = new StdioServerTransport();
+
+  // Connect the STDIO transport to the MCP server
+  server
+    .connect(stdioTransport)
+    .then(() => {
+      console.error("STDIO transport connected successfully");
+    })
+    .catch((error) => {
+      console.error(`Error connecting STDIO transport: ${error.message}`);
+      // Don't exit - HTTP server might still be running
+    });
+
+  // Handle process termination signals
+  process.on("SIGINT", () => {
+    console.error("Received SIGINT, shutting down");
+    if (httpServer) {
+      httpServer.close();
+    }
+    process.exit(0);
+  });
+
+  process.on("SIGTERM", () => {
+    console.error("Received SIGTERM, shutting down");
+    if (httpServer) {
+      httpServer.close();
+    }
+    process.exit(0);
+  });
+
+  // Keep the process alive for STDIO transport
+  process.stdin.resume();
+}
