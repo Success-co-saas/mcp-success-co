@@ -7,7 +7,13 @@ import { z } from "zod";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import { getTeams, getUsers } from "./tools.js";
+import {
+  getTeams,
+  getUsers,
+  getTodos,
+  getRocks,
+  getMeetings,
+} from "./tools.js";
 
 // Ensure Node 18+ for global fetch.
 
@@ -164,70 +170,7 @@ server.tool(
     offset: z.number().int().optional().describe("Optional offset"),
   },
   async ({ first, offset }) => {
-    const args =
-      first !== undefined || offset !== undefined
-        ? `(${[
-            first !== undefined ? `first: ${first}` : "",
-            offset !== undefined ? `offset: ${offset}` : "",
-          ]
-            .filter(Boolean)
-            .join(", ")})`
-        : "";
-
-    const query = `
-      query {
-        todos${args} {
-          nodes {
-            id
-            todoStatusId
-            name
-            desc
-            teamId
-            userId
-            statusUpdatedAt
-            type
-            dueDate
-            priorityNo
-            createdAt
-            stateId
-            companyId
-            meetingId
-          }
-          totalCount
-        }
-      }
-    `;
-
-    const result = await callSuccessCoGraphQL(query);
-    if (!result.ok) {
-      return { content: [{ type: "text", text: result.error }] };
-    }
-
-    const data = result.data;
-    return {
-      content: [
-        {
-          type: "text",
-          text: JSON.stringify({
-            totalCount: data.data.todos.totalCount,
-            results: data.data.todos.nodes.map((todo) => ({
-              id: todo.id,
-              name: todo.name,
-              description: todo.desc || "",
-              status: todo.todoStatusId,
-              type: todo.type,
-              priority: todo.priorityNo,
-              dueDate: todo.dueDate,
-              teamId: todo.teamId,
-              userId: todo.userId,
-              meetingId: todo.meetingId,
-              createdAt: todo.createdAt,
-              statusUpdatedAt: todo.statusUpdatedAt,
-            })),
-          }),
-        },
-      ],
-    };
+    return await getTodos({ first, offset });
   }
 );
 
@@ -241,62 +184,7 @@ server.tool(
     offset: z.number().int().optional().describe("Optional offset"),
   },
   async ({ first, offset }) => {
-    const args =
-      first !== undefined || offset !== undefined
-        ? `(${[
-            first !== undefined ? `first: ${first}` : "",
-            offset !== undefined ? `offset: ${offset}` : "",
-          ]
-            .filter(Boolean)
-            .join(", ")})`
-        : "";
-
-    const query = `
-      query {
-        rocks${args} {
-          nodes {
-            id
-            rockStatusId
-            name
-            desc
-            statusUpdatedAt
-            type
-            dueDate
-            createdAt
-            stateId
-            companyId
-          }
-          totalCount
-        }
-      }
-    `;
-
-    const result = await callSuccessCoGraphQL(query);
-    if (!result.ok) {
-      return { content: [{ type: "text", text: result.error }] };
-    }
-
-    const data = result.data;
-    return {
-      content: [
-        {
-          type: "text",
-          text: JSON.stringify({
-            totalCount: data.data.rocks.totalCount,
-            results: data.data.rocks.nodes.map((rock) => ({
-              id: rock.id,
-              name: rock.name,
-              description: rock.desc || "",
-              status: rock.rockStatusId,
-              type: rock.type,
-              dueDate: rock.dueDate,
-              createdAt: rock.createdAt,
-              statusUpdatedAt: rock.statusUpdatedAt,
-            })),
-          }),
-        },
-      ],
-    };
+    return await getRocks({ first, offset });
   }
 );
 
@@ -310,62 +198,7 @@ server.tool(
     offset: z.number().int().optional().describe("Optional offset"),
   },
   async ({ first, offset }) => {
-    const args =
-      first !== undefined || offset !== undefined
-        ? `(${[
-            first !== undefined ? `first: ${first}` : "",
-            offset !== undefined ? `offset: ${offset}` : "",
-          ]
-            .filter(Boolean)
-            .join(", ")})`
-        : "";
-
-    const query = `
-      query {
-        meetings${args} {
-          nodes {
-            id
-            meetingInfoId
-            date
-            startTime
-            endTime
-            averageRating
-            meetingStatusId
-            createdAt
-            stateId
-            companyId
-          }
-          totalCount
-        }
-      }
-    `;
-
-    const result = await callSuccessCoGraphQL(query);
-    if (!result.ok) {
-      return { content: [{ type: "text", text: result.error }] };
-    }
-
-    const data = result.data;
-    return {
-      content: [
-        {
-          type: "text",
-          text: JSON.stringify({
-            totalCount: data.data.meetings.totalCount,
-            results: data.data.meetings.nodes.map((meeting) => ({
-              id: meeting.id,
-              meetingInfoId: meeting.meetingInfoId,
-              date: meeting.date,
-              startTime: meeting.startTime,
-              endTime: meeting.endTime,
-              averageRating: meeting.averageRating,
-              status: meeting.meetingStatusId,
-              createdAt: meeting.createdAt,
-            })),
-          }),
-        },
-      ],
-    };
+    return await getMeetings({ first, offset });
   }
 );
 
@@ -2086,70 +1919,7 @@ function createFreshMcpServer() {
       offset: z.number().int().optional().describe("Optional offset"),
     },
     async ({ first, offset }) => {
-      const args =
-        first !== undefined || offset !== undefined
-          ? `(${[
-              first !== undefined ? `first: ${first}` : "",
-              offset !== undefined ? `offset: ${offset}` : "",
-            ]
-              .filter(Boolean)
-              .join(", ")})`
-          : "";
-
-      const query = `
-        query {
-          todos${args} {
-            nodes {
-              id
-              todoStatusId
-              name
-              desc
-              teamId
-              userId
-              statusUpdatedAt
-              type
-              dueDate
-              priorityNo
-              createdAt
-              stateId
-              companyId
-              meetingId
-            }
-            totalCount
-          }
-        }
-      `;
-
-      const result = await callSuccessCoGraphQL(query);
-      if (!result.ok) {
-        return { content: [{ type: "text", text: result.error }] };
-      }
-
-      const data = result.data;
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify({
-              totalCount: data.data.todos.totalCount,
-              results: data.data.todos.nodes.map((todo) => ({
-                id: todo.id,
-                name: todo.name,
-                description: todo.desc || "",
-                status: todo.todoStatusId,
-                type: todo.type,
-                priority: todo.priorityNo,
-                dueDate: todo.dueDate,
-                teamId: todo.teamId,
-                userId: todo.userId,
-                meetingId: todo.meetingId,
-                createdAt: todo.createdAt,
-                statusUpdatedAt: todo.statusUpdatedAt,
-              })),
-            }),
-          },
-        ],
-      };
+      return await getTodos({ first, offset });
     }
   );
 
@@ -2162,62 +1932,7 @@ function createFreshMcpServer() {
       offset: z.number().int().optional().describe("Optional offset"),
     },
     async ({ first, offset }) => {
-      const args =
-        first !== undefined || offset !== undefined
-          ? `(${[
-              first !== undefined ? `first: ${first}` : "",
-              offset !== undefined ? `offset: ${offset}` : "",
-            ]
-              .filter(Boolean)
-              .join(", ")})`
-          : "";
-
-      const query = `
-        query {
-          rocks${args} {
-            nodes {
-              id
-              rockStatusId
-              name
-              desc
-              statusUpdatedAt
-              type
-              dueDate
-              createdAt
-              stateId
-              companyId
-            }
-            totalCount
-          }
-        }
-      `;
-
-      const result = await callSuccessCoGraphQL(query);
-      if (!result.ok) {
-        return { content: [{ type: "text", text: result.error }] };
-      }
-
-      const data = result.data;
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify({
-              totalCount: data.data.rocks.totalCount,
-              results: data.data.rocks.nodes.map((rock) => ({
-                id: rock.id,
-                name: rock.name,
-                description: rock.desc || "",
-                status: rock.rockStatusId,
-                type: rock.type,
-                dueDate: rock.dueDate,
-                createdAt: rock.createdAt,
-                statusUpdatedAt: rock.statusUpdatedAt,
-              })),
-            }),
-          },
-        ],
-      };
+      return await getRocks({ first, offset });
     }
   );
 
@@ -2230,62 +1945,7 @@ function createFreshMcpServer() {
       offset: z.number().int().optional().describe("Optional offset"),
     },
     async ({ first, offset }) => {
-      const args =
-        first !== undefined || offset !== undefined
-          ? `(${[
-              first !== undefined ? `first: ${first}` : "",
-              offset !== undefined ? `offset: ${offset}` : "",
-            ]
-              .filter(Boolean)
-              .join(", ")})`
-          : "";
-
-      const query = `
-        query {
-          meetings${args} {
-            nodes {
-              id
-              meetingInfoId
-              date
-              startTime
-              endTime
-              averageRating
-              meetingStatusId
-              createdAt
-              stateId
-              companyId
-            }
-            totalCount
-          }
-        }
-      `;
-
-      const result = await callSuccessCoGraphQL(query);
-      if (!result.ok) {
-        return { content: [{ type: "text", text: result.error }] };
-      }
-
-      const data = result.data;
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify({
-              totalCount: data.data.meetings.totalCount,
-              results: data.data.meetings.nodes.map((meeting) => ({
-                id: meeting.id,
-                meetingInfoId: meeting.meetingInfoId,
-                date: meeting.date,
-                startTime: meeting.startTime,
-                endTime: meeting.endTime,
-                averageRating: meeting.averageRating,
-                status: meeting.meetingStatusId,
-                createdAt: meeting.createdAt,
-              })),
-            }),
-          },
-        ],
-      };
+      return await getMeetings({ first, offset });
     }
   );
 
@@ -3716,189 +3376,13 @@ app.all("/mcp", async (req, res) => {
         return await getUsers(args);
       },
       getTodos: async (args) => {
-        const { first, offset } = args;
-        const argsStr =
-          first !== undefined || offset !== undefined
-            ? `(${[
-                first !== undefined ? `first: ${first}` : "",
-                offset !== undefined ? `offset: ${offset}` : "",
-              ]
-                .filter(Boolean)
-                .join(", ")})`
-            : "";
-
-        const query = `
-          query {
-            todos${argsStr} {
-              nodes {
-                id
-                todoStatusId
-                name
-                desc
-                teamId
-                userId
-                statusUpdatedAt
-                type
-                dueDate
-                priorityNo
-                createdAt
-                stateId
-                companyId
-                meetingId
-              }
-              totalCount
-            }
-          }
-        `;
-
-        const result = await callSuccessCoGraphQL(query);
-        if (!result.ok) {
-          return { content: [{ type: "text", text: result.error }] };
-        }
-
-        const data = result.data;
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify({
-                totalCount: data.data.todos.totalCount,
-                results: data.data.todos.nodes.map((todo) => ({
-                  id: todo.id,
-                  name: todo.name,
-                  description: todo.desc || "",
-                  status: todo.todoStatusId,
-                  type: todo.type,
-                  priority: todo.priorityNo,
-                  dueDate: todo.dueDate,
-                  teamId: todo.teamId,
-                  userId: todo.userId,
-                  meetingId: todo.meetingId,
-                  createdAt: todo.createdAt,
-                  statusUpdatedAt: todo.statusUpdatedAt,
-                })),
-              }),
-            },
-          ],
-        };
+        return await getTodos(args);
       },
       getRocks: async (args) => {
-        const { first, offset } = args;
-        const argsStr =
-          first !== undefined || offset !== undefined
-            ? `(${[
-                first !== undefined ? `first: ${first}` : "",
-                offset !== undefined ? `offset: ${offset}` : "",
-              ]
-                .filter(Boolean)
-                .join(", ")})`
-            : "";
-
-        const query = `
-          query {
-            rocks${argsStr} {
-              nodes {
-                id
-                rockStatusId
-                name
-                desc
-                statusUpdatedAt
-                type
-                dueDate
-                createdAt
-                stateId
-                companyId
-              }
-              totalCount
-            }
-          }
-        `;
-
-        const result = await callSuccessCoGraphQL(query);
-        if (!result.ok) {
-          return { content: [{ type: "text", text: result.error }] };
-        }
-
-        const data = result.data;
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify({
-                totalCount: data.data.rocks.totalCount,
-                results: data.data.rocks.nodes.map((rock) => ({
-                  id: rock.id,
-                  name: rock.name,
-                  description: rock.desc || "",
-                  status: rock.rockStatusId,
-                  type: rock.type,
-                  dueDate: rock.dueDate,
-                  createdAt: rock.createdAt,
-                  statusUpdatedAt: rock.statusUpdatedAt,
-                })),
-              }),
-            },
-          ],
-        };
+        return await getRocks(args);
       },
       getMeetings: async (args) => {
-        const { first, offset } = args;
-        const argsStr =
-          first !== undefined || offset !== undefined
-            ? `(${[
-                first !== undefined ? `first: ${first}` : "",
-                offset !== undefined ? `offset: ${offset}` : "",
-              ]
-                .filter(Boolean)
-                .join(", ")})`
-            : "";
-
-        const query = `
-          query {
-            meetings${argsStr} {
-              nodes {
-                id
-                meetingInfoId
-                date
-                startTime
-                endTime
-                averageRating
-                meetingStatusId
-                createdAt
-                stateId
-                companyId
-              }
-              totalCount
-            }
-          }
-        `;
-
-        const result = await callSuccessCoGraphQL(query);
-        if (!result.ok) {
-          return { content: [{ type: "text", text: result.error }] };
-        }
-
-        const data = result.data;
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify({
-                totalCount: data.data.meetings.totalCount,
-                results: data.data.meetings.nodes.map((meeting) => ({
-                  id: meeting.id,
-                  meetingInfoId: meeting.meetingInfoId,
-                  date: meeting.date,
-                  startTime: meeting.startTime,
-                  endTime: meeting.endTime,
-                  averageRating: meeting.averageRating,
-                  status: meeting.meetingStatusId,
-                  createdAt: meeting.createdAt,
-                })),
-              }),
-            },
-          ],
-        };
+        return await getMeetings(args);
       },
       getIssues: async (args) => {
         const { first, offset } = args;

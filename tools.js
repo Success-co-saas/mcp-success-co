@@ -196,3 +196,212 @@ export async function getUsers(args) {
     ],
   };
 }
+
+/**
+ * List Success.co todos
+ * @param {Object} args - Arguments object
+ * @param {number} [args.first] - Optional page size
+ * @param {number} [args.offset] - Optional offset
+ * @returns {Promise<{content: Array<{type: string, text: string}>}>}
+ */
+export async function getTodos(args) {
+  const { first, offset } = args;
+  const argsStr =
+    first !== undefined || offset !== undefined
+      ? `(${[
+          first !== undefined ? `first: ${first}` : "",
+          offset !== undefined ? `offset: ${offset}` : "",
+        ]
+          .filter(Boolean)
+          .join(", ")})`
+      : "";
+
+  const query = `
+    query {
+      todos${argsStr} {
+        nodes {
+          id
+          todoStatusId
+          name
+          desc
+          teamId
+          userId
+          statusUpdatedAt
+          type
+          dueDate
+          priorityNo
+          createdAt
+          stateId
+          companyId
+          meetingId
+        }
+        totalCount
+      }
+    }
+  `;
+
+  const result = await callSuccessCoGraphQL(query);
+  if (!result.ok) {
+    return { content: [{ type: "text", text: result.error }] };
+  }
+
+  const data = result.data;
+  return {
+    content: [
+      {
+        type: "text",
+        text: JSON.stringify({
+          totalCount: data.data.todos.totalCount,
+          results: data.data.todos.nodes.map((todo) => ({
+            id: todo.id,
+            name: todo.name,
+            description: todo.desc || "",
+            status: todo.todoStatusId,
+            type: todo.type,
+            priority: todo.priorityNo,
+            dueDate: todo.dueDate,
+            teamId: todo.teamId,
+            userId: todo.userId,
+            meetingId: todo.meetingId,
+            createdAt: todo.createdAt,
+            statusUpdatedAt: todo.statusUpdatedAt,
+          })),
+        }),
+      },
+    ],
+  };
+}
+
+/**
+ * List Success.co rocks
+ * @param {Object} args - Arguments object
+ * @param {number} [args.first] - Optional page size
+ * @param {number} [args.offset] - Optional offset
+ * @returns {Promise<{content: Array<{type: string, text: string}>}>}
+ */
+export async function getRocks(args) {
+  const { first, offset } = args;
+  const argsStr =
+    first !== undefined || offset !== undefined
+      ? `(${[
+          first !== undefined ? `first: ${first}` : "",
+          offset !== undefined ? `offset: ${offset}` : "",
+        ]
+          .filter(Boolean)
+          .join(", ")})`
+      : "";
+
+  const query = `
+    query {
+      rocks${argsStr} {
+        nodes {
+          id
+          rockStatusId
+          name
+          desc
+          statusUpdatedAt
+          type
+          dueDate
+          createdAt
+          stateId
+          companyId
+        }
+        totalCount
+      }
+    }
+  `;
+
+  const result = await callSuccessCoGraphQL(query);
+  if (!result.ok) {
+    return { content: [{ type: "text", text: result.error }] };
+  }
+
+  const data = result.data;
+  return {
+    content: [
+      {
+        type: "text",
+        text: JSON.stringify({
+          totalCount: data.data.rocks.totalCount,
+          results: data.data.rocks.nodes.map((rock) => ({
+            id: rock.id,
+            name: rock.name,
+            description: rock.desc || "",
+            status: rock.rockStatusId,
+            type: rock.type,
+            dueDate: rock.dueDate,
+            createdAt: rock.createdAt,
+            statusUpdatedAt: rock.statusUpdatedAt,
+          })),
+        }),
+      },
+    ],
+  };
+}
+
+/**
+ * List Success.co meetings
+ * @param {Object} args - Arguments object
+ * @param {number} [args.first] - Optional page size
+ * @param {number} [args.offset] - Optional offset
+ * @returns {Promise<{content: Array<{type: string, text: string}>}>}
+ */
+export async function getMeetings(args) {
+  const { first, offset } = args;
+  const argsStr =
+    first !== undefined || offset !== undefined
+      ? `(${[
+          first !== undefined ? `first: ${first}` : "",
+          offset !== undefined ? `offset: ${offset}` : "",
+        ]
+          .filter(Boolean)
+          .join(", ")})`
+      : "";
+
+  const query = `
+    query {
+      meetings${argsStr} {
+        nodes {
+          id
+          meetingInfoId
+          date
+          startTime
+          endTime
+          averageRating
+          meetingStatusId
+          createdAt
+          stateId
+          companyId
+        }
+        totalCount
+      }
+    }
+  `;
+
+  const result = await callSuccessCoGraphQL(query);
+  if (!result.ok) {
+    return { content: [{ type: "text", text: result.error }] };
+  }
+
+  const data = result.data;
+  return {
+    content: [
+      {
+        type: "text",
+        text: JSON.stringify({
+          totalCount: data.data.meetings.totalCount,
+          results: data.data.meetings.nodes.map((meeting) => ({
+            id: meeting.id,
+            meetingInfoId: meeting.meetingInfoId,
+            date: meeting.date,
+            startTime: meeting.startTime,
+            endTime: meeting.endTime,
+            averageRating: meeting.averageRating,
+            status: meeting.meetingStatusId,
+            createdAt: meeting.createdAt,
+          })),
+        }),
+      },
+    ],
+  };
+}
