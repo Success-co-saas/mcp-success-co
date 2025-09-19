@@ -264,6 +264,371 @@ server.tool(
   }
 );
 
+// ---------- Todos tool ------------------------------------------------------
+
+server.tool(
+  "getTodos",
+  "List Success.co todos",
+  {
+    first: z.number().int().optional().describe("Optional page size"),
+    offset: z.number().int().optional().describe("Optional offset"),
+  },
+  async ({ first, offset }) => {
+    const args =
+      first !== undefined || offset !== undefined
+        ? `(${[
+            first !== undefined ? `first: ${first}` : "",
+            offset !== undefined ? `offset: ${offset}` : "",
+          ]
+            .filter(Boolean)
+            .join(", ")})`
+        : "";
+
+    const query = `
+      query {
+        todos${args} {
+          nodes {
+            id
+            todoStatusId
+            name
+            desc
+            teamId
+            userId
+            statusUpdatedAt
+            type
+            dueDate
+            priorityNo
+            createdAt
+            stateId
+            companyId
+            meetingId
+          }
+          totalCount
+        }
+      }
+    `;
+
+    const result = await callSuccessCoGraphQL(query);
+    if (!result.ok) {
+      return { content: [{ type: "text", text: result.error }] };
+    }
+
+    const data = result.data;
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify({
+            totalCount: data.data.todos.totalCount,
+            results: data.data.todos.nodes.map((todo) => ({
+              id: todo.id,
+              name: todo.name,
+              description: todo.desc || "",
+              status: todo.todoStatusId,
+              type: todo.type,
+              priority: todo.priorityNo,
+              dueDate: todo.dueDate,
+              teamId: todo.teamId,
+              userId: todo.userId,
+              meetingId: todo.meetingId,
+              createdAt: todo.createdAt,
+              statusUpdatedAt: todo.statusUpdatedAt,
+            })),
+          }),
+        },
+      ],
+    };
+  }
+);
+
+// ---------- Rocks tool ------------------------------------------------------
+
+server.tool(
+  "getRocks",
+  "List Success.co rocks",
+  {
+    first: z.number().int().optional().describe("Optional page size"),
+    offset: z.number().int().optional().describe("Optional offset"),
+  },
+  async ({ first, offset }) => {
+    const args =
+      first !== undefined || offset !== undefined
+        ? `(${[
+            first !== undefined ? `first: ${first}` : "",
+            offset !== undefined ? `offset: ${offset}` : "",
+          ]
+            .filter(Boolean)
+            .join(", ")})`
+        : "";
+
+    const query = `
+      query {
+        rocks${args} {
+          nodes {
+            id
+            rockStatusId
+            name
+            desc
+            statusUpdatedAt
+            type
+            dueDate
+            createdAt
+            stateId
+            companyId
+          }
+          totalCount
+        }
+      }
+    `;
+
+    const result = await callSuccessCoGraphQL(query);
+    if (!result.ok) {
+      return { content: [{ type: "text", text: result.error }] };
+    }
+
+    const data = result.data;
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify({
+            totalCount: data.data.rocks.totalCount,
+            results: data.data.rocks.nodes.map((rock) => ({
+              id: rock.id,
+              name: rock.name,
+              description: rock.desc || "",
+              status: rock.rockStatusId,
+              type: rock.type,
+              dueDate: rock.dueDate,
+              createdAt: rock.createdAt,
+              statusUpdatedAt: rock.statusUpdatedAt,
+            })),
+          }),
+        },
+      ],
+    };
+  }
+);
+
+// ---------- Meetings tool ------------------------------------------------------
+
+server.tool(
+  "getMeetings",
+  "List Success.co meetings",
+  {
+    first: z.number().int().optional().describe("Optional page size"),
+    offset: z.number().int().optional().describe("Optional offset"),
+  },
+  async ({ first, offset }) => {
+    const args =
+      first !== undefined || offset !== undefined
+        ? `(${[
+            first !== undefined ? `first: ${first}` : "",
+            offset !== undefined ? `offset: ${offset}` : "",
+          ]
+            .filter(Boolean)
+            .join(", ")})`
+        : "";
+
+    const query = `
+      query {
+        meetings${args} {
+          nodes {
+            id
+            meetingInfoId
+            date
+            startTime
+            endTime
+            averageRating
+            meetingStatusId
+            createdAt
+            stateId
+            companyId
+          }
+          totalCount
+        }
+      }
+    `;
+
+    const result = await callSuccessCoGraphQL(query);
+    if (!result.ok) {
+      return { content: [{ type: "text", text: result.error }] };
+    }
+
+    const data = result.data;
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify({
+            totalCount: data.data.meetings.totalCount,
+            results: data.data.meetings.nodes.map((meeting) => ({
+              id: meeting.id,
+              meetingInfoId: meeting.meetingInfoId,
+              date: meeting.date,
+              startTime: meeting.startTime,
+              endTime: meeting.endTime,
+              averageRating: meeting.averageRating,
+              status: meeting.meetingStatusId,
+              createdAt: meeting.createdAt,
+            })),
+          }),
+        },
+      ],
+    };
+  }
+);
+
+// ---------- Issues tool ------------------------------------------------------
+
+server.tool(
+  "getIssues",
+  "List Success.co issues",
+  {
+    first: z.number().int().optional().describe("Optional page size"),
+    offset: z.number().int().optional().describe("Optional offset"),
+  },
+  async ({ first, offset }) => {
+    const args =
+      first !== undefined || offset !== undefined
+        ? `(${[
+            first !== undefined ? `first: ${first}` : "",
+            offset !== undefined ? `offset: ${offset}` : "",
+          ]
+            .filter(Boolean)
+            .join(", ")})`
+        : "";
+
+    const query = `
+      query {
+        issues${args} {
+          nodes {
+            id
+            issueStatusId
+            name
+            desc
+            teamId
+            userId
+            type
+            priorityNo
+            priorityOrder
+            statusUpdatedAt
+            meetingId
+            createdAt
+            stateId
+            companyId
+          }
+          totalCount
+        }
+      }
+    `;
+
+    const result = await callSuccessCoGraphQL(query);
+    if (!result.ok) {
+      return { content: [{ type: "text", text: result.error }] };
+    }
+
+    const data = result.data;
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify({
+            totalCount: data.data.issues.totalCount,
+            results: data.data.issues.nodes.map((issue) => ({
+              id: issue.id,
+              name: issue.name,
+              description: issue.desc || "",
+              status: issue.issueStatusId,
+              type: issue.type,
+              priority: issue.priorityNo,
+              priorityOrder: issue.priorityOrder,
+              teamId: issue.teamId,
+              userId: issue.userId,
+              meetingId: issue.meetingId,
+              createdAt: issue.createdAt,
+              statusUpdatedAt: issue.statusUpdatedAt,
+            })),
+          }),
+        },
+      ],
+    };
+  }
+);
+
+// ---------- Headlines tool ------------------------------------------------------
+
+server.tool(
+  "getHeadlines",
+  "List Success.co headlines",
+  {
+    first: z.number().int().optional().describe("Optional page size"),
+    offset: z.number().int().optional().describe("Optional offset"),
+  },
+  async ({ first, offset }) => {
+    const args =
+      first !== undefined || offset !== undefined
+        ? `(${[
+            first !== undefined ? `first: ${first}` : "",
+            offset !== undefined ? `offset: ${offset}` : "",
+          ]
+            .filter(Boolean)
+            .join(", ")})`
+        : "";
+
+    const query = `
+      query {
+        headlines${args} {
+          nodes {
+            id
+            name
+            desc
+            userId
+            teamId
+            headlineStatusId
+            statusUpdatedAt
+            meetingId
+            createdAt
+            stateId
+            companyId
+            isCascadingMessage
+          }
+          totalCount
+        }
+      }
+    `;
+
+    const result = await callSuccessCoGraphQL(query);
+    if (!result.ok) {
+      return { content: [{ type: "text", text: result.error }] };
+    }
+
+    const data = result.data;
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify({
+            totalCount: data.data.headlines.totalCount,
+            results: data.data.headlines.nodes.map((headline) => ({
+              id: headline.id,
+              name: headline.name,
+              description: headline.desc || "",
+              status: headline.headlineStatusId,
+              teamId: headline.teamId,
+              userId: headline.userId,
+              meetingId: headline.meetingId,
+              isCascadingMessage: headline.isCascadingMessage,
+              createdAt: headline.createdAt,
+              statusUpdatedAt: headline.statusUpdatedAt,
+            })),
+          }),
+        },
+      ],
+    };
+  }
+);
+
 // ---------- NEW: `search` tool for natural queries like “List my teams” ------
 
 // --- Replace your existing `search` and `fetch` with these -------------------
@@ -271,14 +636,17 @@ server.tool(
 // SEARCH: natural language -> list of hits with ids
 server.tool(
   "search",
-  "Search Success.co data (supports: teams, users).",
+  "Search Success.co data (supports: teams, users, todos, rocks, meetings, issues, headlines).",
   {
     query: z
       .string()
-      .describe("What to look up, e.g., 'list my teams', 'show users'"),
+      .describe(
+        "What to look up, e.g., 'list my teams', 'show users', 'find todos', 'get meetings'"
+      ),
   },
   async ({ query }) => {
     const q = (query || "").toLowerCase();
+
     const wantsTeams =
       /\b(team|teams|my team|my teams)\b/.test(q) ||
       /list.*team/.test(q) ||
@@ -290,6 +658,43 @@ server.tool(
       /show.*user/.test(q) ||
       /list.*people/.test(q) ||
       /show.*people/.test(q);
+
+    const wantsTodos =
+      /\b(todo|todos|task|tasks|to-do|to-dos)\b/.test(q) ||
+      /list.*todo/.test(q) ||
+      /show.*todo/.test(q) ||
+      /find.*todo/.test(q) ||
+      /get.*todo/.test(q);
+
+    const wantsRocks =
+      /\b(rock|rocks|priority|priorities)\b/.test(q) ||
+      /list.*rock/.test(q) ||
+      /show.*rock/.test(q) ||
+      /find.*rock/.test(q) ||
+      /get.*rock/.test(q);
+
+    const wantsMeetings =
+      /\b(meeting|meetings|session|sessions)\b/.test(q) ||
+      /list.*meeting/.test(q) ||
+      /show.*meeting/.test(q) ||
+      /find.*meeting/.test(q) ||
+      /get.*meeting/.test(q);
+
+    const wantsIssues =
+      /\b(issue|issues|problem|problems|concern|concerns)\b/.test(q) ||
+      /list.*issue/.test(q) ||
+      /show.*issue/.test(q) ||
+      /find.*issue/.test(q) ||
+      /get.*issue/.test(q);
+
+    const wantsHeadlines =
+      /\b(headline|headlines|news|update|updates|announcement|announcements)\b/.test(
+        q
+      ) ||
+      /list.*headline/.test(q) ||
+      /show.*headline/.test(q) ||
+      /find.*headline/.test(q) ||
+      /get.*headline/.test(q);
 
     if (wantsTeams) {
       const gql = `
@@ -332,7 +737,7 @@ server.tool(
 
     if (wantsUsers) {
       const gql = `
-        query {
+      query {
           users {
             nodes {
               id
@@ -372,11 +777,223 @@ server.tool(
       };
     }
 
+    if (wantsTodos) {
+      const gql = `
+        query {
+          todos {
+          nodes {
+            id
+            name
+            desc
+              type
+              priorityNo
+              dueDate
+          }
+          totalCount
+        }
+      }
+    `;
+      const result = await callSuccessCoGraphQL(gql);
+      if (!result.ok)
+        return { content: [{ type: "text", text: result.error }] };
+
+      const { data } = result;
+      const hits = (data?.data?.todos?.nodes || []).map((t) => ({
+        id: String(t.id), // REQUIRED by ChatGPT's fetch contract
+        title: t.name ?? String(t.id),
+        snippet:
+          `${t.type || ""} ${t.desc || ""}`.trim() ||
+          `Priority: ${t.priorityNo}`,
+        // optional extras are fine, but keep required ones present
+      }));
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              kind: "todos",
+              totalCount: data?.data?.todos?.totalCount ?? hits.length,
+              hits,
+            }),
+          },
+        ],
+      };
+    }
+
+    if (wantsRocks) {
+      const gql = `
+        query {
+          rocks {
+            nodes {
+              id
+              name
+              desc
+              type
+              dueDate
+            }
+            totalCount
+          }
+        }
+      `;
+      const result = await callSuccessCoGraphQL(gql);
+      if (!result.ok)
+        return { content: [{ type: "text", text: result.error }] };
+
+      const { data } = result;
+      const hits = (data?.data?.rocks?.nodes || []).map((r) => ({
+        id: String(r.id), // REQUIRED by ChatGPT's fetch contract
+        title: r.name ?? String(r.id),
+        snippet:
+          `${r.type || ""} ${r.desc || ""}`.trim() || `Due: ${r.dueDate}`,
+        // optional extras are fine, but keep required ones present
+      }));
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              kind: "rocks",
+              totalCount: data?.data?.rocks?.totalCount ?? hits.length,
+              hits,
+            }),
+          },
+        ],
+      };
+    }
+
+    if (wantsMeetings) {
+      const gql = `
+        query {
+          meetings {
+            nodes {
+              id
+              date
+              startTime
+              endTime
+              averageRating
+            }
+            totalCount
+          }
+        }
+      `;
+      const result = await callSuccessCoGraphQL(gql);
+      if (!result.ok)
+        return { content: [{ type: "text", text: result.error }] };
+
+      const { data } = result;
+      const hits = (data?.data?.meetings?.nodes || []).map((m) => ({
+        id: String(m.id), // REQUIRED by ChatGPT's fetch contract
+        title: `Meeting on ${m.date}`,
+        snippet: `${m.startTime || ""} - ${m.endTime || ""} (Rating: ${
+          m.averageRating || "N/A"
+        })`,
+        // optional extras are fine, but keep required ones present
+      }));
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              kind: "meetings",
+              totalCount: data?.data?.meetings?.totalCount ?? hits.length,
+              hits,
+            }),
+          },
+        ],
+      };
+    }
+
+    if (wantsIssues) {
+      const gql = `
+        query {
+          issues {
+            nodes {
+              id
+              name
+              desc
+              type
+              priorityNo
+            }
+            totalCount
+          }
+        }
+      `;
+      const result = await callSuccessCoGraphQL(gql);
+      if (!result.ok)
+        return { content: [{ type: "text", text: result.error }] };
+
+      const { data } = result;
+      const hits = (data?.data?.issues?.nodes || []).map((i) => ({
+        id: String(i.id), // REQUIRED by ChatGPT's fetch contract
+        title: i.name ?? String(i.id),
+        snippet:
+          `${i.type || ""} ${i.desc || ""}`.trim() ||
+          `Priority: ${i.priorityNo}`,
+        // optional extras are fine, but keep required ones present
+      }));
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              kind: "issues",
+              totalCount: data?.data?.issues?.totalCount ?? hits.length,
+              hits,
+            }),
+          },
+        ],
+      };
+    }
+
+    if (wantsHeadlines) {
+      const gql = `
+        query {
+          headlines {
+            nodes {
+              id
+              name
+              desc
+              headlineStatusId
+            }
+            totalCount
+          }
+        }
+      `;
+      const result = await callSuccessCoGraphQL(gql);
+      if (!result.ok)
+        return { content: [{ type: "text", text: result.error }] };
+
+      const { data } = result;
+      const hits = (data?.data?.headlines?.nodes || []).map((h) => ({
+        id: String(h.id), // REQUIRED by ChatGPT's fetch contract
+        title: h.name ?? String(h.id),
+        snippet: h.desc || `Status: ${h.headlineStatusId}`,
+        // optional extras are fine, but keep required ones present
+      }));
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              kind: "headlines",
+              totalCount: data?.data?.headlines?.totalCount ?? hits.length,
+              hits,
+            }),
+          },
+        ],
+      };
+    }
+
     return {
       content: [
         {
           type: "text",
-          text: "I currently support team and user search. Try: 'List my teams' or 'Show users'.",
+          text: "I support searching for: teams, users, todos, rocks, meetings, issues, headlines. Try: 'List my teams', 'Show users', 'Find todos', 'Get meetings', etc.",
         },
       ],
     };
@@ -391,13 +1008,31 @@ server.tool(
     id: z.string().describe("The id from a previous search hit."),
   },
   async ({ id }) => {
-    // Accept both raw ids like "123" and URIs like "success-co://teams/123" or "success-co://users/123"
+    // Accept both raw ids like "123" and URIs like "success-co://teams/123", "success-co://users/123", etc.
     const teamMatch = /^success-co:\/\/teams\/(.+)$/.exec(id);
     const userMatch = /^success-co:\/\/users\/(.+)$/.exec(id);
+    const todoMatch = /^success-co:\/\/todos\/(.+)$/.exec(id);
+    const rockMatch = /^success-co:\/\/rocks\/(.+)$/.exec(id);
+    const meetingMatch = /^success-co:\/\/meetings\/(.+)$/.exec(id);
+    const issueMatch = /^success-co:\/\/issues\/(.+)$/.exec(id);
+    const headlineMatch = /^success-co:\/\/headlines\/(.+)$/.exec(id);
 
     const teamId = teamMatch ? teamMatch[1] : null;
     const userId = userMatch ? userMatch[1] : null;
-    const rawId = teamId || userId || id;
+    const todoId = todoMatch ? todoMatch[1] : null;
+    const rockId = rockMatch ? rockMatch[1] : null;
+    const meetingId = meetingMatch ? meetingMatch[1] : null;
+    const issueId = issueMatch ? issueMatch[1] : null;
+    const headlineId = headlineMatch ? headlineMatch[1] : null;
+    const rawId =
+      teamId ||
+      userId ||
+      todoId ||
+      rockId ||
+      meetingId ||
+      issueId ||
+      headlineId ||
+      id;
 
     const apiKey = getSuccessCoApiKey();
     if (!apiKey) {
@@ -411,24 +1046,8 @@ server.tool(
       };
     }
 
-    // Try to fetch as team first if it looks like a team ID or URI
-    if (teamId || (!userId && !teamMatch && !userMatch)) {
-      const gql = `
-        query ($id: ID!) {
-          team(id: $id) {
-            id
-            name
-            desc
-            badgeUrl
-            color
-            isLeadership
-            createdAt
-            stateId
-            companyId
-          }
-        }
-      `;
-
+    // Helper function to make GraphQL requests
+    const makeGraphQLRequest = async (query, variables = {}) => {
       const url = "https://www.success.co/graphql";
       const response = await fetch(url, {
         method: "POST",
@@ -436,21 +1055,76 @@ server.tool(
           Authorization: `Bearer ${apiKey}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ query: gql, variables: { id: rawId } }),
+        body: JSON.stringify({ query, variables }),
       });
 
       if (response.ok) {
         const data = await response.json();
-        if (!data.errors && data?.data?.team) {
-          return {
-            content: [{ type: "text", text: JSON.stringify(data.data.team) }],
-          };
+        if (!data.errors) {
+          return data;
         }
+      }
+      return null;
+    };
+
+    // Try to fetch as team
+    if (
+      teamId ||
+      (!userId &&
+        !todoId &&
+        !rockId &&
+        !meetingId &&
+        !issueId &&
+        !headlineId &&
+        !teamMatch &&
+        !userMatch &&
+        !todoMatch &&
+        !rockMatch &&
+        !meetingMatch &&
+        !issueMatch &&
+        !headlineMatch)
+    ) {
+      const gql = `
+      query ($id: ID!) {
+        team(id: $id) {
+          id
+          name
+          desc
+          badgeUrl
+          color
+          isLeadership
+          createdAt
+          stateId
+          companyId
+        }
+      }
+    `;
+
+      const result = await makeGraphQLRequest(gql, { id: rawId });
+      if (result?.data?.team) {
+        return {
+          content: [{ type: "text", text: JSON.stringify(result.data.team) }],
+        };
       }
     }
 
-    // Try to fetch as user if it looks like a user ID or URI
-    if (userId || (!teamId && !teamMatch && !userMatch)) {
+    // Try to fetch as user
+    if (
+      userId ||
+      (!teamId &&
+        !todoId &&
+        !rockId &&
+        !meetingId &&
+        !issueId &&
+        !headlineId &&
+        !teamMatch &&
+        !userMatch &&
+        !todoMatch &&
+        !rockMatch &&
+        !meetingMatch &&
+        !issueMatch &&
+        !headlineMatch)
+    ) {
       const gql = `
         query ($id: ID!) {
           user(id: $id) {
@@ -471,32 +1145,244 @@ server.tool(
         }
       `;
 
-      const url = "https://www.success.co/graphql";
-      const response = await fetch(url, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ query: gql, variables: { id: rawId } }),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        if (!data.errors && data?.data?.user) {
-          return {
-            content: [{ type: "text", text: JSON.stringify(data.data.user) }],
-          };
-        }
+      const result = await makeGraphQLRequest(gql, { id: rawId });
+      if (result?.data?.user) {
+        return {
+          content: [{ type: "text", text: JSON.stringify(result.data.user) }],
+        };
       }
     }
 
-    // If neither worked, return error
+    // Try to fetch as todo
+    if (
+      todoId ||
+      (!teamId &&
+        !userId &&
+        !rockId &&
+        !meetingId &&
+        !issueId &&
+        !headlineId &&
+        !teamMatch &&
+        !userMatch &&
+        !todoMatch &&
+        !rockMatch &&
+        !meetingMatch &&
+        !issueMatch &&
+        !headlineMatch)
+    ) {
+      const gql = `
+        query ($id: ID!) {
+          todo(id: $id) {
+            id
+            todoStatusId
+            name
+            desc
+            teamId
+            userId
+            statusUpdatedAt
+            type
+            dueDate
+            priorityNo
+            createdAt
+            stateId
+            companyId
+            meetingId
+          }
+        }
+      `;
+
+      const result = await makeGraphQLRequest(gql, { id: rawId });
+      if (result?.data?.todo) {
+        return {
+          content: [{ type: "text", text: JSON.stringify(result.data.todo) }],
+        };
+      }
+    }
+
+    // Try to fetch as rock
+    if (
+      rockId ||
+      (!teamId &&
+        !userId &&
+        !todoId &&
+        !meetingId &&
+        !issueId &&
+        !headlineId &&
+        !teamMatch &&
+        !userMatch &&
+        !todoMatch &&
+        !rockMatch &&
+        !meetingMatch &&
+        !issueMatch &&
+        !headlineMatch)
+    ) {
+      const gql = `
+        query ($id: ID!) {
+          rock(id: $id) {
+            id
+            rockStatusId
+            name
+            desc
+            statusUpdatedAt
+            type
+            dueDate
+            createdAt
+            stateId
+            companyId
+          }
+        }
+      `;
+
+      const result = await makeGraphQLRequest(gql, { id: rawId });
+      if (result?.data?.rock) {
+        return {
+          content: [{ type: "text", text: JSON.stringify(result.data.rock) }],
+        };
+      }
+    }
+
+    // Try to fetch as meeting
+    if (
+      meetingId ||
+      (!teamId &&
+        !userId &&
+        !todoId &&
+        !rockId &&
+        !issueId &&
+        !headlineId &&
+        !teamMatch &&
+        !userMatch &&
+        !todoMatch &&
+        !rockMatch &&
+        !meetingMatch &&
+        !issueMatch &&
+        !headlineMatch)
+    ) {
+      const gql = `
+        query ($id: ID!) {
+          meeting(id: $id) {
+            id
+            meetingInfoId
+            date
+            startTime
+            endTime
+            averageRating
+            meetingStatusId
+            createdAt
+            stateId
+            companyId
+          }
+        }
+      `;
+
+      const result = await makeGraphQLRequest(gql, { id: rawId });
+      if (result?.data?.meeting) {
+        return {
+          content: [
+            { type: "text", text: JSON.stringify(result.data.meeting) },
+          ],
+        };
+      }
+    }
+
+    // Try to fetch as issue
+    if (
+      issueId ||
+      (!teamId &&
+        !userId &&
+        !todoId &&
+        !rockId &&
+        !meetingId &&
+        !headlineId &&
+        !teamMatch &&
+        !userMatch &&
+        !todoMatch &&
+        !rockMatch &&
+        !meetingMatch &&
+        !issueMatch &&
+        !headlineMatch)
+    ) {
+      const gql = `
+        query ($id: ID!) {
+          issue(id: $id) {
+            id
+            issueStatusId
+            name
+            desc
+            teamId
+            userId
+            type
+            priorityNo
+            priorityOrder
+            statusUpdatedAt
+            meetingId
+            createdAt
+            stateId
+            companyId
+          }
+        }
+      `;
+
+      const result = await makeGraphQLRequest(gql, { id: rawId });
+      if (result?.data?.issue) {
+        return {
+          content: [{ type: "text", text: JSON.stringify(result.data.issue) }],
+        };
+      }
+    }
+
+    // Try to fetch as headline
+    if (
+      headlineId ||
+      (!teamId &&
+        !userId &&
+        !todoId &&
+        !rockId &&
+        !meetingId &&
+        !issueId &&
+        !teamMatch &&
+        !userMatch &&
+        !todoMatch &&
+        !rockMatch &&
+        !meetingMatch &&
+        !issueMatch &&
+        !headlineMatch)
+    ) {
+      const gql = `
+        query ($id: ID!) {
+          headline(id: $id) {
+            id
+            name
+            desc
+            userId
+            teamId
+            headlineStatusId
+            statusUpdatedAt
+            meetingId
+            createdAt
+            stateId
+            companyId
+            isCascadingMessage
+          }
+        }
+      `;
+
+      const result = await makeGraphQLRequest(gql, { id: rawId });
+      if (result?.data?.headline) {
+        return {
+          content: [
+            { type: "text", text: JSON.stringify(result.data.headline) },
+          ],
+        };
+      }
+    }
+
+    // If none worked, return error
     return {
       content: [
         {
           type: "text",
-          text: `No team or user found for id ${rawId}`,
+          text: `No team, user, todo, rock, meeting, issue, or headline found for id ${rawId}`,
         },
       ],
     };
@@ -689,6 +1575,481 @@ server.registerResource(
       };
     } catch (error) {
       throw new Error(`Error fetching users: ${error.message}`);
+    }
+  }
+);
+
+server.registerResource(
+  "Get todos",
+  "success-co://todos",
+  {
+    title: "List todos",
+    description: "List of all todos on Success.co",
+    mimeType: "application/json",
+  },
+  async (uri) => {
+    const apiKey = getSuccessCoApiKey();
+
+    if (!apiKey) {
+      throw new Error(
+        "Success.co API key not set. Please set it using the setSuccessCoApiKey tool."
+      );
+    }
+
+    try {
+      const url = "https://www.success.co/graphql";
+
+      const searchParams = new URLSearchParams(uri.search);
+      const first = searchParams.get("first")
+        ? parseInt(searchParams.get("first"))
+        : undefined;
+      const offset = searchParams.get("offset")
+        ? parseInt(searchParams.get("offset"))
+        : undefined;
+
+      const args =
+        first !== undefined || offset !== undefined
+          ? `(${[
+              first !== undefined ? `first: ${first}` : "",
+              offset !== undefined ? `offset: ${offset}` : "",
+            ]
+              .filter(Boolean)
+              .join(", ")})`
+          : "";
+
+      const query = `
+        query {
+          todos${args} {
+            nodes {
+              id
+              todoStatusId
+              name
+              desc
+              teamId
+              userId
+              statusUpdatedAt
+              type
+              dueDate
+              priorityNo
+              createdAt
+              stateId
+              companyId
+              meetingId
+            }
+            totalCount
+          }
+        }
+      `;
+
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ query }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(
+          `API request failed with status ${response.status}: ${errorText}`
+        );
+      }
+
+      const data = await response.json();
+
+      if (data.errors) {
+        throw new Error(`GraphQL errors: ${JSON.stringify(data.errors)}`);
+      }
+
+      return {
+        contents: data.data.todos.nodes.map((todo) => ({
+          uri: `success-co://todos/${todo.id}`,
+          text: JSON.stringify(todo),
+        })),
+        totalCount: data.data.todos.totalCount,
+      };
+    } catch (error) {
+      throw new Error(`Error fetching todos: ${error.message}`);
+    }
+  }
+);
+
+server.registerResource(
+  "Get rocks",
+  "success-co://rocks",
+  {
+    title: "List rocks",
+    description: "List of all rocks on Success.co",
+    mimeType: "application/json",
+  },
+  async (uri) => {
+    const apiKey = getSuccessCoApiKey();
+
+    if (!apiKey) {
+      throw new Error(
+        "Success.co API key not set. Please set it using the setSuccessCoApiKey tool."
+      );
+    }
+
+    try {
+      const url = "https://www.success.co/graphql";
+
+      const searchParams = new URLSearchParams(uri.search);
+      const first = searchParams.get("first")
+        ? parseInt(searchParams.get("first"))
+        : undefined;
+      const offset = searchParams.get("offset")
+        ? parseInt(searchParams.get("offset"))
+        : undefined;
+
+      const args =
+        first !== undefined || offset !== undefined
+          ? `(${[
+              first !== undefined ? `first: ${first}` : "",
+              offset !== undefined ? `offset: ${offset}` : "",
+            ]
+              .filter(Boolean)
+              .join(", ")})`
+          : "";
+
+      const query = `
+        query {
+          rocks${args} {
+            nodes {
+              id
+              rockStatusId
+              name
+              desc
+              statusUpdatedAt
+              type
+              dueDate
+              createdAt
+              stateId
+              companyId
+            }
+            totalCount
+          }
+        }
+      `;
+
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ query }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(
+          `API request failed with status ${response.status}: ${errorText}`
+        );
+      }
+
+      const data = await response.json();
+
+      if (data.errors) {
+        throw new Error(`GraphQL errors: ${JSON.stringify(data.errors)}`);
+      }
+
+      return {
+        contents: data.data.rocks.nodes.map((rock) => ({
+          uri: `success-co://rocks/${rock.id}`,
+          text: JSON.stringify(rock),
+        })),
+        totalCount: data.data.rocks.totalCount,
+      };
+    } catch (error) {
+      throw new Error(`Error fetching rocks: ${error.message}`);
+    }
+  }
+);
+
+server.registerResource(
+  "Get meetings",
+  "success-co://meetings",
+  {
+    title: "List meetings",
+    description: "List of all meetings on Success.co",
+    mimeType: "application/json",
+  },
+  async (uri) => {
+    const apiKey = getSuccessCoApiKey();
+
+    if (!apiKey) {
+      throw new Error(
+        "Success.co API key not set. Please set it using the setSuccessCoApiKey tool."
+      );
+    }
+
+    try {
+      const url = "https://www.success.co/graphql";
+
+      const searchParams = new URLSearchParams(uri.search);
+      const first = searchParams.get("first")
+        ? parseInt(searchParams.get("first"))
+        : undefined;
+      const offset = searchParams.get("offset")
+        ? parseInt(searchParams.get("offset"))
+        : undefined;
+
+      const args =
+        first !== undefined || offset !== undefined
+          ? `(${[
+              first !== undefined ? `first: ${first}` : "",
+              offset !== undefined ? `offset: ${offset}` : "",
+            ]
+              .filter(Boolean)
+              .join(", ")})`
+          : "";
+
+      const query = `
+        query {
+          meetings${args} {
+            nodes {
+              id
+              meetingInfoId
+              date
+              startTime
+              endTime
+              averageRating
+              meetingStatusId
+              createdAt
+              stateId
+              companyId
+            }
+            totalCount
+          }
+        }
+      `;
+
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ query }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(
+          `API request failed with status ${response.status}: ${errorText}`
+        );
+      }
+
+      const data = await response.json();
+
+      if (data.errors) {
+        throw new Error(`GraphQL errors: ${JSON.stringify(data.errors)}`);
+      }
+
+      return {
+        contents: data.data.meetings.nodes.map((meeting) => ({
+          uri: `success-co://meetings/${meeting.id}`,
+          text: JSON.stringify(meeting),
+        })),
+        totalCount: data.data.meetings.totalCount,
+      };
+    } catch (error) {
+      throw new Error(`Error fetching meetings: ${error.message}`);
+    }
+  }
+);
+
+server.registerResource(
+  "Get issues",
+  "success-co://issues",
+  {
+    title: "List issues",
+    description: "List of all issues on Success.co",
+    mimeType: "application/json",
+  },
+  async (uri) => {
+    const apiKey = getSuccessCoApiKey();
+
+    if (!apiKey) {
+      throw new Error(
+        "Success.co API key not set. Please set it using the setSuccessCoApiKey tool."
+      );
+    }
+
+    try {
+      const url = "https://www.success.co/graphql";
+
+      const searchParams = new URLSearchParams(uri.search);
+      const first = searchParams.get("first")
+        ? parseInt(searchParams.get("first"))
+        : undefined;
+      const offset = searchParams.get("offset")
+        ? parseInt(searchParams.get("offset"))
+        : undefined;
+
+      const args =
+        first !== undefined || offset !== undefined
+          ? `(${[
+              first !== undefined ? `first: ${first}` : "",
+              offset !== undefined ? `offset: ${offset}` : "",
+            ]
+              .filter(Boolean)
+              .join(", ")})`
+          : "";
+
+      const query = `
+        query {
+          issues${args} {
+            nodes {
+              id
+              issueStatusId
+              name
+              desc
+              teamId
+              userId
+              type
+              priorityNo
+              priorityOrder
+              statusUpdatedAt
+              meetingId
+              createdAt
+              stateId
+              companyId
+            }
+            totalCount
+          }
+        }
+      `;
+
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ query }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(
+          `API request failed with status ${response.status}: ${errorText}`
+        );
+      }
+
+      const data = await response.json();
+
+      if (data.errors) {
+        throw new Error(`GraphQL errors: ${JSON.stringify(data.errors)}`);
+      }
+
+      return {
+        contents: data.data.issues.nodes.map((issue) => ({
+          uri: `success-co://issues/${issue.id}`,
+          text: JSON.stringify(issue),
+        })),
+        totalCount: data.data.issues.totalCount,
+      };
+    } catch (error) {
+      throw new Error(`Error fetching issues: ${error.message}`);
+    }
+  }
+);
+
+server.registerResource(
+  "Get headlines",
+  "success-co://headlines",
+  {
+    title: "List headlines",
+    description: "List of all headlines on Success.co",
+    mimeType: "application/json",
+  },
+  async (uri) => {
+    const apiKey = getSuccessCoApiKey();
+
+    if (!apiKey) {
+      throw new Error(
+        "Success.co API key not set. Please set it using the setSuccessCoApiKey tool."
+      );
+    }
+
+    try {
+      const url = "https://www.success.co/graphql";
+
+      const searchParams = new URLSearchParams(uri.search);
+      const first = searchParams.get("first")
+        ? parseInt(searchParams.get("first"))
+        : undefined;
+      const offset = searchParams.get("offset")
+        ? parseInt(searchParams.get("offset"))
+        : undefined;
+
+      const args =
+        first !== undefined || offset !== undefined
+          ? `(${[
+              first !== undefined ? `first: ${first}` : "",
+              offset !== undefined ? `offset: ${offset}` : "",
+            ]
+              .filter(Boolean)
+              .join(", ")})`
+          : "";
+
+      const query = `
+        query {
+          headlines${args} {
+            nodes {
+              id
+              name
+              desc
+              userId
+              teamId
+              headlineStatusId
+              statusUpdatedAt
+              meetingId
+              createdAt
+              stateId
+              companyId
+              isCascadingMessage
+            }
+            totalCount
+          }
+        }
+      `;
+
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ query }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(
+          `API request failed with status ${response.status}: ${errorText}`
+        );
+      }
+
+      const data = await response.json();
+
+      if (data.errors) {
+        throw new Error(`GraphQL errors: ${JSON.stringify(data.errors)}`);
+      }
+
+      return {
+        contents: data.data.headlines.nodes.map((headline) => ({
+          uri: `success-co://headlines/${headline.id}`,
+          text: JSON.stringify(headline),
+        })),
+        totalCount: data.data.headlines.totalCount,
+      };
+    } catch (error) {
+      throw new Error(`Error fetching headlines: ${error.message}`);
     }
   }
 );
