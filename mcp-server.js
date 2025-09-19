@@ -804,42 +804,37 @@ const httpServer = app
   });
 
 // Check if running in Claude conversation or other non-TTY environment
-const isRunningInClaude = true;
 
-if (isRunningInClaude) {
-  console.error("Detected Claude conversation, initializing STDIO transport");
+// Initialize STDIO transport for Claude
+const stdioTransport = new StdioServerTransport();
 
-  // Initialize STDIO transport for Claude
-  const stdioTransport = new StdioServerTransport();
-
-  // Connect the STDIO transport to the MCP server
-  server
-    .connect(stdioTransport)
-    .then(() => {
-      console.error("STDIO transport connected successfully");
-    })
-    .catch((error) => {
-      console.error(`Error connecting STDIO transport: ${error.message}`);
-      // Don't exit - HTTP server might still be running
-    });
-
-  // Handle process termination signals
-  process.on("SIGINT", () => {
-    console.error("Received SIGINT, shutting down");
-    if (httpServer) {
-      httpServer.close();
-    }
-    process.exit(0);
+// Connect the STDIO transport to the MCP server
+server
+  .connect(stdioTransport)
+  .then(() => {
+    console.error("STDIO transport connected successfully");
+  })
+  .catch((error) => {
+    console.error(`Error connecting STDIO transport: ${error.message}`);
+    // Don't exit - HTTP server might still be running
   });
 
-  process.on("SIGTERM", () => {
-    console.error("Received SIGTERM, shutting down");
-    if (httpServer) {
-      httpServer.close();
-    }
-    process.exit(0);
-  });
+// Handle process termination signals
+process.on("SIGINT", () => {
+  console.error("Received SIGINT, shutting down");
+  if (httpServer) {
+    httpServer.close();
+  }
+  process.exit(0);
+});
 
-  // Keep the process alive for STDIO transport
-  process.stdin.resume();
-}
+process.on("SIGTERM", () => {
+  console.error("Received SIGTERM, shutting down");
+  if (httpServer) {
+    httpServer.close();
+  }
+  process.exit(0);
+});
+
+// Keep the process alive for STDIO transport
+process.stdin.resume();
