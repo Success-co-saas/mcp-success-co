@@ -902,3 +902,388 @@ export async function search(args) {
     ],
   };
 }
+
+/**
+ * Fetch a single Success.co item by id returned from search
+ * @param {Object} args - Arguments object
+ * @param {string} args.id - The id from a previous search hit
+ * @returns {Promise<{content: Array<{type: string, text: string}>}>}
+ */
+export async function fetch(args) {
+  const { id } = args;
+
+  // Accept both raw ids like "123" and URIs like "success-co://teams/123", "success-co://users/123", etc.
+  const teamMatch = /^success-co:\/\/teams\/(.+)$/.exec(id);
+  const userMatch = /^success-co:\/\/users\/(.+)$/.exec(id);
+  const todoMatch = /^success-co:\/\/todos\/(.+)$/.exec(id);
+  const rockMatch = /^success-co:\/\/rocks\/(.+)$/.exec(id);
+  const meetingMatch = /^success-co:\/\/meetings\/(.+)$/.exec(id);
+  const issueMatch = /^success-co:\/\/issues\/(.+)$/.exec(id);
+  const headlineMatch = /^success-co:\/\/headlines\/(.+)$/.exec(id);
+
+  const teamId = teamMatch ? teamMatch[1] : null;
+  const userId = userMatch ? userMatch[1] : null;
+  const todoId = todoMatch ? todoMatch[1] : null;
+  const rockId = rockMatch ? rockMatch[1] : null;
+  const meetingId = meetingMatch ? meetingMatch[1] : null;
+  const issueId = issueMatch ? issueMatch[1] : null;
+  const headlineId = headlineMatch ? headlineMatch[1] : null;
+  const rawId =
+    teamId ||
+    userId ||
+    todoId ||
+    rockId ||
+    meetingId ||
+    issueId ||
+    headlineId ||
+    id;
+
+  const apiKey = getSuccessCoApiKey();
+  if (!apiKey) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: "Success.co API key not set. Use setSuccessCoApiKey first.",
+        },
+      ],
+    };
+  }
+
+  // Helper function to make GraphQL requests
+  const makeGraphQLRequest = async (query, variables = {}) => {
+    const url = "https://www.success.co/graphql";
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ query, variables }),
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      if (!data.errors) {
+        return data;
+      }
+    }
+    return null;
+  };
+
+  // Try to fetch as team
+  if (
+    teamId ||
+    (!userId &&
+      !todoId &&
+      !rockId &&
+      !meetingId &&
+      !issueId &&
+      !headlineId &&
+      !teamMatch &&
+      !userMatch &&
+      !todoMatch &&
+      !rockMatch &&
+      !meetingMatch &&
+      !issueMatch &&
+      !headlineMatch)
+  ) {
+    const gql = `
+      query ($id: ID!) {
+        team(id: $id) {
+          id
+          name
+          desc
+          badgeUrl
+          color
+          isLeadership
+          createdAt
+          stateId
+          companyId
+        }
+      }
+    `;
+
+    const result = await makeGraphQLRequest(gql, { id: rawId });
+    if (result?.data?.team) {
+      return {
+        content: [{ type: "text", text: JSON.stringify(result.data.team) }],
+      };
+    }
+  }
+
+  // Try to fetch as user
+  if (
+    userId ||
+    (!teamId &&
+      !todoId &&
+      !rockId &&
+      !meetingId &&
+      !issueId &&
+      !headlineId &&
+      !teamMatch &&
+      !userMatch &&
+      !todoMatch &&
+      !rockMatch &&
+      !meetingMatch &&
+      !issueMatch &&
+      !headlineMatch)
+  ) {
+    const gql = `
+      query ($id: ID!) {
+        user(id: $id) {
+          id
+          userName
+          firstName
+          lastName
+          jobTitle
+          desc
+          avatar
+          email
+          userPermissionId
+          userStatusId
+          languageId
+          timeZone
+          companyId
+        }
+      }
+    `;
+
+    const result = await makeGraphQLRequest(gql, { id: rawId });
+    if (result?.data?.user) {
+      return {
+        content: [{ type: "text", text: JSON.stringify(result.data.user) }],
+      };
+    }
+  }
+
+  // Try to fetch as todo
+  if (
+    todoId ||
+    (!teamId &&
+      !userId &&
+      !rockId &&
+      !meetingId &&
+      !issueId &&
+      !headlineId &&
+      !teamMatch &&
+      !userMatch &&
+      !todoMatch &&
+      !rockMatch &&
+      !meetingMatch &&
+      !issueMatch &&
+      !headlineMatch)
+  ) {
+    const gql = `
+      query ($id: ID!) {
+        todo(id: $id) {
+          id
+          todoStatusId
+          name
+          desc
+          teamId
+          userId
+          statusUpdatedAt
+          type
+          dueDate
+          priorityNo
+          createdAt
+          stateId
+          companyId
+          meetingId
+        }
+      }
+    `;
+
+    const result = await makeGraphQLRequest(gql, { id: rawId });
+    if (result?.data?.todo) {
+      return {
+        content: [{ type: "text", text: JSON.stringify(result.data.todo) }],
+      };
+    }
+  }
+
+  // Try to fetch as rock
+  if (
+    rockId ||
+    (!teamId &&
+      !userId &&
+      !todoId &&
+      !meetingId &&
+      !issueId &&
+      !headlineId &&
+      !teamMatch &&
+      !userMatch &&
+      !todoMatch &&
+      !rockMatch &&
+      !meetingMatch &&
+      !issueMatch &&
+      !headlineMatch)
+  ) {
+    const gql = `
+      query ($id: ID!) {
+        rock(id: $id) {
+          id
+          rockStatusId
+          name
+          desc
+          statusUpdatedAt
+          type
+          dueDate
+          createdAt
+          stateId
+          companyId
+        }
+      }
+    `;
+
+    const result = await makeGraphQLRequest(gql, { id: rawId });
+    if (result?.data?.rock) {
+      return {
+        content: [{ type: "text", text: JSON.stringify(result.data.rock) }],
+      };
+    }
+  }
+
+  // Try to fetch as meeting
+  if (
+    meetingId ||
+    (!teamId &&
+      !userId &&
+      !todoId &&
+      !rockId &&
+      !issueId &&
+      !headlineId &&
+      !teamMatch &&
+      !userMatch &&
+      !todoMatch &&
+      !rockMatch &&
+      !meetingMatch &&
+      !issueMatch &&
+      !headlineMatch)
+  ) {
+    const gql = `
+      query ($id: ID!) {
+        meeting(id: $id) {
+          id
+          meetingInfoId
+          date
+          startTime
+          endTime
+          averageRating
+          meetingStatusId
+          createdAt
+          stateId
+          companyId
+        }
+      }
+    `;
+
+    const result = await makeGraphQLRequest(gql, { id: rawId });
+    if (result?.data?.meeting) {
+      return {
+        content: [{ type: "text", text: JSON.stringify(result.data.meeting) }],
+      };
+    }
+  }
+
+  // Try to fetch as issue
+  if (
+    issueId ||
+    (!teamId &&
+      !userId &&
+      !todoId &&
+      !rockId &&
+      !meetingId &&
+      !headlineId &&
+      !teamMatch &&
+      !userMatch &&
+      !todoMatch &&
+      !rockMatch &&
+      !meetingMatch &&
+      !issueMatch &&
+      !headlineMatch)
+  ) {
+    const gql = `
+      query ($id: ID!) {
+        issue(id: $id) {
+          id
+          issueStatusId
+          name
+          desc
+          teamId
+          userId
+          type
+          priorityNo
+          priorityOrder
+          statusUpdatedAt
+          meetingId
+          createdAt
+          stateId
+          companyId
+        }
+      }
+    `;
+
+    const result = await makeGraphQLRequest(gql, { id: rawId });
+    if (result?.data?.issue) {
+      return {
+        content: [{ type: "text", text: JSON.stringify(result.data.issue) }],
+      };
+    }
+  }
+
+  // Try to fetch as headline
+  if (
+    headlineId ||
+    (!teamId &&
+      !userId &&
+      !todoId &&
+      !rockId &&
+      !meetingId &&
+      !issueId &&
+      !teamMatch &&
+      !userMatch &&
+      !todoMatch &&
+      !rockMatch &&
+      !meetingMatch &&
+      !issueMatch &&
+      !headlineMatch)
+  ) {
+    const gql = `
+      query ($id: ID!) {
+        headline(id: $id) {
+          id
+          name
+          desc
+          userId
+          teamId
+          headlineStatusId
+          statusUpdatedAt
+          meetingId
+          createdAt
+          stateId
+          companyId
+          isCascadingMessage
+        }
+      }
+    `;
+
+    const result = await makeGraphQLRequest(gql, { id: rawId });
+    if (result?.data?.headline) {
+      return {
+        content: [{ type: "text", text: JSON.stringify(result.data.headline) }],
+      };
+    }
+  }
+
+  // If none worked, return error
+  return {
+    content: [
+      {
+        type: "text",
+        text: `No team, user, todo, rock, meeting, issue, or headline found for id ${rawId}`,
+      },
+    ],
+  };
+}
