@@ -15,6 +15,7 @@ import {
   getMeetings,
   getIssues,
   getHeadlines,
+  search,
 } from "./tools.js";
 
 // Ensure Node 18+ for global fetch.
@@ -229,377 +230,6 @@ server.tool(
   },
   async ({ first, offset }) => {
     return await getHeadlines({ first, offset });
-  }
-);
-
-// ---------- NEW: `search` tool for natural queries like “List my teams” ------
-
-// --- Replace your existing `search` and `fetch` with these -------------------
-
-// SEARCH: natural language -> list of hits with ids
-server.tool(
-  "search",
-  "Search Success.co data (supports: teams, users, todos, rocks, meetings, issues, headlines).",
-  {
-    query: z
-      .string()
-      .describe(
-        "What to look up, e.g., 'list my teams', 'show users', 'find todos', 'get meetings'"
-      ),
-  },
-  async ({ query }) => {
-    const q = (query || "").toLowerCase();
-
-    const wantsTeams =
-      /\b(team|teams|my team|my teams)\b/.test(q) ||
-      /list.*team/.test(q) ||
-      /show.*team/.test(q);
-
-    const wantsUsers =
-      /\b(user|users|people|person|employee|employees)\b/.test(q) ||
-      /list.*user/.test(q) ||
-      /show.*user/.test(q) ||
-      /list.*people/.test(q) ||
-      /show.*people/.test(q);
-
-    const wantsTodos =
-      /\b(todo|todos|task|tasks|to-do|to-dos)\b/.test(q) ||
-      /list.*todo/.test(q) ||
-      /show.*todo/.test(q) ||
-      /find.*todo/.test(q) ||
-      /get.*todo/.test(q);
-
-    const wantsRocks =
-      /\b(rock|rocks|priority|priorities)\b/.test(q) ||
-      /list.*rock/.test(q) ||
-      /show.*rock/.test(q) ||
-      /find.*rock/.test(q) ||
-      /get.*rock/.test(q);
-
-    const wantsMeetings =
-      /\b(meeting|meetings|session|sessions)\b/.test(q) ||
-      /list.*meeting/.test(q) ||
-      /show.*meeting/.test(q) ||
-      /find.*meeting/.test(q) ||
-      /get.*meeting/.test(q);
-
-    const wantsIssues =
-      /\b(issue|issues|problem|problems|concern|concerns)\b/.test(q) ||
-      /list.*issue/.test(q) ||
-      /show.*issue/.test(q) ||
-      /find.*issue/.test(q) ||
-      /get.*issue/.test(q);
-
-    const wantsHeadlines =
-      /\b(headline|headlines|news|update|updates|announcement|announcements)\b/.test(
-        q
-      ) ||
-      /list.*headline/.test(q) ||
-      /show.*headline/.test(q) ||
-      /find.*headline/.test(q) ||
-      /get.*headline/.test(q);
-
-    if (wantsTeams) {
-      const gql = `
-        query {
-          teams {
-            nodes {
-              id
-              name
-              desc
-            }
-            totalCount
-          }
-        }
-      `;
-      const result = await callSuccessCoGraphQL(gql);
-      if (!result.ok)
-        return { content: [{ type: "text", text: result.error }] };
-
-      const { data } = result;
-      const hits = (data?.data?.teams?.nodes || []).map((t) => ({
-        id: String(t.id), // REQUIRED by ChatGPT's fetch contract
-        title: t.name ?? String(t.id),
-        snippet: t.desc || "",
-        // optional extras are fine, but keep required ones present
-      }));
-
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify({
-              kind: "teams",
-              totalCount: data?.data?.teams?.totalCount ?? hits.length,
-              hits,
-            }),
-          },
-        ],
-      };
-    }
-
-    if (wantsUsers) {
-      const gql = `
-      query {
-          users {
-            nodes {
-              id
-              firstName
-              lastName
-              email
-              jobTitle
-              desc
-            }
-            totalCount
-          }
-        }
-      `;
-      const result = await callSuccessCoGraphQL(gql);
-      if (!result.ok)
-        return { content: [{ type: "text", text: result.error }] };
-
-      const { data } = result;
-      const hits = (data?.data?.users?.nodes || []).map((u) => ({
-        id: String(u.id), // REQUIRED by ChatGPT's fetch contract
-        title: `${u.firstName} ${u.lastName}`,
-        snippet: `${u.jobTitle || ""} ${u.desc || ""}`.trim() || u.email,
-        // optional extras are fine, but keep required ones present
-      }));
-
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify({
-              kind: "users",
-              totalCount: data?.data?.users?.totalCount ?? hits.length,
-              hits,
-            }),
-          },
-        ],
-      };
-    }
-
-    if (wantsTodos) {
-      const gql = `
-        query {
-          todos {
-          nodes {
-            id
-            name
-            desc
-              type
-              priorityNo
-              dueDate
-          }
-          totalCount
-        }
-      }
-    `;
-      const result = await callSuccessCoGraphQL(gql);
-      if (!result.ok)
-        return { content: [{ type: "text", text: result.error }] };
-
-      const { data } = result;
-      const hits = (data?.data?.todos?.nodes || []).map((t) => ({
-        id: String(t.id), // REQUIRED by ChatGPT's fetch contract
-        title: t.name ?? String(t.id),
-        snippet:
-          `${t.type || ""} ${t.desc || ""}`.trim() ||
-          `Priority: ${t.priorityNo}`,
-        // optional extras are fine, but keep required ones present
-      }));
-
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify({
-              kind: "todos",
-              totalCount: data?.data?.todos?.totalCount ?? hits.length,
-              hits,
-            }),
-          },
-        ],
-      };
-    }
-
-    if (wantsRocks) {
-      const gql = `
-        query {
-          rocks {
-            nodes {
-              id
-              name
-              desc
-              type
-              dueDate
-            }
-            totalCount
-          }
-        }
-      `;
-      const result = await callSuccessCoGraphQL(gql);
-      if (!result.ok)
-        return { content: [{ type: "text", text: result.error }] };
-
-      const { data } = result;
-      const hits = (data?.data?.rocks?.nodes || []).map((r) => ({
-        id: String(r.id), // REQUIRED by ChatGPT's fetch contract
-        title: r.name ?? String(r.id),
-        snippet:
-          `${r.type || ""} ${r.desc || ""}`.trim() || `Due: ${r.dueDate}`,
-        // optional extras are fine, but keep required ones present
-      }));
-
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify({
-              kind: "rocks",
-              totalCount: data?.data?.rocks?.totalCount ?? hits.length,
-              hits,
-            }),
-          },
-        ],
-      };
-    }
-
-    if (wantsMeetings) {
-      const gql = `
-        query {
-          meetings {
-            nodes {
-              id
-              date
-              startTime
-              endTime
-              averageRating
-            }
-            totalCount
-          }
-        }
-      `;
-      const result = await callSuccessCoGraphQL(gql);
-      if (!result.ok)
-        return { content: [{ type: "text", text: result.error }] };
-
-      const { data } = result;
-      const hits = (data?.data?.meetings?.nodes || []).map((m) => ({
-        id: String(m.id), // REQUIRED by ChatGPT's fetch contract
-        title: `Meeting on ${m.date}`,
-        snippet: `${m.startTime || ""} - ${m.endTime || ""} (Rating: ${
-          m.averageRating || "N/A"
-        })`,
-        // optional extras are fine, but keep required ones present
-      }));
-
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify({
-              kind: "meetings",
-              totalCount: data?.data?.meetings?.totalCount ?? hits.length,
-              hits,
-            }),
-          },
-        ],
-      };
-    }
-
-    if (wantsIssues) {
-      const gql = `
-        query {
-          issues {
-            nodes {
-              id
-              name
-              desc
-              type
-              priorityNo
-            }
-            totalCount
-          }
-        }
-      `;
-      const result = await callSuccessCoGraphQL(gql);
-      if (!result.ok)
-        return { content: [{ type: "text", text: result.error }] };
-
-      const { data } = result;
-      const hits = (data?.data?.issues?.nodes || []).map((i) => ({
-        id: String(i.id), // REQUIRED by ChatGPT's fetch contract
-        title: i.name ?? String(i.id),
-        snippet:
-          `${i.type || ""} ${i.desc || ""}`.trim() ||
-          `Priority: ${i.priorityNo}`,
-        // optional extras are fine, but keep required ones present
-      }));
-
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify({
-              kind: "issues",
-              totalCount: data?.data?.issues?.totalCount ?? hits.length,
-              hits,
-            }),
-          },
-        ],
-      };
-    }
-
-    if (wantsHeadlines) {
-      const gql = `
-        query {
-          headlines {
-            nodes {
-              id
-              name
-              desc
-              headlineStatusId
-            }
-            totalCount
-          }
-        }
-      `;
-      const result = await callSuccessCoGraphQL(gql);
-      if (!result.ok)
-        return { content: [{ type: "text", text: result.error }] };
-
-      const { data } = result;
-      const hits = (data?.data?.headlines?.nodes || []).map((h) => ({
-        id: String(h.id), // REQUIRED by ChatGPT's fetch contract
-        title: h.name ?? String(h.id),
-        snippet: h.desc || `Status: ${h.headlineStatusId}`,
-        // optional extras are fine, but keep required ones present
-      }));
-
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify({
-              kind: "headlines",
-              totalCount: data?.data?.headlines?.totalCount ?? hits.length,
-              hits,
-            }),
-          },
-        ],
-      };
-    }
-
-    return {
-      content: [
-        {
-          type: "text",
-          text: "I support searching for: teams, users, todos, rocks, meetings, issues, headlines. Try: 'List my teams', 'Show users', 'Find todos', 'Get meetings', etc.",
-        },
-      ],
-    };
   }
 );
 
@@ -1855,366 +1485,6 @@ function createFreshMcpServer() {
     }
   );
 
-  // Search tool
-  freshServer.tool(
-    "search",
-    "Search Success.co data (supports: teams, users, todos, rocks, meetings, issues, headlines).",
-    {
-      query: z
-        .string()
-        .describe(
-          "What to look up, e.g., 'list my teams', 'show users', 'find todos', 'get meetings'"
-        ),
-    },
-    async ({ query }) => {
-      const q = (query || "").toLowerCase();
-
-      const wantsTeams =
-        /\b(team|teams|my team|my teams)\b/.test(q) ||
-        /list.*team/.test(q) ||
-        /show.*team/.test(q);
-
-      const wantsUsers =
-        /\b(user|users|people|person|employee|employees)\b/.test(q) ||
-        /list.*user/.test(q) ||
-        /show.*user/.test(q) ||
-        /list.*people/.test(q) ||
-        /show.*people/.test(q);
-
-      const wantsTodos =
-        /\b(todo|todos|task|tasks|to-do|to-dos)\b/.test(q) ||
-        /list.*todo/.test(q) ||
-        /show.*todo/.test(q) ||
-        /find.*todo/.test(q) ||
-        /get.*todo/.test(q);
-
-      const wantsRocks =
-        /\b(rock|rocks|priority|priorities)\b/.test(q) ||
-        /list.*rock/.test(q) ||
-        /show.*rock/.test(q) ||
-        /find.*rock/.test(q) ||
-        /get.*rock/.test(q);
-
-      const wantsMeetings =
-        /\b(meeting|meetings|session|sessions)\b/.test(q) ||
-        /list.*meeting/.test(q) ||
-        /show.*meeting/.test(q) ||
-        /find.*meeting/.test(q) ||
-        /get.*meeting/.test(q);
-
-      const wantsIssues =
-        /\b(issue|issues|problem|problems|concern|concerns)\b/.test(q) ||
-        /list.*issue/.test(q) ||
-        /show.*issue/.test(q) ||
-        /find.*issue/.test(q) ||
-        /get.*issue/.test(q);
-
-      const wantsHeadlines =
-        /\b(headline|headlines|news|update|updates|announcement|announcements)\b/.test(
-          q
-        ) ||
-        /list.*headline/.test(q) ||
-        /show.*headline/.test(q) ||
-        /find.*headline/.test(q) ||
-        /get.*headline/.test(q);
-
-      if (wantsTeams) {
-        const gql = `
-          query {
-            teams {
-              nodes {
-                id
-                name
-                desc
-              }
-              totalCount
-            }
-          }
-        `;
-        const result = await callSuccessCoGraphQL(gql);
-        if (!result.ok)
-          return { content: [{ type: "text", text: result.error }] };
-
-        const { data } = result;
-        const hits = (data?.data?.teams?.nodes || []).map((t) => ({
-          id: String(t.id),
-          title: t.name ?? String(t.id),
-          snippet: t.desc || "",
-        }));
-
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify({
-                kind: "teams",
-                totalCount: data?.data?.teams?.totalCount ?? hits.length,
-                hits,
-              }),
-            },
-          ],
-        };
-      }
-
-      if (wantsUsers) {
-        const gql = `
-        query {
-            users {
-              nodes {
-                id
-                firstName
-                lastName
-                email
-                jobTitle
-                desc
-              }
-              totalCount
-            }
-          }
-        `;
-        const result = await callSuccessCoGraphQL(gql);
-        if (!result.ok)
-          return { content: [{ type: "text", text: result.error }] };
-
-        const { data } = result;
-        const hits = (data?.data?.users?.nodes || []).map((u) => ({
-          id: String(u.id),
-          title: `${u.firstName} ${u.lastName}`,
-          snippet: `${u.jobTitle || ""} ${u.desc || ""}`.trim() || u.email,
-        }));
-
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify({
-                kind: "users",
-                totalCount: data?.data?.users?.totalCount ?? hits.length,
-                hits,
-              }),
-            },
-          ],
-        };
-      }
-
-      if (wantsTodos) {
-        const gql = `
-          query {
-            todos {
-            nodes {
-              id
-              name
-              desc
-                type
-                priorityNo
-                dueDate
-            }
-            totalCount
-          }
-        }
-      `;
-        const result = await callSuccessCoGraphQL(gql);
-        if (!result.ok)
-          return { content: [{ type: "text", text: result.error }] };
-
-        const { data } = result;
-        const hits = (data?.data?.todos?.nodes || []).map((t) => ({
-          id: String(t.id),
-          title: t.name ?? String(t.id),
-          snippet:
-            `${t.type || ""} ${t.desc || ""}`.trim() ||
-            `Priority: ${t.priorityNo}`,
-        }));
-
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify({
-                kind: "todos",
-                totalCount: data?.data?.todos?.totalCount ?? hits.length,
-                hits,
-              }),
-            },
-          ],
-        };
-      }
-
-      if (wantsRocks) {
-        const gql = `
-          query {
-            rocks {
-              nodes {
-                id
-                name
-                desc
-                type
-                dueDate
-              }
-              totalCount
-            }
-          }
-        `;
-        const result = await callSuccessCoGraphQL(gql);
-        if (!result.ok)
-          return { content: [{ type: "text", text: result.error }] };
-
-        const { data } = result;
-        const hits = (data?.data?.rocks?.nodes || []).map((r) => ({
-          id: String(r.id),
-          title: r.name ?? String(r.id),
-          snippet:
-            `${r.type || ""} ${r.desc || ""}`.trim() || `Due: ${r.dueDate}`,
-        }));
-
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify({
-                kind: "rocks",
-                totalCount: data?.data?.rocks?.totalCount ?? hits.length,
-                hits,
-              }),
-            },
-          ],
-        };
-      }
-
-      if (wantsMeetings) {
-        const gql = `
-          query {
-            meetings {
-              nodes {
-                id
-                date
-                startTime
-                endTime
-                averageRating
-              }
-              totalCount
-            }
-          }
-        `;
-        const result = await callSuccessCoGraphQL(gql);
-        if (!result.ok)
-          return { content: [{ type: "text", text: result.error }] };
-
-        const { data } = result;
-        const hits = (data?.data?.meetings?.nodes || []).map((m) => ({
-          id: String(m.id),
-          title: `Meeting on ${m.date}`,
-          snippet: `${m.startTime || ""} - ${m.endTime || ""} (Rating: ${
-            m.averageRating || "N/A"
-          })`,
-        }));
-
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify({
-                kind: "meetings",
-                totalCount: data?.data?.meetings?.totalCount ?? hits.length,
-                hits,
-              }),
-            },
-          ],
-        };
-      }
-
-      if (wantsIssues) {
-        const gql = `
-          query {
-            issues {
-              nodes {
-                id
-                name
-                desc
-                type
-                priorityNo
-              }
-              totalCount
-            }
-          }
-        `;
-        const result = await callSuccessCoGraphQL(gql);
-        if (!result.ok)
-          return { content: [{ type: "text", text: result.error }] };
-
-        const { data } = result;
-        const hits = (data?.data?.issues?.nodes || []).map((i) => ({
-          id: String(i.id),
-          title: i.name ?? String(i.id),
-          snippet:
-            `${i.type || ""} ${i.desc || ""}`.trim() ||
-            `Priority: ${i.priorityNo}`,
-        }));
-
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify({
-                kind: "issues",
-                totalCount: data?.data?.issues?.totalCount ?? hits.length,
-                hits,
-              }),
-            },
-          ],
-        };
-      }
-
-      if (wantsHeadlines) {
-        const gql = `
-          query {
-            headlines {
-              nodes {
-                id
-                name
-                desc
-                headlineStatusId
-              }
-              totalCount
-            }
-          }
-        `;
-        const result = await callSuccessCoGraphQL(gql);
-        if (!result.ok)
-          return { content: [{ type: "text", text: result.error }] };
-
-        const { data } = result;
-        const hits = (data?.data?.headlines?.nodes || []).map((h) => ({
-          id: String(h.id),
-          title: h.name ?? String(h.id),
-          snippet: h.desc || `Status: ${h.headlineStatusId}`,
-        }));
-
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify({
-                kind: "headlines",
-                totalCount: data?.data?.headlines?.totalCount ?? hits.length,
-                hits,
-              }),
-            },
-          ],
-        };
-      }
-
-      return {
-        content: [
-          {
-            type: "text",
-            text: "I support searching for: teams, users, todos, rocks, meetings, issues, headlines. Try: 'List my teams', 'Show users', 'Find todos', 'Get meetings', etc.",
-          },
-        ],
-      };
-    }
-  );
-
   // Fetch tool
   freshServer.tool(
     "fetch",
@@ -3149,60 +2419,7 @@ app.all("/mcp", async (req, res) => {
         return await getHeadlines(args);
       },
       search: async (args) => {
-        const { query } = args;
-        const q = (query || "").toLowerCase();
-
-        const wantsTeams =
-          /\b(team|teams|my team|my teams)\b/.test(q) ||
-          /list.*team/.test(q) ||
-          /show.*team/.test(q);
-
-        if (wantsTeams) {
-          const gql = `
-            query {
-              teams {
-                nodes {
-                  id
-                  name
-                  desc
-                }
-                totalCount
-              }
-            }
-          `;
-          const result = await callSuccessCoGraphQL(gql);
-          if (!result.ok)
-            return { content: [{ type: "text", text: result.error }] };
-
-          const { data } = result;
-          const hits = (data?.data?.teams?.nodes || []).map((t) => ({
-            id: String(t.id),
-            title: t.name ?? String(t.id),
-            snippet: t.desc || "",
-          }));
-
-          return {
-            content: [
-              {
-                type: "text",
-                text: JSON.stringify({
-                  kind: "teams",
-                  totalCount: data?.data?.teams?.totalCount ?? hits.length,
-                  hits,
-                }),
-              },
-            ],
-          };
-        }
-
-        return {
-          content: [
-            {
-              type: "text",
-              text: "I support searching for: teams, users, todos, rocks, meetings, issues, headlines. Try: 'List my teams', 'Show users', 'Find todos', 'Get meetings', etc.",
-            },
-          ],
-        };
+        return await search(args);
       },
       fetch: async (args) => {
         const { id } = args;
@@ -3535,6 +2752,344 @@ app.all("/mcp", async (req, res) => {
       return;
     }
 
+    // Handle resources/list request
+    if (mcpRequest.method === "resources/list") {
+      const resources = [
+        {
+          uri: "success-co://teams",
+          name: "Get teams",
+          description: "List of all teams setup on Success.co",
+          mimeType: "application/json",
+        },
+        {
+          uri: "success-co://users",
+          name: "Get users",
+          description: "List of all users on Success.co",
+          mimeType: "application/json",
+        },
+        {
+          uri: "success-co://todos",
+          name: "Get todos",
+          description: "List of all todos on Success.co",
+          mimeType: "application/json",
+        },
+        {
+          uri: "success-co://rocks",
+          name: "Get rocks",
+          description: "List of all rocks on Success.co",
+          mimeType: "application/json",
+        },
+        {
+          uri: "success-co://meetings",
+          name: "Get meetings",
+          description: "List of all meetings on Success.co",
+          mimeType: "application/json",
+        },
+        {
+          uri: "success-co://issues",
+          name: "Get issues",
+          description: "List of all issues on Success.co",
+          mimeType: "application/json",
+        },
+        {
+          uri: "success-co://headlines",
+          name: "Get headlines",
+          description: "List of all headlines on Success.co",
+          mimeType: "application/json",
+        },
+      ];
+
+      const response = {
+        jsonrpc: "2.0",
+        id: mcpRequest.id,
+        result: {
+          resources: resources,
+        },
+      };
+      console.error(`[MCP] Sending resources/list response:`, response);
+      res.json(response);
+      return;
+    }
+
+    // Handle resources/read request
+    if (mcpRequest.method === "resources/read") {
+      const { uri } = mcpRequest.params;
+      console.error(`[MCP] Resource read request for URI: ${uri}`);
+
+      const apiKey = getSuccessCoApiKey();
+      if (!apiKey) {
+        res.status(400).json({
+          jsonrpc: "2.0",
+          id: mcpRequest.id,
+          error: {
+            code: -32602,
+            message:
+              "Success.co API key not set. Use setSuccessCoApiKey first.",
+          },
+        });
+        return;
+      }
+
+      try {
+        // Parse the URI to determine which resource to fetch
+        const url = new URL(uri);
+        const resourceType = url.pathname.split("/")[1]; // e.g., "teams", "users", etc.
+
+        let query = "";
+        let dataPath = "";
+
+        switch (resourceType) {
+          case "teams":
+            query = `
+              query {
+                teams {
+                  nodes {
+                    id
+                    badgeUrl
+                    name
+                    desc
+                    color
+                    isLeadership
+                    createdAt
+                    stateId
+                    companyId
+                  }
+                  totalCount
+                }
+              }
+            `;
+            dataPath = "data.teams";
+            break;
+          case "users":
+            query = `
+              query {
+                users {
+                  nodes {
+                    id
+                    userName
+                    firstName
+                    lastName
+                    jobTitle
+                    desc
+                    avatar
+                    email
+                    userPermissionId
+                    userStatusId
+                    languageId
+                    timeZone
+                    companyId
+                  }
+                  totalCount
+                }
+              }
+            `;
+            dataPath = "data.users";
+            break;
+          case "todos":
+            query = `
+              query {
+                todos {
+                  nodes {
+                    id
+                    todoStatusId
+                    name
+                    desc
+                    teamId
+                    userId
+                    statusUpdatedAt
+                    type
+                    dueDate
+                    priorityNo
+                    createdAt
+                    stateId
+                    companyId
+                    meetingId
+                  }
+                  totalCount
+                }
+              }
+            `;
+            dataPath = "data.todos";
+            break;
+          case "rocks":
+            query = `
+              query {
+                rocks {
+                  nodes {
+                    id
+                    rockStatusId
+                    name
+                    desc
+                    statusUpdatedAt
+                    type
+                    dueDate
+                    createdAt
+                    stateId
+                    companyId
+                  }
+                  totalCount
+                }
+              }
+            `;
+            dataPath = "data.rocks";
+            break;
+          case "meetings":
+            query = `
+              query {
+                meetings {
+                  nodes {
+                    id
+                    meetingInfoId
+                    date
+                    startTime
+                    endTime
+                    averageRating
+                    meetingStatusId
+                    createdAt
+                    stateId
+                    companyId
+                  }
+                  totalCount
+                }
+              }
+            `;
+            dataPath = "data.meetings";
+            break;
+          case "issues":
+            query = `
+              query {
+                issues {
+                  nodes {
+                    id
+                    issueStatusId
+                    name
+                    desc
+                    teamId
+                    userId
+                    type
+                    priorityNo
+                    priorityOrder
+                    statusUpdatedAt
+                    meetingId
+                    createdAt
+                    stateId
+                    companyId
+                  }
+                  totalCount
+                }
+              }
+            `;
+            dataPath = "data.issues";
+            break;
+          case "headlines":
+            query = `
+              query {
+                headlines {
+                  nodes {
+                    id
+                    name
+                    desc
+                    userId
+                    teamId
+                    headlineStatusId
+                    statusUpdatedAt
+                    meetingId
+                    createdAt
+                    stateId
+                    companyId
+                    isCascadingMessage
+                  }
+                  totalCount
+                }
+              }
+            `;
+            dataPath = "data.headlines";
+            break;
+          default:
+            res.status(400).json({
+              jsonrpc: "2.0",
+              id: mcpRequest.id,
+              error: {
+                code: -32602,
+                message: `Unknown resource type: ${resourceType}`,
+              },
+            });
+            return;
+        }
+
+        // Make the GraphQL request
+        const response = await fetch("https://www.success.co/graphql", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ query }),
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          res.status(500).json({
+            jsonrpc: "2.0",
+            id: mcpRequest.id,
+            error: {
+              code: -32603,
+              message: `API request failed with status ${response.status}: ${errorText}`,
+            },
+          });
+          return;
+        }
+
+        const data = await response.json();
+
+        if (data.errors) {
+          res.status(500).json({
+            jsonrpc: "2.0",
+            id: mcpRequest.id,
+            error: {
+              code: -32603,
+              message: `GraphQL errors: ${JSON.stringify(data.errors)}`,
+            },
+          });
+          return;
+        }
+
+        // Parse the data path and access the data safely
+        const pathParts = dataPath.split(".");
+        let resourceData = data;
+        for (const part of pathParts) {
+          resourceData = resourceData[part];
+        }
+
+        const result = {
+          jsonrpc: "2.0",
+          id: mcpRequest.id,
+          result: {
+            contents: resourceData.nodes.map((item) => ({
+              uri: `${uri}/${item.id}`,
+              mimeType: "application/json",
+              text: JSON.stringify(item),
+            })),
+          },
+        };
+
+        console.error(`[MCP] Sending resources/read response:`, result);
+        res.json(result);
+      } catch (error) {
+        console.error(`[MCP] Resource read error:`, error);
+        res.status(500).json({
+          jsonrpc: "2.0",
+          id: mcpRequest.id,
+          error: {
+            code: -32603,
+            message: "Internal error",
+            data: error.message,
+          },
+        });
+      }
+      return;
+    }
+
     // For other requests, return not implemented
     res.status(501).json({
       jsonrpc: "2.0",
@@ -3613,7 +3168,6 @@ const httpServer = app
   });
 
 // Check if running in Claude conversation or other non-TTY environment
-// Claude doesn't set CLAUDE_CONVERSATION, so we need to detect it differently
 const isRunningInClaude = true;
 
 if (isRunningInClaude) {

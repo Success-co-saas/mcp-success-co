@@ -551,3 +551,354 @@ export async function getHeadlines(args) {
     ],
   };
 }
+
+/**
+ * Search Success.co data (supports: teams, users, todos, rocks, meetings, issues, headlines)
+ * @param {Object} args - Arguments object
+ * @param {string} args.query - What to look up, e.g., 'list my teams', 'show users', 'find todos', 'get meetings'
+ * @returns {Promise<{content: Array<{type: string, text: string}>}>}
+ */
+export async function search(args) {
+  const { query } = args;
+  const q = (query || "").toLowerCase();
+
+  const wantsTeams =
+    /\b(team|teams|my team|my teams)\b/.test(q) ||
+    /list.*team/.test(q) ||
+    /show.*team/.test(q);
+
+  const wantsUsers =
+    /\b(user|users|people|person|employee|employees)\b/.test(q) ||
+    /list.*user/.test(q) ||
+    /show.*user/.test(q) ||
+    /list.*people/.test(q) ||
+    /show.*people/.test(q);
+
+  const wantsTodos =
+    /\b(todo|todos|task|tasks|to-do|to-dos)\b/.test(q) ||
+    /list.*todo/.test(q) ||
+    /show.*todo/.test(q) ||
+    /find.*todo/.test(q) ||
+    /get.*todo/.test(q);
+
+  const wantsRocks =
+    /\b(rock|rocks|priority|priorities)\b/.test(q) ||
+    /list.*rock/.test(q) ||
+    /show.*rock/.test(q) ||
+    /find.*rock/.test(q) ||
+    /get.*rock/.test(q);
+
+  const wantsMeetings =
+    /\b(meeting|meetings|session|sessions)\b/.test(q) ||
+    /list.*meeting/.test(q) ||
+    /show.*meeting/.test(q) ||
+    /find.*meeting/.test(q) ||
+    /get.*meeting/.test(q);
+
+  const wantsIssues =
+    /\b(issue|issues|problem|problems|concern|concerns)\b/.test(q) ||
+    /list.*issue/.test(q) ||
+    /show.*issue/.test(q) ||
+    /find.*issue/.test(q) ||
+    /get.*issue/.test(q);
+
+  const wantsHeadlines =
+    /\b(headline|headlines|news|update|updates|announcement|announcements)\b/.test(
+      q
+    ) ||
+    /list.*headline/.test(q) ||
+    /show.*headline/.test(q) ||
+    /find.*headline/.test(q) ||
+    /get.*headline/.test(q);
+
+  if (wantsTeams) {
+    const gql = `
+      query {
+        teams {
+          nodes {
+            id
+            name
+            desc
+          }
+          totalCount
+        }
+      }
+    `;
+    const result = await callSuccessCoGraphQL(gql);
+    if (!result.ok) return { content: [{ type: "text", text: result.error }] };
+
+    const { data } = result;
+    const hits = (data?.data?.teams?.nodes || []).map((t) => ({
+      id: String(t.id), // REQUIRED by ChatGPT's fetch contract
+      title: t.name ?? String(t.id),
+      snippet: t.desc || "",
+      // optional extras are fine, but keep required ones present
+    }));
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify({
+            kind: "teams",
+            totalCount: data?.data?.teams?.totalCount ?? hits.length,
+            hits,
+          }),
+        },
+      ],
+    };
+  }
+
+  if (wantsUsers) {
+    const gql = `
+    query {
+        users {
+          nodes {
+            id
+            firstName
+            lastName
+            email
+            jobTitle
+            desc
+          }
+          totalCount
+        }
+      }
+    `;
+    const result = await callSuccessCoGraphQL(gql);
+    if (!result.ok) return { content: [{ type: "text", text: result.error }] };
+
+    const { data } = result;
+    const hits = (data?.data?.users?.nodes || []).map((u) => ({
+      id: String(u.id), // REQUIRED by ChatGPT's fetch contract
+      title: `${u.firstName} ${u.lastName}`,
+      snippet: `${u.jobTitle || ""} ${u.desc || ""}`.trim() || u.email,
+      // optional extras are fine, but keep required ones present
+    }));
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify({
+            kind: "users",
+            totalCount: data?.data?.users?.totalCount ?? hits.length,
+            hits,
+          }),
+        },
+      ],
+    };
+  }
+
+  if (wantsTodos) {
+    const gql = `
+      query {
+        todos {
+        nodes {
+          id
+          name
+          desc
+            type
+            priorityNo
+            dueDate
+        }
+        totalCount
+      }
+    `;
+    const result = await callSuccessCoGraphQL(gql);
+    if (!result.ok) return { content: [{ type: "text", text: result.error }] };
+
+    const { data } = result;
+    const hits = (data?.data?.todos?.nodes || []).map((t) => ({
+      id: String(t.id), // REQUIRED by ChatGPT's fetch contract
+      title: t.name ?? String(t.id),
+      snippet:
+        `${t.type || ""} ${t.desc || ""}`.trim() || `Priority: ${t.priorityNo}`,
+      // optional extras are fine, but keep required ones present
+    }));
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify({
+            kind: "todos",
+            totalCount: data?.data?.todos?.totalCount ?? hits.length,
+            hits,
+          }),
+        },
+      ],
+    };
+  }
+
+  if (wantsRocks) {
+    const gql = `
+      query {
+        rocks {
+          nodes {
+            id
+            name
+            desc
+            type
+            dueDate
+          }
+          totalCount
+        }
+      }
+    `;
+    const result = await callSuccessCoGraphQL(gql);
+    if (!result.ok) return { content: [{ type: "text", text: result.error }] };
+
+    const { data } = result;
+    const hits = (data?.data?.rocks?.nodes || []).map((r) => ({
+      id: String(r.id), // REQUIRED by ChatGPT's fetch contract
+      title: r.name ?? String(r.id),
+      snippet: `${r.type || ""} ${r.desc || ""}`.trim() || `Due: ${r.dueDate}`,
+      // optional extras are fine, but keep required ones present
+    }));
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify({
+            kind: "rocks",
+            totalCount: data?.data?.rocks?.totalCount ?? hits.length,
+            hits,
+          }),
+        },
+      ],
+    };
+  }
+
+  if (wantsMeetings) {
+    const gql = `
+      query {
+        meetings {
+          nodes {
+            id
+            date
+            startTime
+            endTime
+            averageRating
+          }
+          totalCount
+        }
+      }
+    `;
+    const result = await callSuccessCoGraphQL(gql);
+    if (!result.ok) return { content: [{ type: "text", text: result.error }] };
+
+    const { data } = result;
+    const hits = (data?.data?.meetings?.nodes || []).map((m) => ({
+      id: String(m.id), // REQUIRED by ChatGPT's fetch contract
+      title: `Meeting on ${m.date}`,
+      snippet: `${m.startTime || ""} - ${m.endTime || ""} (Rating: ${
+        m.averageRating || "N/A"
+      })`,
+      // optional extras are fine, but keep required ones present
+    }));
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify({
+            kind: "meetings",
+            totalCount: data?.data?.meetings?.totalCount ?? hits.length,
+            hits,
+          }),
+        },
+      ],
+    };
+  }
+
+  if (wantsIssues) {
+    const gql = `
+      query {
+        issues {
+          nodes {
+            id
+            name
+            desc
+            type
+            priorityNo
+          }
+          totalCount
+        }
+      }
+    `;
+    const result = await callSuccessCoGraphQL(gql);
+    if (!result.ok) return { content: [{ type: "text", text: result.error }] };
+
+    const { data } = result;
+    const hits = (data?.data?.issues?.nodes || []).map((i) => ({
+      id: String(i.id), // REQUIRED by ChatGPT's fetch contract
+      title: i.name ?? String(i.id),
+      snippet:
+        `${i.type || ""} ${i.desc || ""}`.trim() || `Priority: ${i.priorityNo}`,
+      // optional extras are fine, but keep required ones present
+    }));
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify({
+            kind: "issues",
+            totalCount: data?.data?.issues?.totalCount ?? hits.length,
+            hits,
+          }),
+        },
+      ],
+    };
+  }
+
+  if (wantsHeadlines) {
+    const gql = `
+      query {
+        headlines {
+          nodes {
+            id
+            name
+            desc
+            headlineStatusId
+          }
+          totalCount
+        }
+      }
+    `;
+    const result = await callSuccessCoGraphQL(gql);
+    if (!result.ok) return { content: [{ type: "text", text: result.error }] };
+
+    const { data } = result;
+    const hits = (data?.data?.headlines?.nodes || []).map((h) => ({
+      id: String(h.id), // REQUIRED by ChatGPT's fetch contract
+      title: h.name ?? String(h.id),
+      snippet: h.desc || `Status: ${h.headlineStatusId}`,
+      // optional extras are fine, but keep required ones present
+    }));
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify({
+            kind: "headlines",
+            totalCount: data?.data?.headlines?.totalCount ?? hits.length,
+            hits,
+          }),
+        },
+      ],
+    };
+  }
+
+  return {
+    content: [
+      {
+        type: "text",
+        text: "I support searching for: teams, users, todos, rocks, meetings, issues, headlines. Try: 'List my teams', 'Show users', 'Find todos', 'Get meetings', etc.",
+      },
+    ],
+  };
+}
