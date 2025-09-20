@@ -150,7 +150,9 @@ export async function getTeams(args) {
 
   const query = `
     query {
-      teams${argsStr} {
+      teams(filter: {stateId: {equalTo: "ACTIVE"}}${
+        argsStr ? `, ${argsStr.slice(1, -1)}` : ""
+      }) {
         nodes {
           id
           badgeUrl
@@ -681,7 +683,7 @@ export async function search(args) {
   if (wantsTeams) {
     const gql = `
       query {
-        teams {
+        teams(filter: {stateId: {equalTo: "ACTIVE"}}) {
           nodes {
             id
             name
