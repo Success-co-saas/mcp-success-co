@@ -358,21 +358,24 @@ export async function getTodos(args) {
  */
 export async function getRocks(args) {
   const { first, offset, stateId = "ACTIVE" } = args;
-  const argsStr =
-    first !== undefined || offset !== undefined
-      ? `(${[
-          first !== undefined ? `first: ${first}` : "",
-          offset !== undefined ? `offset: ${offset}` : "",
-        ]
-          .filter(Boolean)
-          .join(", ")})`
-      : "";
+  if (stateId !== "ACTIVE" && stateId !== "DELETED") {
+    return {
+      content: [
+        { type: "text", text: 'stateId must be either "ACTIVE" or "DELETED"' },
+      ],
+    };
+  }
+  const filterStr = [
+    `stateId: {equalTo: "${stateId}"}`,
+    first !== undefined ? `first: ${first}` : "",
+    offset !== undefined ? `offset: ${offset}` : "",
+  ]
+    .filter(Boolean)
+    .join(", ");
 
   const query = `
     query {
-      rocks(filter: {stateId: {equalTo: "${stateId}"}}${
-    argsStr ? `, ${argsStr.slice(1, -1)}` : ""
-  }) {
+      rocks(${filterStr ? `filter: {${filterStr}}` : ""}) {
         nodes {
           id
           rockStatusId
