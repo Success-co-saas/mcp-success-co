@@ -134,10 +134,11 @@ export async function getSuccessCoApiKeyTool(args) {
  * @param {Object} args - Arguments object
  * @param {number} [args.first] - Optional page size
  * @param {number} [args.offset] - Optional offset
+ * @param {string} [args.stateId] - Team state filter (defaults to 'ACTIVE')
  * @returns {Promise<{content: Array<{type: string, text: string}>}>}
  */
 export async function getTeams(args) {
-  const { first, offset } = args;
+  const { first, offset, stateId = "ACTIVE" } = args;
   const argsStr =
     first !== undefined || offset !== undefined
       ? `(${[
@@ -150,9 +151,9 @@ export async function getTeams(args) {
 
   const query = `
     query {
-      teams(filter: {stateId: {equalTo: "ACTIVE"}}${
-        argsStr ? `, ${argsStr.slice(1, -1)}` : ""
-      }) {
+      teams(filter: {stateId: {equalTo: "${stateId}"}}${
+    argsStr ? `, ${argsStr.slice(1, -1)}` : ""
+  }) {
         nodes {
           id
           badgeUrl

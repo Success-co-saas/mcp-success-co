@@ -67,9 +67,13 @@ server.tool(
   {
     first: z.number().int().optional().describe("Optional page size"),
     offset: z.number().int().optional().describe("Optional offset"),
+    stateId: z
+      .string()
+      .optional()
+      .describe("Team state filter (defaults to 'ACTIVE')"),
   },
-  async ({ first, offset }) => {
-    return await getTeams({ first, offset });
+  async ({ first, offset, stateId }) => {
+    return await getTeams({ first, offset, stateId });
   }
 );
 
@@ -265,9 +269,13 @@ function createFreshMcpServer() {
     {
       first: z.number().int().optional().describe("Optional page size"),
       offset: z.number().int().optional().describe("Optional offset"),
+      stateId: z
+        .string()
+        .optional()
+        .describe("Team state filter (defaults to 'ACTIVE')"),
     },
-    async ({ first, offset }) => {
-      return await getTeams({ first, offset });
+    async ({ first, offset, stateId }) => {
+      return await getTeams({ first, offset, stateId });
     }
   );
 
@@ -513,6 +521,10 @@ app.all("/mcp", async (req, res) => {
               offset: {
                 type: "integer",
                 description: "Optional offset",
+              },
+              stateId: {
+                type: "string",
+                description: "Team state filter (defaults to 'ACTIVE')",
               },
             },
           },
