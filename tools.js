@@ -4,6 +4,7 @@
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import { validateStateId } from "./helpers.js";
 
 /**
  * Calls the Success.co GraphQL API
@@ -139,21 +140,24 @@ export async function getSuccessCoApiKeyTool(args) {
  */
 export async function getTeams(args) {
   const { first, offset, stateId = "ACTIVE" } = args;
-  const argsStr =
-    first !== undefined || offset !== undefined
-      ? `(${[
-          first !== undefined ? `first: ${first}` : "",
-          offset !== undefined ? `offset: ${offset}` : "",
-        ]
-          .filter(Boolean)
-          .join(", ")})`
-      : "";
+  // Validate stateId
+  const validation = validateStateId(stateId);
+  if (!validation.isValid) {
+    return {
+      content: [{ type: "text", text: validation.error }],
+    };
+  }
+  const filterStr = [
+    `stateId: {equalTo: "${stateId}"}`,
+    first !== undefined ? `first: ${first}` : "",
+    offset !== undefined ? `offset: ${offset}` : "",
+  ]
+    .filter(Boolean)
+    .join(", ");
 
   const query = `
     query {
-      teams(filter: {stateId: {equalTo: "${stateId}"}}${
-    argsStr ? `, ${argsStr.slice(1, -1)}` : ""
-  }) {
+      teams(${filterStr ? `filter: {${filterStr}}` : ""}) {
         nodes {
           id
           badgeUrl
@@ -205,21 +209,24 @@ export async function getTeams(args) {
  */
 export async function getUsers(args) {
   const { first, offset, stateId = "ACTIVE" } = args;
-  const argsStr =
-    first !== undefined || offset !== undefined
-      ? `(${[
-          first !== undefined ? `first: ${first}` : "",
-          offset !== undefined ? `offset: ${offset}` : "",
-        ]
-          .filter(Boolean)
-          .join(", ")})`
-      : "";
+  // Validate stateId
+  const validation = validateStateId(stateId);
+  if (!validation.isValid) {
+    return {
+      content: [{ type: "text", text: validation.error }],
+    };
+  }
+  const filterStr = [
+    `userStatusId: {equalTo: "${stateId}"}`,
+    first !== undefined ? `first: ${first}` : "",
+    offset !== undefined ? `offset: ${offset}` : "",
+  ]
+    .filter(Boolean)
+    .join(", ");
 
   const query = `
     query {
-      users(filter: {userStatusId: {equalTo: "${stateId}"}}${
-    argsStr ? `, ${argsStr.slice(1, -1)}` : ""
-  }) {
+      users(${filterStr ? `filter: {${filterStr}}` : ""}) {
         nodes {
           id
           userName
@@ -280,21 +287,24 @@ export async function getUsers(args) {
  */
 export async function getTodos(args) {
   const { first, offset, stateId = "ACTIVE" } = args;
-  const argsStr =
-    first !== undefined || offset !== undefined
-      ? `(${[
-          first !== undefined ? `first: ${first}` : "",
-          offset !== undefined ? `offset: ${offset}` : "",
-        ]
-          .filter(Boolean)
-          .join(", ")})`
-      : "";
+  // Validate stateId
+  const validation = validateStateId(stateId);
+  if (!validation.isValid) {
+    return {
+      content: [{ type: "text", text: validation.error }],
+    };
+  }
+  const filterStr = [
+    `stateId: {equalTo: "${stateId}"}`,
+    first !== undefined ? `first: ${first}` : "",
+    offset !== undefined ? `offset: ${offset}` : "",
+  ]
+    .filter(Boolean)
+    .join(", ");
 
   const query = `
     query {
-      todos(filter: {stateId: {equalTo: "${stateId}"}}${
-    argsStr ? `, ${argsStr.slice(1, -1)}` : ""
-  }) {
+      todos(${filterStr ? `filter: {${filterStr}}` : ""}) {
         nodes {
           id
           todoStatusId
@@ -358,11 +368,11 @@ export async function getTodos(args) {
  */
 export async function getRocks(args) {
   const { first, offset, stateId = "ACTIVE" } = args;
-  if (stateId !== "ACTIVE" && stateId !== "DELETED") {
+  // Validate stateId
+  const validation = validateStateId(stateId);
+  if (!validation.isValid) {
     return {
-      content: [
-        { type: "text", text: 'stateId must be either "ACTIVE" or "DELETED"' },
-      ],
+      content: [{ type: "text", text: validation.error }],
     };
   }
   const filterStr = [
@@ -431,21 +441,24 @@ export async function getRocks(args) {
  */
 export async function getMeetings(args) {
   const { first, offset, stateId = "ACTIVE" } = args;
-  const argsStr =
-    first !== undefined || offset !== undefined
-      ? `(${[
-          first !== undefined ? `first: ${first}` : "",
-          offset !== undefined ? `offset: ${offset}` : "",
-        ]
-          .filter(Boolean)
-          .join(", ")})`
-      : "";
+  // Validate stateId
+  const validation = validateStateId(stateId);
+  if (!validation.isValid) {
+    return {
+      content: [{ type: "text", text: validation.error }],
+    };
+  }
+  const filterStr = [
+    `stateId: {equalTo: "${stateId}"}`,
+    first !== undefined ? `first: ${first}` : "",
+    offset !== undefined ? `offset: ${offset}` : "",
+  ]
+    .filter(Boolean)
+    .join(", ");
 
   const query = `
     query {
-      meetings(filter: {stateId: {equalTo: "${stateId}"}}${
-    argsStr ? `, ${argsStr.slice(1, -1)}` : ""
-  }) {
+      meetings(${filterStr ? `filter: {${filterStr}}` : ""}) {
         nodes {
           id
           meetingInfoId
@@ -501,21 +514,24 @@ export async function getMeetings(args) {
  */
 export async function getIssues(args) {
   const { first, offset, stateId = "ACTIVE" } = args;
-  const argsStr =
-    first !== undefined || offset !== undefined
-      ? `(${[
-          first !== undefined ? `first: ${first}` : "",
-          offset !== undefined ? `offset: ${offset}` : "",
-        ]
-          .filter(Boolean)
-          .join(", ")})`
-      : "";
+  // Validate stateId
+  const validation = validateStateId(stateId);
+  if (!validation.isValid) {
+    return {
+      content: [{ type: "text", text: validation.error }],
+    };
+  }
+  const filterStr = [
+    `stateId: {equalTo: "${stateId}"}`,
+    first !== undefined ? `first: ${first}` : "",
+    offset !== undefined ? `offset: ${offset}` : "",
+  ]
+    .filter(Boolean)
+    .join(", ");
 
   const query = `
     query {
-      issues(filter: {stateId: {equalTo: "${stateId}"}}${
-    argsStr ? `, ${argsStr.slice(1, -1)}` : ""
-  }) {
+      issues(${filterStr ? `filter: {${filterStr}}` : ""}) {
         nodes {
           id
           issueStatusId
@@ -579,21 +595,24 @@ export async function getIssues(args) {
  */
 export async function getHeadlines(args) {
   const { first, offset, stateId = "ACTIVE" } = args;
-  const argsStr =
-    first !== undefined || offset !== undefined
-      ? `(${[
-          first !== undefined ? `first: ${first}` : "",
-          offset !== undefined ? `offset: ${offset}` : "",
-        ]
-          .filter(Boolean)
-          .join(", ")})`
-      : "";
+  // Validate stateId
+  const validation = validateStateId(stateId);
+  if (!validation.isValid) {
+    return {
+      content: [{ type: "text", text: validation.error }],
+    };
+  }
+  const filterStr = [
+    `stateId: {equalTo: "${stateId}"}`,
+    first !== undefined ? `first: ${first}` : "",
+    offset !== undefined ? `offset: ${offset}` : "",
+  ]
+    .filter(Boolean)
+    .join(", ");
 
   const query = `
     query {
-      headlines(filter: {stateId: {equalTo: "${stateId}"}}${
-    argsStr ? `, ${argsStr.slice(1, -1)}` : ""
-  }) {
+      headlines(${filterStr ? `filter: {${filterStr}}` : ""}) {
         nodes {
           id
           name
