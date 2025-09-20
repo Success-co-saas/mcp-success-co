@@ -364,10 +364,11 @@ export async function getTodos(args) {
  * @param {number} [args.first] - Optional page size
  * @param {number} [args.offset] - Optional offset
  * @param {string} [args.stateId] - Rock state filter (defaults to 'ACTIVE')
+ * @param {string} [args.rockStatusId] - Rock status filter (defaults to blank)
  * @returns {Promise<{content: Array<{type: string, text: string}>}>}
  */
 export async function getRocks(args) {
-  const { first, offset, stateId = "ACTIVE" } = args;
+  const { first, offset, stateId = "ACTIVE", rockStatusId } = args;
   // Validate stateId
   const validation = validateStateId(stateId);
   if (!validation.isValid) {
@@ -375,8 +376,23 @@ export async function getRocks(args) {
       content: [{ type: "text", text: validation.error }],
     };
   }
+  // Validate rockStatusId
+  if (
+    rockStatusId !== "" &&
+    !["ONTRACK", "OFFTRACK", "COMPLETE", "INCOMPLETE"].includes(rockStatusId)
+  ) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: "Invalid rock status - must be ONTRACK, OFFTRACK, COMPLETE, or INCOMPLETE",
+        },
+      ],
+    };
+  }
   const filterStr = [
     `stateId: {equalTo: "${stateId}"}`,
+    rockStatusId ? `rockStatusId: {equalTo: "${rockStatusId}"}` : "",
     first !== undefined ? `first: ${first}` : "",
     offset !== undefined ? `offset: ${offset}` : "",
   ]

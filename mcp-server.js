@@ -125,9 +125,15 @@ server.tool(
       .string()
       .optional()
       .describe("Rock state filter (defaults to 'ACTIVE')"),
+    rockStatusId: z
+      .string()
+      .optional()
+      .describe(
+        "Rock status filter (defaults to blank. Can be 'ONTRACK', 'OFFTRACK', 'COMPLETE', 'INCOMPLETE')"
+      ),
   },
-  async ({ first, offset, stateId }) => {
-    return await getRocks({ first, offset, stateId });
+  async ({ first, offset, stateId, rockStatusId }) => {
+    return await getRocks({ first, offset, stateId, rockStatusId });
   }
 );
 
@@ -348,9 +354,13 @@ function createFreshMcpServer() {
         .string()
         .optional()
         .describe("Rock state filter (defaults to 'ACTIVE')"),
+      rockStatusId: z
+        .string()
+        .optional()
+        .describe("Rock status filter (defaults to blank)"),
     },
-    async ({ first, offset, stateId }) => {
-      return await getRocks({ first, offset, stateId });
+    async ({ first, offset, stateId, rockStatusId }) => {
+      return await getRocks({ first, offset, stateId, rockStatusId });
     }
   );
 
@@ -636,6 +646,10 @@ app.all("/mcp", async (req, res) => {
               stateId: {
                 type: "string",
                 description: "Rock state filter (defaults to 'ACTIVE')",
+              },
+              rockStatusId: {
+                type: "string",
+                description: "Rock status filter (defaults to blank)",
               },
             },
           },
