@@ -85,9 +85,13 @@ server.tool(
   {
     first: z.number().int().optional().describe("Optional page size"),
     offset: z.number().int().optional().describe("Optional offset"),
+    stateId: z
+      .string()
+      .optional()
+      .describe("User state filter (defaults to 'ACTIVE')"),
   },
-  async ({ first, offset }) => {
-    return await getUsers({ first, offset });
+  async ({ first, offset, stateId }) => {
+    return await getUsers({ first, offset, stateId });
   }
 );
 
@@ -99,9 +103,13 @@ server.tool(
   {
     first: z.number().int().optional().describe("Optional page size"),
     offset: z.number().int().optional().describe("Optional offset"),
+    stateId: z
+      .string()
+      .optional()
+      .describe("Todo state filter (defaults to 'ACTIVE')"),
   },
-  async ({ first, offset }) => {
-    return await getTodos({ first, offset });
+  async ({ first, offset, stateId }) => {
+    return await getTodos({ first, offset, stateId });
   }
 );
 
@@ -113,9 +121,13 @@ server.tool(
   {
     first: z.number().int().optional().describe("Optional page size"),
     offset: z.number().int().optional().describe("Optional offset"),
+    stateId: z
+      .string()
+      .optional()
+      .describe("Rock state filter (defaults to 'ACTIVE')"),
   },
-  async ({ first, offset }) => {
-    return await getRocks({ first, offset });
+  async ({ first, offset, stateId }) => {
+    return await getRocks({ first, offset, stateId });
   }
 );
 
@@ -127,9 +139,13 @@ server.tool(
   {
     first: z.number().int().optional().describe("Optional page size"),
     offset: z.number().int().optional().describe("Optional offset"),
+    stateId: z
+      .string()
+      .optional()
+      .describe("Meeting state filter (defaults to 'ACTIVE')"),
   },
-  async ({ first, offset }) => {
-    return await getMeetings({ first, offset });
+  async ({ first, offset, stateId }) => {
+    return await getMeetings({ first, offset, stateId });
   }
 );
 
@@ -141,9 +157,13 @@ server.tool(
   {
     first: z.number().int().optional().describe("Optional page size"),
     offset: z.number().int().optional().describe("Optional offset"),
+    stateId: z
+      .string()
+      .optional()
+      .describe("Issue state filter (defaults to 'ACTIVE')"),
   },
-  async ({ first, offset }) => {
-    return await getIssues({ first, offset });
+  async ({ first, offset, stateId }) => {
+    return await getIssues({ first, offset, stateId });
   }
 );
 
@@ -155,9 +175,13 @@ server.tool(
   {
     first: z.number().int().optional().describe("Optional page size"),
     offset: z.number().int().optional().describe("Optional offset"),
+    stateId: z
+      .string()
+      .optional()
+      .describe("Headline state filter (defaults to 'ACTIVE')"),
   },
-  async ({ first, offset }) => {
-    return await getHeadlines({ first, offset });
+  async ({ first, offset, stateId }) => {
+    return await getHeadlines({ first, offset, stateId });
   }
 );
 
@@ -286,9 +310,13 @@ function createFreshMcpServer() {
     {
       first: z.number().int().optional().describe("Optional page size"),
       offset: z.number().int().optional().describe("Optional offset"),
+      stateId: z
+        .string()
+        .optional()
+        .describe("User state filter (defaults to 'ACTIVE')"),
     },
-    async ({ first, offset }) => {
-      return await getUsers({ first, offset });
+    async ({ first, offset, stateId }) => {
+      return await getUsers({ first, offset, stateId });
     }
   );
 
@@ -299,9 +327,13 @@ function createFreshMcpServer() {
     {
       first: z.number().int().optional().describe("Optional page size"),
       offset: z.number().int().optional().describe("Optional offset"),
+      stateId: z
+        .string()
+        .optional()
+        .describe("Todo state filter (defaults to 'ACTIVE')"),
     },
-    async ({ first, offset }) => {
-      return await getTodos({ first, offset });
+    async ({ first, offset, stateId }) => {
+      return await getTodos({ first, offset, stateId });
     }
   );
 
@@ -312,9 +344,13 @@ function createFreshMcpServer() {
     {
       first: z.number().int().optional().describe("Optional page size"),
       offset: z.number().int().optional().describe("Optional offset"),
+      stateId: z
+        .string()
+        .optional()
+        .describe("Rock state filter (defaults to 'ACTIVE')"),
     },
-    async ({ first, offset }) => {
-      return await getRocks({ first, offset });
+    async ({ first, offset, stateId }) => {
+      return await getRocks({ first, offset, stateId });
     }
   );
 
@@ -325,9 +361,13 @@ function createFreshMcpServer() {
     {
       first: z.number().int().optional().describe("Optional page size"),
       offset: z.number().int().optional().describe("Optional offset"),
+      stateId: z
+        .string()
+        .optional()
+        .describe("Meeting state filter (defaults to 'ACTIVE')"),
     },
-    async ({ first, offset }) => {
-      return await getMeetings({ first, offset });
+    async ({ first, offset, stateId }) => {
+      return await getMeetings({ first, offset, stateId });
     }
   );
 
@@ -338,9 +378,13 @@ function createFreshMcpServer() {
     {
       first: z.number().int().optional().describe("Optional page size"),
       offset: z.number().int().optional().describe("Optional offset"),
+      stateId: z
+        .string()
+        .optional()
+        .describe("Issue state filter (defaults to 'ACTIVE')"),
     },
-    async ({ first, offset }) => {
-      return await getIssues({ first, offset });
+    async ({ first, offset, stateId }) => {
+      return await getIssues({ first, offset, stateId });
     }
   );
 
@@ -351,9 +395,13 @@ function createFreshMcpServer() {
     {
       first: z.number().int().optional().describe("Optional page size"),
       offset: z.number().int().optional().describe("Optional offset"),
+      stateId: z
+        .string()
+        .optional()
+        .describe("Headline state filter (defaults to 'ACTIVE')"),
     },
-    async ({ first, offset }) => {
-      return await getHeadlines({ first, offset });
+    async ({ first, offset, stateId }) => {
+      return await getHeadlines({ first, offset, stateId });
     }
   );
 
@@ -543,6 +591,10 @@ app.all("/mcp", async (req, res) => {
                 type: "integer",
                 description: "Optional offset",
               },
+              stateId: {
+                type: "string",
+                description: "User state filter (defaults to 'ACTIVE')",
+              },
             },
           },
         },
@@ -559,6 +611,10 @@ app.all("/mcp", async (req, res) => {
               offset: {
                 type: "integer",
                 description: "Optional offset",
+              },
+              stateId: {
+                type: "string",
+                description: "Todo state filter (defaults to 'ACTIVE')",
               },
             },
           },
@@ -577,6 +633,10 @@ app.all("/mcp", async (req, res) => {
                 type: "integer",
                 description: "Optional offset",
               },
+              stateId: {
+                type: "string",
+                description: "Rock state filter (defaults to 'ACTIVE')",
+              },
             },
           },
         },
@@ -593,6 +653,10 @@ app.all("/mcp", async (req, res) => {
               offset: {
                 type: "integer",
                 description: "Optional offset",
+              },
+              stateId: {
+                type: "string",
+                description: "Meeting state filter (defaults to 'ACTIVE')",
               },
             },
           },
@@ -611,6 +675,10 @@ app.all("/mcp", async (req, res) => {
                 type: "integer",
                 description: "Optional offset",
               },
+              stateId: {
+                type: "string",
+                description: "Issue state filter (defaults to 'ACTIVE')",
+              },
             },
           },
         },
@@ -627,6 +695,10 @@ app.all("/mcp", async (req, res) => {
               offset: {
                 type: "integer",
                 description: "Optional offset",
+              },
+              stateId: {
+                type: "string",
+                description: "Headline state filter (defaults to 'ACTIVE')",
               },
             },
           },

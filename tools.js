@@ -200,10 +200,11 @@ export async function getTeams(args) {
  * @param {Object} args - Arguments object
  * @param {number} [args.first] - Optional page size
  * @param {number} [args.offset] - Optional offset
+ * @param {string} [args.stateId] - User state filter (defaults to 'ACTIVE')
  * @returns {Promise<{content: Array<{type: string, text: string}>}>}
  */
 export async function getUsers(args) {
-  const { first, offset } = args;
+  const { first, offset, stateId = "ACTIVE" } = args;
   const argsStr =
     first !== undefined || offset !== undefined
       ? `(${[
@@ -216,7 +217,9 @@ export async function getUsers(args) {
 
   const query = `
     query {
-      users${argsStr} {
+      users(filter: {userStatusId: {equalTo: "${stateId}"}}${
+    argsStr ? `, ${argsStr.slice(1, -1)}` : ""
+  }) {
         nodes {
           id
           userName
@@ -272,10 +275,11 @@ export async function getUsers(args) {
  * @param {Object} args - Arguments object
  * @param {number} [args.first] - Optional page size
  * @param {number} [args.offset] - Optional offset
+ * @param {string} [args.stateId] - Todo state filter (defaults to 'ACTIVE')
  * @returns {Promise<{content: Array<{type: string, text: string}>}>}
  */
 export async function getTodos(args) {
-  const { first, offset } = args;
+  const { first, offset, stateId = "ACTIVE" } = args;
   const argsStr =
     first !== undefined || offset !== undefined
       ? `(${[
@@ -288,7 +292,9 @@ export async function getTodos(args) {
 
   const query = `
     query {
-      todos${argsStr} {
+      todos(filter: {stateId: {equalTo: "${stateId}"}}${
+    argsStr ? `, ${argsStr.slice(1, -1)}` : ""
+  }) {
         nodes {
           id
           todoStatusId
@@ -347,10 +353,11 @@ export async function getTodos(args) {
  * @param {Object} args - Arguments object
  * @param {number} [args.first] - Optional page size
  * @param {number} [args.offset] - Optional offset
+ * @param {string} [args.stateId] - Rock state filter (defaults to 'ACTIVE')
  * @returns {Promise<{content: Array<{type: string, text: string}>}>}
  */
 export async function getRocks(args) {
-  const { first, offset } = args;
+  const { first, offset, stateId = "ACTIVE" } = args;
   const argsStr =
     first !== undefined || offset !== undefined
       ? `(${[
@@ -363,7 +370,9 @@ export async function getRocks(args) {
 
   const query = `
     query {
-      rocks${argsStr} {
+      rocks(filter: {stateId: {equalTo: "${stateId}"}}${
+    argsStr ? `, ${argsStr.slice(1, -1)}` : ""
+  }) {
         nodes {
           id
           rockStatusId
@@ -414,10 +423,11 @@ export async function getRocks(args) {
  * @param {Object} args - Arguments object
  * @param {number} [args.first] - Optional page size
  * @param {number} [args.offset] - Optional offset
+ * @param {string} [args.stateId] - Meeting state filter (defaults to 'ACTIVE')
  * @returns {Promise<{content: Array<{type: string, text: string}>}>}
  */
 export async function getMeetings(args) {
-  const { first, offset } = args;
+  const { first, offset, stateId = "ACTIVE" } = args;
   const argsStr =
     first !== undefined || offset !== undefined
       ? `(${[
@@ -430,7 +440,9 @@ export async function getMeetings(args) {
 
   const query = `
     query {
-      meetings${argsStr} {
+      meetings(filter: {stateId: {equalTo: "${stateId}"}}${
+    argsStr ? `, ${argsStr.slice(1, -1)}` : ""
+  }) {
         nodes {
           id
           meetingInfoId
@@ -481,10 +493,11 @@ export async function getMeetings(args) {
  * @param {Object} args - Arguments object
  * @param {number} [args.first] - Optional page size
  * @param {number} [args.offset] - Optional offset
+ * @param {string} [args.stateId] - Issue state filter (defaults to 'ACTIVE')
  * @returns {Promise<{content: Array<{type: string, text: string}>}>}
  */
 export async function getIssues(args) {
-  const { first, offset } = args;
+  const { first, offset, stateId = "ACTIVE" } = args;
   const argsStr =
     first !== undefined || offset !== undefined
       ? `(${[
@@ -497,7 +510,9 @@ export async function getIssues(args) {
 
   const query = `
     query {
-      issues${argsStr} {
+      issues(filter: {stateId: {equalTo: "${stateId}"}}${
+    argsStr ? `, ${argsStr.slice(1, -1)}` : ""
+  }) {
         nodes {
           id
           issueStatusId
@@ -556,10 +571,11 @@ export async function getIssues(args) {
  * @param {Object} args - Arguments object
  * @param {number} [args.first] - Optional page size
  * @param {number} [args.offset] - Optional offset
+ * @param {string} [args.stateId] - Headline state filter (defaults to 'ACTIVE')
  * @returns {Promise<{content: Array<{type: string, text: string}>}>}
  */
 export async function getHeadlines(args) {
-  const { first, offset } = args;
+  const { first, offset, stateId = "ACTIVE" } = args;
   const argsStr =
     first !== undefined || offset !== undefined
       ? `(${[
@@ -572,7 +588,9 @@ export async function getHeadlines(args) {
 
   const query = `
     query {
-      headlines${argsStr} {
+      headlines(filter: {stateId: {equalTo: "${stateId}"}}${
+    argsStr ? `, ${argsStr.slice(1, -1)}` : ""
+  }) {
         nodes {
           id
           name
