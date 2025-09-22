@@ -1,32 +1,35 @@
-# 🟢 MCP Server in Node.js
+# 🟢 Success.co MCP Server
 
 ![MCP Server in Node.js banner](https://github.com/user-attachments/assets/6608286c-0dd2-4f15-a797-ed63d902a38a)
 
-## Build and run a custom MCP Server in Node.js in just 2 minutes ⏱️
+## Success.co EOS Framework MCP Server
 
-[Overview](#overview) · [Features](#features) · [Installation](#installation) · [Testing with MCP Inspector](#testing-with-mcp-inspector) · [Setting Environment Variables for Testing](#setting-environment-variables-for-testing) · [Integrating with Cursor AI](#integrating-with-cursor-ai) · [Using the MCP Tool in Cursor (Agent Mode)](#using-the-mcp-tool-in-cursor-agent-mode) · [Code Overview](#code-overview) · [References & Resources](#references--resources) · [License](#license)
+This MCP server provides comprehensive access to Success.co's EOS (Entrepreneurial Operating System) data, enabling AI assistants like ChatGPT and Claude to answer complex questions about company operations, team performance, and project management.
+
+[Overview](#overview) · [Features](#features) · [Installation](#installation) · [EOS Analysis Tools](#eos-analysis-tools) · [Testing with MCP Inspector](#testing-with-mcp-inspector) · [Setting Environment Variables for Testing](#setting-environment-variables-for-testing) · [Integrating with Cursor AI](#integrating-with-cursor-ai) · [Using the MCP Tool in Cursor (Agent Mode)](#using-the-mcp-tool-in-cursor-agent-mode) · [Code Overview](#code-overview) · [References & Resources](#references--resources) · [License](#license)
 
 ## Overview
 
 **MCP (Model Context Protocol)** is a framework that allows you to integrate custom tools into AI-assisted development environments—such as Cursor AI. MCP servers expose functionality (like data retrieval or code analysis) so that an LLM-based IDE can call these tools on demand. Learn more about MCP in the [Model Context Protocol Introduction](https://modelcontextprotocol.io/introduction).
 
-This project demonstrates an MCP server implemented in JavaScript using Node.js. It defines two tools: **add**, which takes two numeric inputs and returns their sum, and **getApiKey**, which retrieves the API key from the `API_KEY` environment variable. It also provides a predefined prompt **add_numbers** that allows AI models to infer the usage of the addition tool.
+This project demonstrates an MCP server implemented in JavaScript using Node.js that provides comprehensive access to Success.co's EOS framework data. It includes tools for retrieving teams, users, todos, rocks, meetings, issues, headlines, visions, and Scorecard metrics. Most importantly, it includes advanced analytical tools that can answer complex EOS-related questions like "Which company Rocks are at risk of missing their due dates this quarter, and who owns them?" and Scorecard questions like "Give me the last 12 weeks of Scorecard metrics for my team and flag any KPI below target."
 
 ## Requirements
 
 - **Node.js:** Version 20 or higher is required.
+- **Success.co API Key:** You'll need a valid Success.co API key to access the data.
 
 ## Features
 
-- **MCP Integration:** Exposes tool functionality to LLM-based IDEs.
-- **Addition Tool:** Accepts two numeric parameters and returns their sum.
-- **MCP Prompt:** Provides a predefined prompt ("add_numbers") that allow AI models to infer tool usage.
-- **Success.co GraphQL API Integration:** Connects to the Success.co GraphQL API to retrieve team data.
-- **Resource Support:** Provides a teams resource for direct data access.
-- **API Key Management:** Securely stores and retrieves the Success.co API key.
-- **Env Var Retrieval:** Demonstrates how to load an example environment variable from the configuration file.
-- **Input Validation:** Uses [Zod](https://github.com/colinhacks/zod) for schema validation.
-- **Standard I/O Transport:** Connects via `StdioServerTransport` for integration with development environments.
+- **EOS Data Access:** Complete access to Success.co's EOS framework data including teams, users, todos, rocks, meetings, issues, headlines, and visions
+- **Scorecard Metrics Analysis:** Comprehensive KPI analysis including target flagging, trend analysis, and performance tracking
+- **Advanced Analytics:** Sophisticated analysis tools for at-risk rocks, overdue items, team performance, and progress tracking
+- **GraphQL Integration:** Full integration with Success.co's GraphQL API
+- **API Key Management:** Secure storage and retrieval of Success.co API keys
+- **Input Validation:** Uses [Zod](https://github.com/colinhacks/zod) for schema validation
+- **Multiple Transports:** Supports both STDIO and HTTP transports
+- **Comprehensive Search:** Intelligent search across all EOS data types
+- **Real-time Analysis:** Dynamic analysis of rock statuses, milestones, team performance, and KPI metrics
 
 ## Installation
 
@@ -65,6 +68,261 @@ This project demonstrates an MCP server implemented in JavaScript using Node.js.
     "inspector": "npx @modelcontextprotocol/inspector node ./mcp-server.js"
    }
    ```
+
+3. **Set up your Success.co API Key**
+
+   You'll need to set your Success.co API key. You can do this in two ways:
+
+   **Option 1: Set environment variable**
+
+   ```bash
+   export SUCCESS_CO_API_KEY="your-success-co-api-key"
+   ```
+
+   **Option 2: Use the MCP tool to set it**
+   Once the server is running, you can use the `setSuccessCoApiKey` tool to store your API key securely.
+
+## EOS Analysis Tools
+
+The MCP server includes powerful analytical tools specifically designed for EOS framework analysis. These tools can answer complex questions about your company's operations, team performance, and project management.
+
+### Available Analysis Tools
+
+#### 1. **analyzeEOSData** - Main Analysis Tool
+
+This is the primary tool for complex EOS queries. It automatically detects the type of analysis needed based on your query.
+
+**Example Queries:**
+
+- "Which company Rocks are at risk of missing their due dates this quarter, and who owns them?"
+- "Show me all overdue rocks and who owns them"
+- "What is the current progress status of all rocks?"
+- "How are teams performing with their rocks?"
+
+**Parameters:**
+
+- `query` (required): The analytical query to perform
+- `teamId` (optional): Filter by specific team
+- `userId` (optional): Filter by specific user
+- `timeframe` (optional): Analysis timeframe ('quarter', 'month', 'week')
+
+#### 2. **Data Retrieval Tools**
+
+- `getTeams` - List all teams
+- `getUsers` - List all users
+- `getTodos` - List all todos
+- `getRocks` - List all rocks
+- `getMeetings` - List all meetings
+- `getIssues` - List all issues
+- `getHeadlines` - List all headlines
+- `getVisions` - List all visions
+- `getRockStatuses` - List rock statuses
+- `getMilestones` - List milestones
+- `getMilestoneStatuses` - List milestone statuses
+- `getTeamsOnRocks` - List team-rock relationships
+
+#### 3. **Search Tool**
+
+- `search` - Intelligent search across all EOS data types
+
+#### 4. **Fetch Tool**
+
+- `fetch` - Retrieve detailed information about specific items by ID
+
+### Analysis Capabilities
+
+The `analyzeEOSData` tool can perform several types of analysis:
+
+#### At-Risk Rocks Analysis
+
+Identifies rocks that are at risk of missing their due dates within a specified timeframe. Returns:
+
+- Rock details (name, description, due date)
+- Owner information (name, title, email)
+- Days until due date
+- Current status
+
+#### Overdue Items Analysis
+
+Finds all rocks that are past their due date and not completed. Returns:
+
+- Rock details
+- Owner information
+- Days overdue
+- Current status
+
+#### Rock Progress Analysis
+
+Provides a comprehensive overview of rock progress across the organization. Returns:
+
+- Total rock count
+- Status breakdown with percentages
+- Individual rock details
+
+#### Team Performance Analysis
+
+Analyzes team performance based on rock completion and status. Returns:
+
+- Team information
+- Rock counts per team
+- Status breakdown per team
+
+### Example Usage
+
+Here are some example queries you can ask an AI assistant:
+
+**At-Risk Analysis:**
+
+```
+"Which rocks are at risk of missing their due dates this quarter?"
+"Show me rocks that might be late this month"
+"Find rocks due in the next 30 days"
+```
+
+**Overdue Analysis:**
+
+```
+"Show me all overdue rocks"
+"Which rocks are past their due date?"
+"Find late rocks and who owns them"
+```
+
+**Progress Analysis:**
+
+```
+"What's the current status of all rocks?"
+"Show me rock completion rates"
+"How many rocks are complete vs incomplete?"
+```
+
+**Team Analysis:**
+
+```
+"How are teams performing with their rocks?"
+"Which team has the most overdue rocks?"
+"Show me team rock completion rates"
+```
+
+## Scorecard Metrics Analysis Tools
+
+The MCP server now includes comprehensive Scorecard metrics analysis capabilities, allowing AI assistants to answer complex questions about KPI performance, targets, and trends.
+
+### Available Scorecard Tools
+
+#### 1. **analyzeScorecardMetrics** - Main Scorecard Analysis Tool
+
+This is the primary tool for Scorecard and KPI analysis. It automatically detects the type of analysis needed based on your query.
+
+**Example Queries:**
+
+- "Give me the last 12 weeks of Scorecard metrics for my team and flag any KPI below target"
+- "Which KPIs are below target?"
+- "Show me KPI trends over the last quarter"
+- "What's the performance of our Scorecard metrics?"
+
+**Parameters:**
+
+- `query` (required): The analytical query to perform
+- `teamId` (optional): Filter by specific team
+- `userId` (optional): Filter by specific user
+- `timeframe` (optional): Analysis timeframe ('quarter', 'month', 'week', 'year')
+- `weeks` (optional): Number of weeks to analyze (defaults to 12)
+
+#### 2. **Scorecard Data Retrieval Tools**
+
+- `getDataFields` - List all data fields (KPIs) with their configurations
+- `getDataValues` - List all data values (metric measurements) with filtering by date range
+- `getTeamsOnDataFields` - List team assignments to specific KPIs
+- `getDataFieldStatuses` - List available data field statuses
+
+### Scorecard Analysis Capabilities
+
+The `analyzeScorecardMetrics` tool can perform several types of analysis:
+
+#### General Scorecard Analysis
+
+Provides a comprehensive overview of all KPIs and their current values. Returns:
+
+- Total KPI count
+- Time range analyzed
+- Individual KPI details (name, description, type, unit)
+- Latest values with dates and notes
+- Data points over time
+
+#### KPI Below Target Analysis
+
+Identifies KPIs that are currently below their target values. Returns:
+
+- Total KPIs analyzed
+- Count of KPIs below target
+- Individual KPI details with current vs target values
+- Variance calculations (absolute and percentage)
+- Sorted by variance severity
+
+#### KPI Trends Analysis
+
+Analyzes performance trends over time for all KPIs. Returns:
+
+- Total KPIs analyzed
+- Count of improving, declining, and stable KPIs
+- Individual KPI trend analysis
+- Trend strength calculations
+- Sorted by trend significance
+
+### Scorecard Data Structure
+
+The Scorecard system uses the following data structure:
+
+- **Data Fields**: Define the KPIs (name, description, type, unit, targets)
+- **Data Values**: Store the actual metric measurements over time
+- **Teams on Data Fields**: Assign KPIs to specific teams
+- **Data Field Statuses**: Track the status of each KPI
+
+### Example Usage
+
+Here are some example queries you can ask an AI assistant:
+
+**General Scorecard Analysis:**
+
+```
+"Give me the last 12 weeks of Scorecard metrics for my team"
+"Show me all our KPIs and their current values"
+"What Scorecard metrics do we track?"
+```
+
+**Target Analysis:**
+
+```
+"Flag any KPI below target"
+"Which KPIs are underperforming?"
+"Show me KPIs that missed their targets"
+```
+
+**Trend Analysis:**
+
+```
+"Show me KPI trends over the last quarter"
+"What's the performance trend of our metrics?"
+"Which KPIs are improving vs declining?"
+```
+
+**Team-Specific Analysis:**
+
+```
+"Show me the Scorecard performance for my team over the last month"
+"What KPIs is the sales team responsible for?"
+"Which team has the best KPI performance?"
+```
+
+### Testing Scorecard Functionality
+
+You can test the Scorecard functionality using the included test script:
+
+```bash
+node test-scorecard-analysis.js
+```
+
+This will run comprehensive tests of all Scorecard tools and analysis capabilities.
 
 ## Testing with MCP Inspector
 
@@ -253,87 +511,176 @@ Below is the configuration you need to add:
 The project comprises the following key parts:
 
 - **MCP Server Initialization:**  
-  The MCP server is instantiated using `McpServer` from the MCP SDK and connected via `StdioServerTransport`.
+  The MCP server is instantiated using `McpServer` from the MCP SDK and connected via `StdioServerTransport` and `StreamableHTTPServerTransport`.
 
 - **Tool Definitions:**
 
-  - **add:**  
-    Defined with a Zod schema that accepts two numbers (`a` and `b`) and returns their sum as text.
-  - **getApiKey:**  
-    Retrieves the API key from the environment variable `API_KEY` and returns it as text.
-  - **setSuccessCoApiKey:**  
-    Stores the Success.co API key securely for future use.
-  - **getSuccessCoApiKey:**  
-    Retrieves the stored Success.co API key.
-  - **getSuccessCoTeams:**  
-    Fetches a list of teams from the Success.co GraphQL API with optional pagination parameters. Uses GraphQL to query team data with the proper nodes structure.
+  - **API Key Management:**
 
-- **Resource Definitions:**
+    - `setSuccessCoApiKey`: Stores the Success.co API key securely for future use
+    - `getSuccessCoApiKey`: Retrieves the stored Success.co API key
 
-  - **successco_teams:**  
-    Provides direct access to teams data from the Success.co GraphQL API. Supports pagination with `first` and `offset` parameters.
+  - **Data Retrieval Tools:**
 
-- **Prompt Definition:**
-  - **add_numbers:**  
-    A predefined prompt that allows AI models to infer the usage of the addition tool.
+    - `getTeams`: Fetches teams from the Success.co GraphQL API
+    - `getUsers`: Fetches users from the Success.co GraphQL API
+    - `getTodos`: Fetches todos from the Success.co GraphQL API
+    - `getRocks`: Fetches rocks from the Success.co GraphQL API
+    - `getMeetings`: Fetches meetings from the Success.co GraphQL API
+    - `getIssues`: Fetches issues from the Success.co GraphQL API
+    - `getHeadlines`: Fetches headlines from the Success.co GraphQL API
+    - `getVisions`: Fetches visions from the Success.co GraphQL API
+    - `getRockStatuses`: Fetches rock statuses from the Success.co GraphQL API
+    - `getMilestones`: Fetches milestones from the Success.co GraphQL API
+    - `getMilestoneStatuses`: Fetches milestone statuses from the Success.co GraphQL API
+    - `getTeamsOnRocks`: Fetches team-rock relationships from the Success.co GraphQL API
 
-**Important Note**: It's not required to have a prompt defined for a tool. This example just demonstrates one of the capabilities of prompts, allowing the AI model to infer which tool to use based on your input. The AI can also use tools directly when it determines they're needed for a task.
+  - **Analysis Tools:**
+
+    - `analyzeEOSData`: Main analytical tool that can perform complex EOS analysis including:
+      - At-risk rocks analysis
+      - Overdue items analysis
+      - Rock progress analysis
+      - Team performance analysis
+
+  - **Utility Tools:**
+    - `search`: Intelligent search across all EOS data types
+    - `fetch`: Retrieve detailed information about specific items by ID
+
+- **GraphQL Integration:**
+  All tools use the Success.co GraphQL API with proper error handling, pagination support, and data validation.
+
+- **Analysis Engine:**
+  The `analyzeEOSData` tool includes sophisticated analysis functions that can:
+
+  - Calculate days until due dates
+  - Identify overdue items
+  - Group data by status and team
+  - Provide performance metrics
+  - Cross-reference user and team information
+
+- **Error Handling:**
+  Comprehensive error handling for API failures, invalid parameters, and data validation issues.
+
+- **Input Validation:**
+  Uses Zod schemas for all tool parameters to ensure data integrity and provide clear error messages.
 
 ## Using the MCP Tool in Cursor (Agent Mode)
 
 With the MCP server integrated into Cursor IDE and with Agent mode enabled, you can use the tools in several ways:
 
-### Addition Tool Usage
+### EOS Analysis Tool Usage
 
-**Method 1: Natural Language Prompt**
-Simply use a natural language prompt like:
+The primary tool for complex EOS queries is `analyzeEOSData`. You can use natural language prompts like:
 
-```
-add 3 and 5
-```
-
-or
+**At-Risk Rocks Analysis:**
 
 ```
-what is 7 plus 12?
+Which company Rocks are at risk of missing their due dates this quarter, and who owns them?
 ```
 
-**Method 2: Prompt-Based Tool Invocation**
-Type the following prompt in the chat:
+**Overdue Items Analysis:**
 
 ```
-/add_numbers
+Show me all overdue rocks and who owns them
 ```
 
-When you press Enter after typing this prompt, Cursor will automatically:
-
-1. Recognize that you want to use the `add` tool from the Node Server
-2. Display a GUI prompt asking for the two number parameters
-3. The AI model will infer that it needs to use the `add` tool to calculate the result
-
-**Parameters for the Addition Tool:**
-
-- **Parameter `a`**: First number to add
-- **Parameter `b`**: Second number to add
-- **Returns**: The sum of the two numbers as text
-
-### API Key Tool Usage
-
-For the `getApiKey` tool, you can use:
+**Progress Analysis:**
 
 ```
-what is my API key?
+What is the current progress status of all rocks?
 ```
 
-or
+**Team Performance Analysis:**
 
 ```
-get my API key
+How are teams performing with their rocks?
 ```
 
-### Success.co API Tools Usage
+### Data Retrieval Tool Usage
 
-For the Success.co API tools, you can use:
+You can retrieve specific data types using natural language:
+
+**Teams:**
+
+```
+get teams from Success.co
+list all teams
+show me the first 10 teams
+```
+
+**Users:**
+
+```
+get users from Success.co
+list all users
+show me users in the marketing team
+```
+
+**Rocks:**
+
+```
+get rocks from Success.co
+list all rocks
+show me rocks for this quarter
+```
+
+**Todos:**
+
+```
+get todos from Success.co
+list all todos
+show me todos assigned to John
+```
+
+**Meetings:**
+
+```
+get meetings from Success.co
+list all meetings
+show me meetings for this month
+```
+
+**Issues:**
+
+```
+get issues from Success.co
+list all issues
+show me high priority issues
+```
+
+**Headlines:**
+
+```
+get headlines from Success.co
+list all headlines
+show me recent headlines
+```
+
+**Visions:**
+
+```
+get visions from Success.co
+list all visions
+show me leadership team visions
+```
+
+### Search Tool Usage
+
+The search tool provides intelligent search across all EOS data types:
+
+```
+search for teams
+search for users
+search for todos
+search for rocks
+search for meetings
+search for issues
+search for headlines
+search for visions
+```
+
+### API Key Management
 
 **Setting the API Key:**
 
@@ -347,49 +694,19 @@ set my Success.co API key to "your-api-key-here"
 what is my Success.co API key?
 ```
 
-**Getting Teams via GraphQL (Tool):**
+### Advanced Queries
+
+You can combine multiple concepts in your queries:
 
 ```
-get teams from Success.co
+Show me all rocks that are overdue and who owns them
+Which teams have the most incomplete rocks?
+Find rocks due in the next 30 days and their owners
+Show me the progress of all rocks for the marketing team
+Which users have the most overdue todos?
 ```
 
-or with pagination:
-
-```
-get the first 10 teams from Success.co
-```
-
-**Accessing Teams Resource:**
-
-The teams resource can be accessed directly by the AI when it needs to retrieve team data. This is more efficient than using the tool when the AI needs to work with the data directly.
-
-```
-I need information about the teams at Success.co
-```
-
-The GraphQL query structure used by both the tool and resource:
-
-```graphql
-query {
-  teams(first: 10) {
-    # Example with pagination
-    nodes {
-      id
-      badgeUrl
-      name
-      desc
-      color
-      isLeadership
-      createdAt
-      stateId
-      companyId
-    }
-    totalCount
-  }
-}
-```
-
-The AI agent will automatically infer the appropriate tool to use based on your request.
+The AI agent will automatically infer the appropriate tools to use based on your request and may combine multiple tools to provide comprehensive answers.
 
 ## References & Resources
 

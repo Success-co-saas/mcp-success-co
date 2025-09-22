@@ -15,12 +15,27 @@ import {
   getMeetings,
   getIssues,
   getHeadlines,
+  getVisions,
+  getVisionCoreValues,
+  getVisionCoreFocusTypes,
+  getVisionThreeYearGoals,
+  getVisionMarketStrategies,
+  getRockStatuses,
+  getMilestones,
+  getMilestoneStatuses,
+  getTeamsOnRocks,
+  analyzeEOSData,
   search,
   fetch,
   setSuccessCoApiKey,
   getSuccessCoApiKeyTool,
   getSuccessCoApiKey,
   callSuccessCoGraphQL,
+  getDataFields,
+  getDataValues,
+  getTeamsOnDataFields,
+  getDataFieldStatuses,
+  analyzeScorecardMetrics,
 } from "./tools.js";
 
 // Ensure Node 18+ for global fetch.
@@ -191,6 +206,234 @@ server.tool(
   }
 );
 
+// ---------- Visions tool ------------------------------------------------------
+
+server.tool(
+  "getVisions",
+  "List Success.co visions",
+  {
+    first: z.number().int().optional().describe("Optional page size"),
+    offset: z.number().int().optional().describe("Optional offset"),
+    stateId: z
+      .string()
+      .optional()
+      .describe("Vision state filter (defaults to 'ACTIVE')"),
+    teamId: z.string().optional().describe("Filter by team ID"),
+    isLeadership: z.boolean().optional().describe("Filter by leadership team"),
+  },
+  async ({ first, offset, stateId, teamId, isLeadership }) => {
+    return await getVisions({ first, offset, stateId, teamId, isLeadership });
+  }
+);
+
+// ---------- Vision Core Values tool -------------------------------------------
+
+server.tool(
+  "getVisionCoreValues",
+  "List Success.co vision core values",
+  {
+    first: z.number().int().optional().describe("Optional page size"),
+    offset: z.number().int().optional().describe("Optional offset"),
+    stateId: z
+      .string()
+      .optional()
+      .describe("Core value state filter (defaults to 'ACTIVE')"),
+    visionId: z.string().optional().describe("Filter by vision ID"),
+  },
+  async ({ first, offset, stateId, visionId }) => {
+    return await getVisionCoreValues({ first, offset, stateId, visionId });
+  }
+);
+
+// ---------- Vision Core Focus Types tool -------------------------------------
+
+server.tool(
+  "getVisionCoreFocusTypes",
+  "List Success.co vision core focus types",
+  {
+    first: z.number().int().optional().describe("Optional page size"),
+    offset: z.number().int().optional().describe("Optional offset"),
+    stateId: z
+      .string()
+      .optional()
+      .describe("Core focus state filter (defaults to 'ACTIVE')"),
+    visionId: z.string().optional().describe("Filter by vision ID"),
+    type: z.string().optional().describe("Filter by type"),
+  },
+  async ({ first, offset, stateId, visionId, type }) => {
+    return await getVisionCoreFocusTypes({
+      first,
+      offset,
+      stateId,
+      visionId,
+      type,
+    });
+  }
+);
+
+// ---------- Vision Three Year Goals tool -------------------------------------
+
+server.tool(
+  "getVisionThreeYearGoals",
+  "List Success.co vision three year goals",
+  {
+    first: z.number().int().optional().describe("Optional page size"),
+    offset: z.number().int().optional().describe("Optional offset"),
+    stateId: z
+      .string()
+      .optional()
+      .describe("Goal state filter (defaults to 'ACTIVE')"),
+    visionId: z.string().optional().describe("Filter by vision ID"),
+    type: z.string().optional().describe("Filter by type"),
+  },
+  async ({ first, offset, stateId, visionId, type }) => {
+    return await getVisionThreeYearGoals({
+      first,
+      offset,
+      stateId,
+      visionId,
+      type,
+    });
+  }
+);
+
+// ---------- Vision Market Strategies tool -------------------------------------
+
+server.tool(
+  "getVisionMarketStrategies",
+  "List Success.co vision market strategies",
+  {
+    first: z.number().int().optional().describe("Optional page size"),
+    offset: z.number().int().optional().describe("Optional offset"),
+    stateId: z
+      .string()
+      .optional()
+      .describe("Strategy state filter (defaults to 'ACTIVE')"),
+    visionId: z.string().optional().describe("Filter by vision ID"),
+    isCustom: z.boolean().optional().describe("Filter by custom status"),
+  },
+  async ({ first, offset, stateId, visionId, isCustom }) => {
+    return await getVisionMarketStrategies({
+      first,
+      offset,
+      stateId,
+      visionId,
+      isCustom,
+    });
+  }
+);
+
+// ---------- Rock Statuses tool ----------------------------------------------
+
+server.tool(
+  "getRockStatuses",
+  "List Success.co rock statuses",
+  {
+    first: z.number().int().optional().describe("Optional page size"),
+    offset: z.number().int().optional().describe("Optional offset"),
+    stateId: z
+      .string()
+      .optional()
+      .describe("Rock status state filter (defaults to 'ACTIVE')"),
+  },
+  async ({ first, offset, stateId }) => {
+    return await getRockStatuses({ first, offset, stateId });
+  }
+);
+
+// ---------- Milestones tool -------------------------------------------------
+
+server.tool(
+  "getMilestones",
+  "List Success.co milestones",
+  {
+    first: z.number().int().optional().describe("Optional page size"),
+    offset: z.number().int().optional().describe("Optional offset"),
+    stateId: z
+      .string()
+      .optional()
+      .describe("Milestone state filter (defaults to 'ACTIVE')"),
+    rockId: z.string().optional().describe("Filter by rock ID"),
+    userId: z.string().optional().describe("Filter by user ID"),
+    teamId: z.string().optional().describe("Filter by team ID"),
+  },
+  async ({ first, offset, stateId, rockId, userId, teamId }) => {
+    return await getMilestones({
+      first,
+      offset,
+      stateId,
+      rockId,
+      userId,
+      teamId,
+    });
+  }
+);
+
+// ---------- Milestone Statuses tool -----------------------------------------
+
+server.tool(
+  "getMilestoneStatuses",
+  "List Success.co milestone statuses",
+  {
+    first: z.number().int().optional().describe("Optional page size"),
+    offset: z.number().int().optional().describe("Optional offset"),
+  },
+  async ({ first, offset }) => {
+    return await getMilestoneStatuses({ first, offset });
+  }
+);
+
+// ---------- Teams on Rocks tool --------------------------------------------
+
+server.tool(
+  "getTeamsOnRocks",
+  "List Success.co teams on rocks relationships",
+  {
+    first: z.number().int().optional().describe("Optional page size"),
+    offset: z.number().int().optional().describe("Optional offset"),
+    stateId: z
+      .string()
+      .optional()
+      .describe("Team-rock state filter (defaults to 'ACTIVE')"),
+    rockId: z.string().optional().describe("Filter by rock ID"),
+    teamId: z.string().optional().describe("Filter by team ID"),
+  },
+  async ({ first, offset, stateId, rockId, teamId }) => {
+    return await getTeamsOnRocks({ first, offset, stateId, rockId, teamId });
+  }
+);
+
+// ---------- EOS Data Analysis tool ------------------------------------------
+
+server.tool(
+  "analyzeEOSData",
+  "Analyze EOS/Traction framework data to answer complex business questions. Automatically detects query intent and provides comprehensive analysis of rocks, teams, and performance metrics. Use this for questions about project status, deadlines, team performance, and business operations.",
+  {
+    query: z
+      .string()
+      .describe(
+        "The analytical question to answer (e.g., 'Which rocks are at risk?', 'Show overdue items', 'How is team performance?')"
+      ),
+    teamId: z
+      .string()
+      .optional()
+      .describe("Optional team filter - filter analysis to specific team"),
+    userId: z
+      .string()
+      .optional()
+      .describe("Optional user filter - filter analysis to specific user"),
+    timeframe: z
+      .string()
+      .optional()
+      .describe(
+        "Optional timeframe filter - 'quarter', 'month', 'week', or 'year'"
+      ),
+  },
+  async ({ query, teamId, userId, timeframe }) => {
+    return await analyzeEOSData({ query, teamId, userId, timeframe });
+  }
+);
+
 // FETCH: fetch the full item by id (REQUIRED: id)
 server.tool(
   "fetch",
@@ -200,6 +443,151 @@ server.tool(
   },
   async ({ id }) => {
     return await fetch({ id });
+  }
+);
+
+// ---------- Data Fields tool (Scorecard KPIs) ---------------------------------
+
+server.tool(
+  "getDataFields",
+  "List Success.co data fields (Scorecard KPIs)",
+  {
+    first: z.number().int().optional().describe("Optional page size"),
+    offset: z.number().int().optional().describe("Optional offset"),
+    stateId: z
+      .string()
+      .optional()
+      .describe("Data field state filter (defaults to 'ACTIVE')"),
+    teamId: z.string().optional().describe("Filter by team ID"),
+    userId: z.string().optional().describe("Filter by user ID"),
+    type: z.string().optional().describe("Filter by data field type"),
+  },
+  async ({ first, offset, stateId, teamId, userId, type }) => {
+    return await getDataFields({
+      first,
+      offset,
+      stateId,
+      teamId,
+      userId,
+      type,
+    });
+  }
+);
+
+// ---------- Data Values tool (Scorecard metrics) -----------------------------
+
+server.tool(
+  "getDataValues",
+  "List Success.co data values (Scorecard metrics)",
+  {
+    first: z.number().int().optional().describe("Optional page size"),
+    offset: z.number().int().optional().describe("Optional offset"),
+    stateId: z
+      .string()
+      .optional()
+      .describe("Data value state filter (defaults to 'ACTIVE')"),
+    dataFieldId: z.string().optional().describe("Filter by data field ID"),
+    startDate: z
+      .string()
+      .optional()
+      .describe("Filter by start date (YYYY-MM-DD)"),
+    endDate: z.string().optional().describe("Filter by end date (YYYY-MM-DD)"),
+  },
+  async ({ first, offset, stateId, dataFieldId, startDate, endDate }) => {
+    return await getDataValues({
+      first,
+      offset,
+      stateId,
+      dataFieldId,
+      startDate,
+      endDate,
+    });
+  }
+);
+
+// ---------- Teams on Data Fields tool (Scorecard team assignments) ------------
+
+server.tool(
+  "getTeamsOnDataFields",
+  "List Success.co teams on data fields relationships (Scorecard team assignments)",
+  {
+    first: z.number().int().optional().describe("Optional page size"),
+    offset: z.number().int().optional().describe("Optional offset"),
+    stateId: z
+      .string()
+      .optional()
+      .describe("Team-data field state filter (defaults to 'ACTIVE')"),
+    teamId: z.string().optional().describe("Filter by team ID"),
+    dataFieldId: z.string().optional().describe("Filter by data field ID"),
+  },
+  async ({ first, offset, stateId, teamId, dataFieldId }) => {
+    return await getTeamsOnDataFields({
+      first,
+      offset,
+      stateId,
+      teamId,
+      dataFieldId,
+    });
+  }
+);
+
+// ---------- Data Field Statuses tool ------------------------------------------
+
+server.tool(
+  "getDataFieldStatuses",
+  "List Success.co data field statuses",
+  {
+    first: z.number().int().optional().describe("Optional page size"),
+    offset: z.number().int().optional().describe("Optional offset"),
+    stateId: z
+      .string()
+      .optional()
+      .describe("Data field status state filter (defaults to 'ACTIVE')"),
+  },
+  async ({ first, offset, stateId }) => {
+    return await getDataFieldStatuses({ first, offset, stateId });
+  }
+);
+
+// ---------- Scorecard Metrics Analysis tool ------------------------------------
+
+server.tool(
+  "analyzeScorecardMetrics",
+  "Analyze Scorecard metrics and KPIs to answer business questions. Automatically detects query intent and provides comprehensive analysis of KPIs, targets, and performance trends. Use this for questions about scorecard performance, KPI targets, and metric analysis.",
+  {
+    query: z
+      .string()
+      .describe(
+        "The analytical question to answer (e.g., 'Give me the last 12 weeks of Scorecard metrics for my team and flag any KPI below target', 'Show KPI trends', 'Which KPIs are underperforming?')"
+      ),
+    teamId: z
+      .string()
+      .optional()
+      .describe("Optional team filter - filter analysis to specific team"),
+    userId: z
+      .string()
+      .optional()
+      .describe("Optional user filter - filter analysis to specific user"),
+    timeframe: z
+      .string()
+      .optional()
+      .describe(
+        "Optional timeframe filter - 'quarter', 'month', 'week', or 'year'"
+      ),
+    weeks: z
+      .number()
+      .int()
+      .optional()
+      .describe("Number of weeks to analyze (defaults to 12)"),
+  },
+  async ({ query, teamId, userId, timeframe, weeks }) => {
+    return await analyzeScorecardMetrics({
+      query,
+      teamId,
+      userId,
+      timeframe,
+      weeks,
+    });
   }
 );
 
@@ -415,6 +803,227 @@ function createFreshMcpServer() {
     }
   );
 
+  // Visions tool
+  freshServer.tool(
+    "getVisions",
+    "List Success.co visions",
+    {
+      first: z.number().int().optional().describe("Optional page size"),
+      offset: z.number().int().optional().describe("Optional offset"),
+      stateId: z
+        .string()
+        .optional()
+        .describe("Vision state filter (defaults to 'ACTIVE')"),
+      teamId: z.string().optional().describe("Filter by team ID"),
+      isLeadership: z
+        .boolean()
+        .optional()
+        .describe("Filter by leadership team"),
+    },
+    async ({ first, offset, stateId, teamId, isLeadership }) => {
+      return await getVisions({ first, offset, stateId, teamId, isLeadership });
+    }
+  );
+
+  // Vision Core Values tool
+  freshServer.tool(
+    "getVisionCoreValues",
+    "List Success.co vision core values",
+    {
+      first: z.number().int().optional().describe("Optional page size"),
+      offset: z.number().int().optional().describe("Optional offset"),
+      stateId: z
+        .string()
+        .optional()
+        .describe("Core value state filter (defaults to 'ACTIVE')"),
+      visionId: z.string().optional().describe("Filter by vision ID"),
+    },
+    async ({ first, offset, stateId, visionId }) => {
+      return await getVisionCoreValues({ first, offset, stateId, visionId });
+    }
+  );
+
+  // Vision Core Focus Types tool
+  freshServer.tool(
+    "getVisionCoreFocusTypes",
+    "List Success.co vision core focus types",
+    {
+      first: z.number().int().optional().describe("Optional page size"),
+      offset: z.number().int().optional().describe("Optional offset"),
+      stateId: z
+        .string()
+        .optional()
+        .describe("Core focus state filter (defaults to 'ACTIVE')"),
+      visionId: z.string().optional().describe("Filter by vision ID"),
+      type: z.string().optional().describe("Filter by type"),
+    },
+    async ({ first, offset, stateId, visionId, type }) => {
+      return await getVisionCoreFocusTypes({
+        first,
+        offset,
+        stateId,
+        visionId,
+        type,
+      });
+    }
+  );
+
+  // Vision Three Year Goals tool
+  freshServer.tool(
+    "getVisionThreeYearGoals",
+    "List Success.co vision three year goals",
+    {
+      first: z.number().int().optional().describe("Optional page size"),
+      offset: z.number().int().optional().describe("Optional offset"),
+      stateId: z
+        .string()
+        .optional()
+        .describe("Goal state filter (defaults to 'ACTIVE')"),
+      visionId: z.string().optional().describe("Filter by vision ID"),
+      type: z.string().optional().describe("Filter by type"),
+    },
+    async ({ first, offset, stateId, visionId, type }) => {
+      return await getVisionThreeYearGoals({
+        first,
+        offset,
+        stateId,
+        visionId,
+        type,
+      });
+    }
+  );
+
+  // Vision Market Strategies tool
+  freshServer.tool(
+    "getVisionMarketStrategies",
+    "List Success.co vision market strategies",
+    {
+      first: z.number().int().optional().describe("Optional page size"),
+      offset: z.number().int().optional().describe("Optional offset"),
+      stateId: z
+        .string()
+        .optional()
+        .describe("Strategy state filter (defaults to 'ACTIVE')"),
+      visionId: z.string().optional().describe("Filter by vision ID"),
+      isCustom: z.boolean().optional().describe("Filter by custom status"),
+    },
+    async ({ first, offset, stateId, visionId, isCustom }) => {
+      return await getVisionMarketStrategies({
+        first,
+        offset,
+        stateId,
+        visionId,
+        isCustom,
+      });
+    }
+  );
+
+  // Rock Statuses tool
+  freshServer.tool(
+    "getRockStatuses",
+    "List Success.co rock statuses",
+    {
+      first: z.number().int().optional().describe("Optional page size"),
+      offset: z.number().int().optional().describe("Optional offset"),
+      stateId: z
+        .string()
+        .optional()
+        .describe("Rock status state filter (defaults to 'ACTIVE')"),
+    },
+    async ({ first, offset, stateId }) => {
+      return await getRockStatuses({ first, offset, stateId });
+    }
+  );
+
+  // Milestones tool
+  freshServer.tool(
+    "getMilestones",
+    "List Success.co milestones",
+    {
+      first: z.number().int().optional().describe("Optional page size"),
+      offset: z.number().int().optional().describe("Optional offset"),
+      stateId: z
+        .string()
+        .optional()
+        .describe("Milestone state filter (defaults to 'ACTIVE')"),
+      rockId: z.string().optional().describe("Filter by rock ID"),
+      userId: z.string().optional().describe("Filter by user ID"),
+      teamId: z.string().optional().describe("Filter by team ID"),
+    },
+    async ({ first, offset, stateId, rockId, userId, teamId }) => {
+      return await getMilestones({
+        first,
+        offset,
+        stateId,
+        rockId,
+        userId,
+        teamId,
+      });
+    }
+  );
+
+  // Milestone Statuses tool
+  freshServer.tool(
+    "getMilestoneStatuses",
+    "List Success.co milestone statuses",
+    {
+      first: z.number().int().optional().describe("Optional page size"),
+      offset: z.number().int().optional().describe("Optional offset"),
+    },
+    async ({ first, offset }) => {
+      return await getMilestoneStatuses({ first, offset });
+    }
+  );
+
+  // Teams on Rocks tool
+  freshServer.tool(
+    "getTeamsOnRocks",
+    "List Success.co teams on rocks relationships",
+    {
+      first: z.number().int().optional().describe("Optional page size"),
+      offset: z.number().int().optional().describe("Optional offset"),
+      stateId: z
+        .string()
+        .optional()
+        .describe("Team-rock state filter (defaults to 'ACTIVE')"),
+      rockId: z.string().optional().describe("Filter by rock ID"),
+      teamId: z.string().optional().describe("Filter by team ID"),
+    },
+    async ({ first, offset, stateId, rockId, teamId }) => {
+      return await getTeamsOnRocks({ first, offset, stateId, rockId, teamId });
+    }
+  );
+
+  // EOS Data Analysis tool
+  freshServer.tool(
+    "analyzeEOSData",
+    "Analyze EOS/Traction framework data to answer complex business questions. Automatically detects query intent and provides comprehensive analysis of rocks, teams, and performance metrics. Use this for questions about project status, deadlines, team performance, and business operations.",
+    {
+      query: z
+        .string()
+        .describe(
+          "The analytical question to answer (e.g., 'Which rocks are at risk?', 'Show overdue items', 'How is team performance?')"
+        ),
+      teamId: z
+        .string()
+        .optional()
+        .describe("Optional team filter - filter analysis to specific team"),
+      userId: z
+        .string()
+        .optional()
+        .describe("Optional user filter - filter analysis to specific user"),
+      timeframe: z
+        .string()
+        .optional()
+        .describe(
+          "Optional timeframe filter - 'quarter', 'month', 'week', or 'year'"
+        ),
+    },
+    async ({ query, teamId, userId, timeframe }) => {
+      return await analyzeEOSData({ query, teamId, userId, timeframe });
+    }
+  );
+
   // Fetch tool
   freshServer.tool(
     "fetch",
@@ -424,6 +1033,149 @@ function createFreshMcpServer() {
     },
     async ({ id }) => {
       return await fetch({ id });
+    }
+  );
+
+  // Data Fields tool
+  freshServer.tool(
+    "getDataFields",
+    "List Success.co data fields (Scorecard KPIs)",
+    {
+      first: z.number().int().optional().describe("Optional page size"),
+      offset: z.number().int().optional().describe("Optional offset"),
+      stateId: z
+        .string()
+        .optional()
+        .describe("Data field state filter (defaults to 'ACTIVE')"),
+      teamId: z.string().optional().describe("Filter by team ID"),
+      userId: z.string().optional().describe("Filter by user ID"),
+      type: z.string().optional().describe("Filter by data field type"),
+    },
+    async ({ first, offset, stateId, teamId, userId, type }) => {
+      return await getDataFields({
+        first,
+        offset,
+        stateId,
+        teamId,
+        userId,
+        type,
+      });
+    }
+  );
+
+  // Data Values tool
+  freshServer.tool(
+    "getDataValues",
+    "List Success.co data values (Scorecard metrics)",
+    {
+      first: z.number().int().optional().describe("Optional page size"),
+      offset: z.number().int().optional().describe("Optional offset"),
+      stateId: z
+        .string()
+        .optional()
+        .describe("Data value state filter (defaults to 'ACTIVE')"),
+      dataFieldId: z.string().optional().describe("Filter by data field ID"),
+      startDate: z
+        .string()
+        .optional()
+        .describe("Filter by start date (YYYY-MM-DD)"),
+      endDate: z
+        .string()
+        .optional()
+        .describe("Filter by end date (YYYY-MM-DD)"),
+    },
+    async ({ first, offset, stateId, dataFieldId, startDate, endDate }) => {
+      return await getDataValues({
+        first,
+        offset,
+        stateId,
+        dataFieldId,
+        startDate,
+        endDate,
+      });
+    }
+  );
+
+  // Teams on Data Fields tool
+  freshServer.tool(
+    "getTeamsOnDataFields",
+    "List Success.co teams on data fields relationships (Scorecard team assignments)",
+    {
+      first: z.number().int().optional().describe("Optional page size"),
+      offset: z.number().int().optional().describe("Optional offset"),
+      stateId: z
+        .string()
+        .optional()
+        .describe("Team-data field state filter (defaults to 'ACTIVE')"),
+      teamId: z.string().optional().describe("Filter by team ID"),
+      dataFieldId: z.string().optional().describe("Filter by data field ID"),
+    },
+    async ({ first, offset, stateId, teamId, dataFieldId }) => {
+      return await getTeamsOnDataFields({
+        first,
+        offset,
+        stateId,
+        teamId,
+        dataFieldId,
+      });
+    }
+  );
+
+  // Data Field Statuses tool
+  freshServer.tool(
+    "getDataFieldStatuses",
+    "List Success.co data field statuses",
+    {
+      first: z.number().int().optional().describe("Optional page size"),
+      offset: z.number().int().optional().describe("Optional offset"),
+      stateId: z
+        .string()
+        .optional()
+        .describe("Data field status state filter (defaults to 'ACTIVE')"),
+    },
+    async ({ first, offset, stateId }) => {
+      return await getDataFieldStatuses({ first, offset, stateId });
+    }
+  );
+
+  // Scorecard Metrics Analysis tool
+  freshServer.tool(
+    "analyzeScorecardMetrics",
+    "Analyze Scorecard metrics and KPIs to answer business questions. Automatically detects query intent and provides comprehensive analysis of KPIs, targets, and performance trends. Use this for questions about scorecard performance, KPI targets, and metric analysis.",
+    {
+      query: z
+        .string()
+        .describe(
+          "The analytical question to answer (e.g., 'Give me the last 12 weeks of Scorecard metrics for my team and flag any KPI below target', 'Show KPI trends', 'Which KPIs are underperforming?')"
+        ),
+      teamId: z
+        .string()
+        .optional()
+        .describe("Optional team filter - filter analysis to specific team"),
+      userId: z
+        .string()
+        .optional()
+        .describe("Optional user filter - filter analysis to specific user"),
+      timeframe: z
+        .string()
+        .optional()
+        .describe(
+          "Optional timeframe filter - 'quarter', 'month', 'week', or 'year'"
+        ),
+      weeks: z
+        .number()
+        .int()
+        .optional()
+        .describe("Number of weeks to analyze (defaults to 12)"),
+    },
+    async ({ query, teamId, userId, timeframe, weeks }) => {
+      return await analyzeScorecardMetrics({
+        query,
+        teamId,
+        userId,
+        timeframe,
+        weeks,
+      });
     }
   );
 
@@ -510,11 +1262,56 @@ app.all("/mcp", async (req, res) => {
       getHeadlines: async (args) => {
         return await getHeadlines(args);
       },
+      getVisions: async (args) => {
+        return await getVisions(args);
+      },
+      getVisionCoreValues: async (args) => {
+        return await getVisionCoreValues(args);
+      },
+      getVisionCoreFocusTypes: async (args) => {
+        return await getVisionCoreFocusTypes(args);
+      },
+      getVisionThreeYearGoals: async (args) => {
+        return await getVisionThreeYearGoals(args);
+      },
+      getVisionMarketStrategies: async (args) => {
+        return await getVisionMarketStrategies(args);
+      },
+      getRockStatuses: async (args) => {
+        return await getRockStatuses(args);
+      },
+      getMilestones: async (args) => {
+        return await getMilestones(args);
+      },
+      getMilestoneStatuses: async (args) => {
+        return await getMilestoneStatuses(args);
+      },
+      getTeamsOnRocks: async (args) => {
+        return await getTeamsOnRocks(args);
+      },
+      analyzeEOSData: async (args) => {
+        return await analyzeEOSData(args);
+      },
       search: async (args) => {
         return await search(args);
       },
       fetch: async (args) => {
         return await fetch(args);
+      },
+      getDataFields: async (args) => {
+        return await getDataFields(args);
+      },
+      getDataValues: async (args) => {
+        return await getDataValues(args);
+      },
+      getTeamsOnDataFields: async (args) => {
+        return await getTeamsOnDataFields(args);
+      },
+      getDataFieldStatuses: async (args) => {
+        return await getDataFieldStatuses(args);
+      },
+      analyzeScorecardMetrics: async (args) => {
+        return await analyzeScorecardMetrics(args);
       },
     };
 
@@ -718,16 +1515,288 @@ app.all("/mcp", async (req, res) => {
           },
         },
         {
-          name: "search",
+          name: "getVisions",
+          description: "List Success.co visions",
+          inputSchema: {
+            type: "object",
+            properties: {
+              first: {
+                type: "integer",
+                description: "Optional page size",
+              },
+              offset: {
+                type: "integer",
+                description: "Optional offset",
+              },
+              stateId: {
+                type: "string",
+                description: "Vision state filter (defaults to 'ACTIVE')",
+              },
+              teamId: {
+                type: "string",
+                description: "Filter by team ID",
+              },
+              isLeadership: {
+                type: "boolean",
+                description: "Filter by leadership team",
+              },
+            },
+          },
+        },
+        {
+          name: "getVisionCoreValues",
+          description: "List Success.co vision core values",
+          inputSchema: {
+            type: "object",
+            properties: {
+              first: {
+                type: "integer",
+                description: "Optional page size",
+              },
+              offset: {
+                type: "integer",
+                description: "Optional offset",
+              },
+              stateId: {
+                type: "string",
+                description: "Core value state filter (defaults to 'ACTIVE')",
+              },
+              visionId: {
+                type: "string",
+                description: "Filter by vision ID",
+              },
+            },
+          },
+        },
+        {
+          name: "getVisionCoreFocusTypes",
+          description: "List Success.co vision core focus types",
+          inputSchema: {
+            type: "object",
+            properties: {
+              first: {
+                type: "integer",
+                description: "Optional page size",
+              },
+              offset: {
+                type: "integer",
+                description: "Optional offset",
+              },
+              stateId: {
+                type: "string",
+                description: "Core focus state filter (defaults to 'ACTIVE')",
+              },
+              visionId: {
+                type: "string",
+                description: "Filter by vision ID",
+              },
+              type: {
+                type: "string",
+                description: "Filter by type",
+              },
+            },
+          },
+        },
+        {
+          name: "getVisionThreeYearGoals",
+          description: "List Success.co vision three year goals",
+          inputSchema: {
+            type: "object",
+            properties: {
+              first: {
+                type: "integer",
+                description: "Optional page size",
+              },
+              offset: {
+                type: "integer",
+                description: "Optional offset",
+              },
+              stateId: {
+                type: "string",
+                description: "Goal state filter (defaults to 'ACTIVE')",
+              },
+              visionId: {
+                type: "string",
+                description: "Filter by vision ID",
+              },
+              type: {
+                type: "string",
+                description: "Filter by type",
+              },
+            },
+          },
+        },
+        {
+          name: "getVisionMarketStrategies",
+          description: "List Success.co vision market strategies",
+          inputSchema: {
+            type: "object",
+            properties: {
+              first: {
+                type: "integer",
+                description: "Optional page size",
+              },
+              offset: {
+                type: "integer",
+                description: "Optional offset",
+              },
+              stateId: {
+                type: "string",
+                description: "Strategy state filter (defaults to 'ACTIVE')",
+              },
+              visionId: {
+                type: "string",
+                description: "Filter by vision ID",
+              },
+              isCustom: {
+                type: "boolean",
+                description: "Filter by custom status",
+              },
+            },
+          },
+        },
+        {
+          name: "getRockStatuses",
+          description: "List Success.co rock statuses",
+          inputSchema: {
+            type: "object",
+            properties: {
+              first: {
+                type: "integer",
+                description: "Optional page size",
+              },
+              offset: {
+                type: "integer",
+                description: "Optional offset",
+              },
+              stateId: {
+                type: "string",
+                description: "Rock status state filter (defaults to 'ACTIVE')",
+              },
+            },
+          },
+        },
+        {
+          name: "getMilestones",
+          description: "List Success.co milestones",
+          inputSchema: {
+            type: "object",
+            properties: {
+              first: {
+                type: "integer",
+                description: "Optional page size",
+              },
+              offset: {
+                type: "integer",
+                description: "Optional offset",
+              },
+              stateId: {
+                type: "string",
+                description: "Milestone state filter (defaults to 'ACTIVE')",
+              },
+              rockId: {
+                type: "string",
+                description: "Filter by rock ID",
+              },
+              userId: {
+                type: "string",
+                description: "Filter by user ID",
+              },
+              teamId: {
+                type: "string",
+                description: "Filter by team ID",
+              },
+            },
+          },
+        },
+        {
+          name: "getMilestoneStatuses",
+          description: "List Success.co milestone statuses",
+          inputSchema: {
+            type: "object",
+            properties: {
+              first: {
+                type: "integer",
+                description: "Optional page size",
+              },
+              offset: {
+                type: "integer",
+                description: "Optional offset",
+              },
+            },
+          },
+        },
+        {
+          name: "getTeamsOnRocks",
+          description: "List Success.co teams on rocks relationships",
+          inputSchema: {
+            type: "object",
+            properties: {
+              first: {
+                type: "integer",
+                description: "Optional page size",
+              },
+              offset: {
+                type: "integer",
+                description: "Optional offset",
+              },
+              stateId: {
+                type: "string",
+                description: "Team-rock state filter (defaults to 'ACTIVE')",
+              },
+              rockId: {
+                type: "string",
+                description: "Filter by rock ID",
+              },
+              teamId: {
+                type: "string",
+                description: "Filter by team ID",
+              },
+            },
+          },
+        },
+        {
+          name: "analyzeEOSData",
           description:
-            "Search Success.co data (supports: teams, users, todos, rocks, meetings, issues, headlines).",
+            "Analyze EOS/Traction framework data to answer complex business questions. Automatically detects query intent and provides comprehensive analysis of rocks, teams, and performance metrics. Use this for questions about project status, deadlines, team performance, and business operations.",
           inputSchema: {
             type: "object",
             properties: {
               query: {
                 type: "string",
                 description:
-                  "What to look up, e.g., 'list my teams', 'show users', 'find todos', 'get meetings'",
+                  "The analytical question to answer (e.g., 'Which rocks are at risk?', 'Show overdue items', 'How is team performance?')",
+              },
+              teamId: {
+                type: "string",
+                description:
+                  "Optional team filter - filter analysis to specific team",
+              },
+              userId: {
+                type: "string",
+                description:
+                  "Optional user filter - filter analysis to specific user",
+              },
+              timeframe: {
+                type: "string",
+                description:
+                  "Optional timeframe filter - 'quarter', 'month', 'week', or 'year'",
+              },
+            },
+            required: ["query"],
+          },
+        },
+        {
+          name: "search",
+          description:
+            "Search Success.co data (supports: teams, users, todos, rocks, meetings, issues, headlines, visions).",
+          inputSchema: {
+            type: "object",
+            properties: {
+              query: {
+                type: "string",
+                description:
+                  "What to look up, e.g., 'list my teams', 'show users', 'find todos', 'get meetings', 'show vision'",
               },
             },
             required: ["query"],
@@ -746,6 +1815,160 @@ app.all("/mcp", async (req, res) => {
               },
             },
             required: ["id"],
+          },
+        },
+        {
+          name: "getDataFields",
+          description: "List Success.co data fields (Scorecard KPIs)",
+          inputSchema: {
+            type: "object",
+            properties: {
+              first: {
+                type: "integer",
+                description: "Optional page size",
+              },
+              offset: {
+                type: "integer",
+                description: "Optional offset",
+              },
+              stateId: {
+                type: "string",
+                description: "Data field state filter (defaults to 'ACTIVE')",
+              },
+              teamId: {
+                type: "string",
+                description: "Filter by team ID",
+              },
+              userId: {
+                type: "string",
+                description: "Filter by user ID",
+              },
+              type: {
+                type: "string",
+                description: "Filter by data field type",
+              },
+            },
+          },
+        },
+        {
+          name: "getDataValues",
+          description: "List Success.co data values (Scorecard metrics)",
+          inputSchema: {
+            type: "object",
+            properties: {
+              first: {
+                type: "integer",
+                description: "Optional page size",
+              },
+              offset: {
+                type: "integer",
+                description: "Optional offset",
+              },
+              stateId: {
+                type: "string",
+                description: "Data value state filter (defaults to 'ACTIVE')",
+              },
+              dataFieldId: {
+                type: "string",
+                description: "Filter by data field ID",
+              },
+              startDate: {
+                type: "string",
+                description: "Filter by start date (YYYY-MM-DD)",
+              },
+              endDate: {
+                type: "string",
+                description: "Filter by end date (YYYY-MM-DD)",
+              },
+            },
+          },
+        },
+        {
+          name: "getTeamsOnDataFields",
+          description:
+            "List Success.co teams on data fields relationships (Scorecard team assignments)",
+          inputSchema: {
+            type: "object",
+            properties: {
+              first: {
+                type: "integer",
+                description: "Optional page size",
+              },
+              offset: {
+                type: "integer",
+                description: "Optional offset",
+              },
+              stateId: {
+                type: "string",
+                description:
+                  "Team-data field state filter (defaults to 'ACTIVE')",
+              },
+              teamId: {
+                type: "string",
+                description: "Filter by team ID",
+              },
+              dataFieldId: {
+                type: "string",
+                description: "Filter by data field ID",
+              },
+            },
+          },
+        },
+        {
+          name: "getDataFieldStatuses",
+          description: "List Success.co data field statuses",
+          inputSchema: {
+            type: "object",
+            properties: {
+              first: {
+                type: "integer",
+                description: "Optional page size",
+              },
+              offset: {
+                type: "integer",
+                description: "Optional offset",
+              },
+              stateId: {
+                type: "string",
+                description:
+                  "Data field status state filter (defaults to 'ACTIVE')",
+              },
+            },
+          },
+        },
+        {
+          name: "analyzeScorecardMetrics",
+          description:
+            "Analyze Scorecard metrics and KPIs to answer business questions. Automatically detects query intent and provides comprehensive analysis of KPIs, targets, and performance trends. Use this for questions about scorecard performance, KPI targets, and metric analysis.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              query: {
+                type: "string",
+                description:
+                  "The analytical question to answer (e.g., 'Give me the last 12 weeks of Scorecard metrics for my team and flag any KPI below target', 'Show KPI trends', 'Which KPIs are underperforming?')",
+              },
+              teamId: {
+                type: "string",
+                description:
+                  "Optional team filter - filter analysis to specific team",
+              },
+              userId: {
+                type: "string",
+                description:
+                  "Optional user filter - filter analysis to specific user",
+              },
+              timeframe: {
+                type: "string",
+                description:
+                  "Optional timeframe filter - 'quarter', 'month', 'week', or 'year'",
+              },
+              weeks: {
+                type: "integer",
+                description: "Number of weeks to analyze (defaults to 12)",
+              },
+            },
+            required: ["query"],
           },
         },
       ];

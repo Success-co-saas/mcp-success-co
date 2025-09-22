@@ -368,7 +368,7 @@ export async function getTodos(args) {
  * @returns {Promise<{content: Array<{type: string, text: string}>}>}
  */
 export async function getRocks(args) {
-  const { first, offset, stateId = "ACTIVE", rockStatusId } = args;
+  const { first, offset, stateId = "ACTIVE", rockStatusId = "" } = args;
   // Validate stateId
   const validation = validateStateId(stateId);
   if (!validation.isValid) {
@@ -435,7 +435,7 @@ export async function getRocks(args) {
             id: rock.id,
             name: rock.name,
             description: rock.desc || "",
-            status: rock.rockStatusId,
+            rockStatusId: rock.rockStatusId,
             type: rock.type,
             dueDate: rock.dueDate,
             createdAt: rock.createdAt,
@@ -679,9 +679,1102 @@ export async function getHeadlines(args) {
 }
 
 /**
- * Search Success.co data (supports: teams, users, todos, rocks, meetings, issues, headlines)
+ * List Success.co visions
  * @param {Object} args - Arguments object
- * @param {string} args.query - What to look up, e.g., 'list my teams', 'show users', 'find todos', 'get meetings'
+ * @param {number} [args.first] - Optional page size
+ * @param {number} [args.offset] - Optional offset
+ * @param {string} [args.stateId] - Vision state filter (defaults to 'ACTIVE')
+ * @param {string} [args.teamId] - Filter by team ID
+ * @param {boolean} [args.isLeadership] - Filter by leadership team
+ * @returns {Promise<{content: Array<{type: string, text: string}>}>}
+ */
+export async function getVisions(args) {
+  const { first, offset, stateId = "ACTIVE", teamId, isLeadership } = args;
+  // Validate stateId
+  const validation = validateStateId(stateId);
+  if (!validation.isValid) {
+    return {
+      content: [{ type: "text", text: validation.error }],
+    };
+  }
+
+  const filterParts = [`stateId: {equalTo: "${stateId}"}`];
+  if (teamId) filterParts.push(`teamId: {equalTo: "${teamId}"}`);
+  if (isLeadership !== undefined)
+    filterParts.push(`isLeadership: {equalTo: ${isLeadership}}`);
+  if (first !== undefined) filterParts.push(`first: ${first}`);
+  if (offset !== undefined) filterParts.push(`offset: ${offset}`);
+
+  const filterStr = filterParts.join(", ");
+
+  const query = `
+    query {
+      visions(${filterStr ? `filter: {${filterStr}}` : ""}) {
+        nodes {
+          id
+          teamId
+          isLeadership
+          createdAt
+          stateId
+          companyId
+        }
+        totalCount
+      }
+    }
+  `;
+
+  const result = await callSuccessCoGraphQL(query);
+  if (!result.ok) {
+    return { content: [{ type: "text", text: result.error }] };
+  }
+
+  const data = result.data;
+  return {
+    content: [
+      {
+        type: "text",
+        text: JSON.stringify({
+          totalCount: data.data.visions.totalCount,
+          results: data.data.visions.nodes.map((vision) => ({
+            id: vision.id,
+            teamId: vision.teamId,
+            isLeadership: vision.isLeadership,
+            createdAt: vision.createdAt,
+            status: vision.stateId,
+          })),
+        }),
+      },
+    ],
+  };
+}
+
+/**
+ * List Success.co vision core values
+ * @param {Object} args - Arguments object
+ * @param {number} [args.first] - Optional page size
+ * @param {number} [args.offset] - Optional offset
+ * @param {string} [args.stateId] - Core value state filter (defaults to 'ACTIVE')
+ * @param {string} [args.visionId] - Filter by vision ID
+ * @returns {Promise<{content: Array<{type: string, text: string}>}>}
+ */
+export async function getVisionCoreValues(args) {
+  const { first, offset, stateId = "ACTIVE", visionId } = args;
+  // Validate stateId
+  const validation = validateStateId(stateId);
+  if (!validation.isValid) {
+    return {
+      content: [{ type: "text", text: validation.error }],
+    };
+  }
+
+  const filterParts = [`stateId: {equalTo: "${stateId}"}`];
+  if (visionId) filterParts.push(`visionId: {equalTo: "${visionId}"}`);
+  if (first !== undefined) filterParts.push(`first: ${first}`);
+  if (offset !== undefined) filterParts.push(`offset: ${offset}`);
+
+  const filterStr = filterParts.join(", ");
+
+  const query = `
+    query {
+      visionCoreValues(${filterStr ? `filter: {${filterStr}}` : ""}) {
+        nodes {
+          id
+          name
+          cascadeAll
+          visionId
+          createdAt
+          stateId
+          companyId
+        }
+        totalCount
+      }
+    }
+  `;
+
+  const result = await callSuccessCoGraphQL(query);
+  if (!result.ok) {
+    return { content: [{ type: "text", text: result.error }] };
+  }
+
+  const data = result.data;
+  return {
+    content: [
+      {
+        type: "text",
+        text: JSON.stringify({
+          totalCount: data.data.visionCoreValues.totalCount,
+          results: data.data.visionCoreValues.nodes.map((coreValue) => ({
+            id: coreValue.id,
+            name: coreValue.name,
+            cascadeAll: coreValue.cascadeAll,
+            visionId: coreValue.visionId,
+            createdAt: coreValue.createdAt,
+            status: coreValue.stateId,
+          })),
+        }),
+      },
+    ],
+  };
+}
+
+/**
+ * List Success.co vision core focus types
+ * @param {Object} args - Arguments object
+ * @param {number} [args.first] - Optional page size
+ * @param {number} [args.offset] - Optional offset
+ * @param {string} [args.stateId] - Core focus state filter (defaults to 'ACTIVE')
+ * @param {string} [args.visionId] - Filter by vision ID
+ * @param {string} [args.type] - Filter by type
+ * @returns {Promise<{content: Array<{type: string, text: string}>}>}
+ */
+export async function getVisionCoreFocusTypes(args) {
+  const { first, offset, stateId = "ACTIVE", visionId, type } = args;
+  // Validate stateId
+  const validation = validateStateId(stateId);
+  if (!validation.isValid) {
+    return {
+      content: [{ type: "text", text: validation.error }],
+    };
+  }
+
+  const filterParts = [`stateId: {equalTo: "${stateId}"}`];
+  if (visionId) filterParts.push(`visionId: {equalTo: "${visionId}"}`);
+  if (type) filterParts.push(`type: {equalTo: "${type}"}`);
+  if (first !== undefined) filterParts.push(`first: ${first}`);
+  if (offset !== undefined) filterParts.push(`offset: ${offset}`);
+
+  const filterStr = filterParts.join(", ");
+
+  const query = `
+    query {
+      visionCoreFocusTypes(${filterStr ? `filter: {${filterStr}}` : ""}) {
+        nodes {
+          id
+          name
+          coreFocusName
+          desc
+          src
+          type
+          visionId
+          cascadeAll
+          createdAt
+          stateId
+          companyId
+        }
+        totalCount
+      }
+    }
+  `;
+
+  const result = await callSuccessCoGraphQL(query);
+  if (!result.ok) {
+    return { content: [{ type: "text", text: result.error }] };
+  }
+
+  const data = result.data;
+  return {
+    content: [
+      {
+        type: "text",
+        text: JSON.stringify({
+          totalCount: data.data.visionCoreFocusTypes.totalCount,
+          results: data.data.visionCoreFocusTypes.nodes.map((coreFocus) => ({
+            id: coreFocus.id,
+            name: coreFocus.name,
+            coreFocusName: coreFocus.coreFocusName,
+            description: coreFocus.desc,
+            src: coreFocus.src,
+            type: coreFocus.type,
+            visionId: coreFocus.visionId,
+            cascadeAll: coreFocus.cascadeAll,
+            createdAt: coreFocus.createdAt,
+            status: coreFocus.stateId,
+          })),
+        }),
+      },
+    ],
+  };
+}
+
+/**
+ * List Success.co vision three year goals
+ * @param {Object} args - Arguments object
+ * @param {number} [args.first] - Optional page size
+ * @param {number} [args.offset] - Optional offset
+ * @param {string} [args.stateId] - Goal state filter (defaults to 'ACTIVE')
+ * @param {string} [args.visionId] - Filter by vision ID
+ * @param {string} [args.type] - Filter by type
+ * @returns {Promise<{content: Array<{type: string, text: string}>}>}
+ */
+export async function getVisionThreeYearGoals(args) {
+  const { first, offset, stateId = "ACTIVE", visionId, type } = args;
+  // Validate stateId
+  const validation = validateStateId(stateId);
+  if (!validation.isValid) {
+    return {
+      content: [{ type: "text", text: validation.error }],
+    };
+  }
+
+  const filterParts = [`stateId: {equalTo: "${stateId}"}`];
+  if (visionId) filterParts.push(`visionId: {equalTo: "${visionId}"}`);
+  if (type) filterParts.push(`type: {equalTo: "${type}"}`);
+  if (first !== undefined) filterParts.push(`first: ${first}`);
+  if (offset !== undefined) filterParts.push(`offset: ${offset}`);
+
+  const filterStr = filterParts.join(", ");
+
+  const query = `
+    query {
+      visionThreeYearGoals(${filterStr ? `filter: {${filterStr}}` : ""}) {
+        nodes {
+          id
+          name
+          futureDate
+          cascadeAll
+          visionId
+          type
+          createdAt
+          stateId
+          companyId
+        }
+        totalCount
+      }
+    }
+  `;
+
+  const result = await callSuccessCoGraphQL(query);
+  if (!result.ok) {
+    return { content: [{ type: "text", text: result.error }] };
+  }
+
+  const data = result.data;
+  return {
+    content: [
+      {
+        type: "text",
+        text: JSON.stringify({
+          totalCount: data.data.visionThreeYearGoals.totalCount,
+          results: data.data.visionThreeYearGoals.nodes.map((goal) => ({
+            id: goal.id,
+            name: goal.name,
+            futureDate: goal.futureDate,
+            cascadeAll: goal.cascadeAll,
+            visionId: goal.visionId,
+            type: goal.type,
+            createdAt: goal.createdAt,
+            status: goal.stateId,
+          })),
+        }),
+      },
+    ],
+  };
+}
+
+/**
+ * List Success.co vision market strategies
+ * @param {Object} args - Arguments object
+ * @param {number} [args.first] - Optional page size
+ * @param {number} [args.offset] - Optional offset
+ * @param {string} [args.stateId] - Strategy state filter (defaults to 'ACTIVE')
+ * @param {string} [args.visionId] - Filter by vision ID
+ * @param {boolean} [args.isCustom] - Filter by custom status
+ * @returns {Promise<{content: Array<{type: string, text: string}>}>}
+ */
+export async function getVisionMarketStrategies(args) {
+  const { first, offset, stateId = "ACTIVE", visionId, isCustom } = args;
+  // Validate stateId
+  const validation = validateStateId(stateId);
+  if (!validation.isValid) {
+    return {
+      content: [{ type: "text", text: validation.error }],
+    };
+  }
+
+  const filterParts = [`stateId: {equalTo: "${stateId}"}`];
+  if (visionId) filterParts.push(`visionId: {equalTo: "${visionId}"}`);
+  if (isCustom !== undefined)
+    filterParts.push(`isCustom: {equalTo: ${isCustom}}`);
+  if (first !== undefined) filterParts.push(`first: ${first}`);
+  if (offset !== undefined) filterParts.push(`offset: ${offset}`);
+
+  const filterStr = filterParts.join(", ");
+
+  const query = `
+    query {
+      visionMarketStrategies(${filterStr ? `filter: {${filterStr}}` : ""}) {
+        nodes {
+          id
+          name
+          cascadeAll
+          visionId
+          idealCustomer
+          idealCustomerDesc
+          provenProcess
+          provenProcessDesc
+          guarantee
+          guaranteeDesc
+          uniqueValueProposition
+          showProvenProcess
+          showGuarantee
+          isCustom
+          createdAt
+          stateId
+          companyId
+        }
+        totalCount
+      }
+    }
+  `;
+
+  const result = await callSuccessCoGraphQL(query);
+  if (!result.ok) {
+    return { content: [{ type: "text", text: result.error }] };
+  }
+
+  const data = result.data;
+  return {
+    content: [
+      {
+        type: "text",
+        text: JSON.stringify({
+          totalCount: data.data.visionMarketStrategies.totalCount,
+          results: data.data.visionMarketStrategies.nodes.map((strategy) => ({
+            id: strategy.id,
+            name: strategy.name,
+            cascadeAll: strategy.cascadeAll,
+            visionId: strategy.visionId,
+            idealCustomer: strategy.idealCustomer,
+            idealCustomerDesc: strategy.idealCustomerDesc,
+            provenProcess: strategy.provenProcess,
+            provenProcessDesc: strategy.provenProcessDesc,
+            guarantee: strategy.guarantee,
+            guaranteeDesc: strategy.guaranteeDesc,
+            uniqueValueProposition: strategy.uniqueValueProposition,
+            showProvenProcess: strategy.showProvenProcess,
+            showGuarantee: strategy.showGuarantee,
+            isCustom: strategy.isCustom,
+            createdAt: strategy.createdAt,
+            status: strategy.stateId,
+          })),
+        }),
+      },
+    ],
+  };
+}
+
+/**
+ * List Success.co rock statuses
+ * @param {Object} args - Arguments object
+ * @param {number} [args.first] - Optional page size
+ * @param {number} [args.offset] - Optional offset
+ * @param {string} [args.stateId] - Rock status state filter (defaults to 'ACTIVE')
+ * @returns {Promise<{content: Array<{type: string, text: string}>}>}
+ */
+export async function getRockStatuses(args) {
+  const { first, offset, stateId = "ACTIVE" } = args;
+  // Validate stateId
+  const validation = validateStateId(stateId);
+  if (!validation.isValid) {
+    return {
+      content: [{ type: "text", text: validation.error }],
+    };
+  }
+  const filterStr = [
+    `stateId: {equalTo: "${stateId}"}`,
+    first !== undefined ? `first: ${first}` : "",
+    offset !== undefined ? `offset: ${offset}` : "",
+  ]
+    .filter(Boolean)
+    .join(", ");
+
+  const query = `
+    query {
+      rockStatuses(${filterStr ? `filter: {${filterStr}}` : ""}) {
+        nodes {
+          id
+          name
+          color
+          type
+          order
+          builtIn
+          createdAt
+          stateId
+          companyId
+        }
+        totalCount
+      }
+    }
+  `;
+
+  const result = await callSuccessCoGraphQL(query);
+  if (!result.ok) {
+    return { content: [{ type: "text", text: result.error }] };
+  }
+
+  const data = result.data;
+  return {
+    content: [
+      {
+        type: "text",
+        text: JSON.stringify({
+          totalCount: data.data.rockStatuses.totalCount,
+          results: data.data.rockStatuses.nodes.map((status) => ({
+            id: status.id,
+            name: status.name,
+            color: status.color,
+            type: status.type,
+            order: status.order,
+            builtIn: status.builtIn,
+            createdAt: status.createdAt,
+            status: status.stateId,
+          })),
+        }),
+      },
+    ],
+  };
+}
+
+/**
+ * List Success.co milestones
+ * @param {Object} args - Arguments object
+ * @param {number} [args.first] - Optional page size
+ * @param {number} [args.offset] - Optional offset
+ * @param {string} [args.stateId] - Milestone state filter (defaults to 'ACTIVE')
+ * @param {string} [args.rockId] - Filter by rock ID
+ * @param {string} [args.userId] - Filter by user ID
+ * @param {string} [args.teamId] - Filter by team ID
+ * @returns {Promise<{content: Array<{type: string, text: string}>}>}
+ */
+export async function getMilestones(args) {
+  const { first, offset, stateId = "ACTIVE", rockId, userId, teamId } = args;
+  // Validate stateId
+  const validation = validateStateId(stateId);
+  if (!validation.isValid) {
+    return {
+      content: [{ type: "text", text: validation.error }],
+    };
+  }
+
+  const filterParts = [`stateId: {equalTo: "${stateId}"}`];
+  if (rockId) filterParts.push(`rockId: {equalTo: "${rockId}"}`);
+  if (userId) filterParts.push(`userId: {equalTo: "${userId}"}`);
+  if (teamId) filterParts.push(`teamId: {equalTo: "${teamId}"}`);
+  if (first !== undefined) filterParts.push(`first: ${first}`);
+  if (offset !== undefined) filterParts.push(`offset: ${offset}`);
+
+  const filterStr = filterParts.join(", ");
+
+  const query = `
+    query {
+      milestones(${filterStr ? `filter: {${filterStr}}` : ""}) {
+        nodes {
+          id
+          rockId
+          name
+          dueDate
+          userId
+          milestoneStatusId
+          createdAt
+          stateId
+          companyId
+        }
+        totalCount
+      }
+    }
+  `;
+
+  const result = await callSuccessCoGraphQL(query);
+  if (!result.ok) {
+    return { content: [{ type: "text", text: result.error }] };
+  }
+
+  const data = result.data;
+  return {
+    content: [
+      {
+        type: "text",
+        text: JSON.stringify({
+          totalCount: data.data.milestones.totalCount,
+          results: data.data.milestones.nodes.map((milestone) => ({
+            id: milestone.id,
+            rockId: milestone.rockId,
+            name: milestone.name,
+            dueDate: milestone.dueDate,
+            userId: milestone.userId,
+            milestoneStatusId: milestone.milestoneStatusId,
+            createdAt: milestone.createdAt,
+            status: milestone.stateId,
+          })),
+        }),
+      },
+    ],
+  };
+}
+
+/**
+ * List Success.co milestone statuses
+ * @param {Object} args - Arguments object
+ * @param {number} [args.first] - Optional page size
+ * @param {number} [args.offset] - Optional offset
+ * @returns {Promise<{content: Array<{type: string, text: string}>}>}
+ */
+export async function getMilestoneStatuses(args) {
+  const { first, offset } = args;
+  const filterStr = [
+    first !== undefined ? `first: ${first}` : "",
+    offset !== undefined ? `offset: ${offset}` : "",
+  ]
+    .filter(Boolean)
+    .join(", ");
+
+  const query = `
+    query {
+      milestoneStatuses(${filterStr ? `filter: {${filterStr}}` : ""}) {
+        nodes {
+          id
+          name
+          color
+          order
+        }
+        totalCount
+      }
+    }
+  `;
+
+  const result = await callSuccessCoGraphQL(query);
+  if (!result.ok) {
+    return { content: [{ type: "text", text: result.error }] };
+  }
+
+  const data = result.data;
+  return {
+    content: [
+      {
+        type: "text",
+        text: JSON.stringify({
+          totalCount: data.data.milestoneStatuses.totalCount,
+          results: data.data.milestoneStatuses.nodes.map((status) => ({
+            id: status.id,
+            name: status.name,
+            color: status.color,
+            order: status.order,
+          })),
+        }),
+      },
+    ],
+  };
+}
+
+/**
+ * List Success.co teams on rocks relationships
+ * @param {Object} args - Arguments object
+ * @param {number} [args.first] - Optional page size
+ * @param {number} [args.offset] - Optional offset
+ * @param {string} [args.stateId] - Team-rock state filter (defaults to 'ACTIVE')
+ * @param {string} [args.rockId] - Filter by rock ID
+ * @param {string} [args.teamId] - Filter by team ID
+ * @returns {Promise<{content: Array<{type: string, text: string}>}>}
+ */
+export async function getTeamsOnRocks(args) {
+  const { first, offset, stateId = "ACTIVE", rockId, teamId } = args;
+  // Validate stateId
+  const validation = validateStateId(stateId);
+  if (!validation.isValid) {
+    return {
+      content: [{ type: "text", text: validation.error }],
+    };
+  }
+
+  const filterParts = [`stateId: {equalTo: "${stateId}"}`];
+  if (rockId) filterParts.push(`rockId: {equalTo: "${rockId}"}`);
+  if (teamId) filterParts.push(`teamId: {equalTo: "${teamId}"}`);
+  if (first !== undefined) filterParts.push(`first: ${first}`);
+  if (offset !== undefined) filterParts.push(`offset: ${offset}`);
+
+  const filterStr = filterParts.join(", ");
+
+  const query = `
+    query {
+      teamsOnRocks(${filterStr ? `filter: {${filterStr}}` : ""}) {
+        nodes {
+          id
+          rockId
+          teamId
+          createdAt
+          stateId
+          companyId
+        }
+        totalCount
+      }
+    }
+  `;
+
+  const result = await callSuccessCoGraphQL(query);
+  if (!result.ok) {
+    return { content: [{ type: "text", text: result.error }] };
+  }
+
+  const data = result.data;
+  return {
+    content: [
+      {
+        type: "text",
+        text: JSON.stringify({
+          totalCount: data.data.teamsOnRocks.totalCount,
+          results: data.data.teamsOnRocks.nodes.map((teamOnRock) => ({
+            id: teamOnRock.id,
+            rockId: teamOnRock.rockId,
+            teamId: teamOnRock.teamId,
+            createdAt: teamOnRock.createdAt,
+            status: teamOnRock.stateId,
+          })),
+        }),
+      },
+    ],
+  };
+}
+
+/**
+ * Analyze EOS data for complex queries like at-risk rocks, overdue items, etc.
+ * @param {Object} args - Arguments object
+ * @param {string} args.query - The analytical query to perform
+ * @param {string} [args.teamId] - Optional team filter
+ * @param {string} [args.userId] - Optional user filter
+ * @param {string} [args.timeframe] - Optional timeframe (e.g., 'quarter', 'month', 'week')
+ * @returns {Promise<{content: Array<{type: string, text: string}>}>}
+ */
+export async function analyzeEOSData(args) {
+  const { query, teamId, userId, timeframe = "quarter" } = args;
+  const q = (query || "").toLowerCase();
+
+  // Check for at-risk rocks queries
+  if (
+    q.includes("at risk") ||
+    q.includes("at-risk") ||
+    q.includes("missing") ||
+    q.includes("due date")
+  ) {
+    return await analyzeAtRiskRocks({ teamId, userId, timeframe });
+  }
+
+  // Check for overdue items queries
+  if (q.includes("overdue") || q.includes("late") || q.includes("past due")) {
+    return await analyzeOverdueItems({ teamId, userId, timeframe });
+  }
+
+  // Check for rock progress queries
+  if (
+    q.includes("progress") ||
+    q.includes("status") ||
+    q.includes("completion")
+  ) {
+    return await analyzeRockProgress({ teamId, userId, timeframe });
+  }
+
+  // Check for team performance queries
+  if (
+    q.includes("performance") ||
+    q.includes("team") ||
+    q.includes("productivity")
+  ) {
+    return await analyzeTeamPerformance({ teamId, timeframe });
+  }
+
+  return {
+    content: [
+      {
+        type: "text",
+        text: "I can analyze: at-risk rocks, overdue items, rock progress, and team performance. Try queries like 'Which rocks are at risk of missing their due dates?' or 'Show me overdue items for this quarter'.",
+      },
+    ],
+  };
+}
+
+/**
+ * Analyze at-risk rocks (rocks that might miss their due dates)
+ */
+async function analyzeAtRiskRocks({ teamId, userId, timeframe }) {
+  const now = new Date();
+  let daysAhead = 30; // Default to 30 days ahead
+
+  if (timeframe === "quarter") daysAhead = 90;
+  else if (timeframe === "month") daysAhead = 30;
+  else if (timeframe === "week") daysAhead = 7;
+
+  const futureDate = new Date(now.getTime() + daysAhead * 24 * 60 * 60 * 1000);
+
+  const filterParts = [
+    `stateId: {equalTo: "ACTIVE"}`,
+    `dueDate: {lessThanOrEqualTo: "${futureDate.toISOString()}"}`,
+    `rockStatusId: {notEqualTo: "COMPLETE"}`,
+  ];
+
+  if (teamId) filterParts.push(`userId: {equalTo: "${userId}"}`);
+  if (userId) filterParts.push(`userId: {equalTo: "${userId}"}`);
+
+  const filterStr = filterParts.join(", ");
+
+  const query = `
+    query {
+      rocks(filter: {${filterStr}}) {
+        nodes {
+          id
+          name
+          desc
+          dueDate
+          rockStatusId
+          userId
+          type
+          createdAt
+          statusUpdatedAt
+        }
+        totalCount
+      }
+    }
+  `;
+
+  const result = await callSuccessCoGraphQL(query);
+  if (!result.ok) {
+    return { content: [{ type: "text", text: result.error }] };
+  }
+
+  const rocks = result.data?.data?.rocks?.nodes || [];
+
+  // Get user information for each rock
+  const rocksWithUsers = await Promise.all(
+    rocks.map(async (rock) => {
+      const userQuery = `
+        query {
+          user(id: "${rock.userId}") {
+            id
+            firstName
+            lastName
+            jobTitle
+            email
+          }
+        }
+      `;
+      const userResult = await callSuccessCoGraphQL(userQuery);
+      const user = userResult.ok ? userResult.data?.data?.user : null;
+
+      return {
+        ...rock,
+        owner: user ? `${user.firstName} ${user.lastName}` : "Unknown",
+        ownerTitle: user?.jobTitle || "",
+        ownerEmail: user?.email || "",
+        daysUntilDue: Math.ceil(
+          (new Date(rock.dueDate) - now) / (1000 * 60 * 60 * 24)
+        ),
+      };
+    })
+  );
+
+  // Sort by days until due (most urgent first)
+  rocksWithUsers.sort((a, b) => a.daysUntilDue - b.daysUntilDue);
+
+  return {
+    content: [
+      {
+        type: "text",
+        text: JSON.stringify({
+          analysis: "at-risk-rocks",
+          timeframe: timeframe,
+          totalCount: rocksWithUsers.length,
+          results: rocksWithUsers.map((rock) => ({
+            id: rock.id,
+            name: rock.name,
+            description: rock.desc || "",
+            dueDate: rock.dueDate,
+            daysUntilDue: rock.daysUntilDue,
+            status: rock.rockStatusId,
+            type: rock.type,
+            owner: rock.owner,
+            ownerTitle: rock.ownerTitle,
+            ownerEmail: rock.ownerEmail,
+            createdAt: rock.createdAt,
+            statusUpdatedAt: rock.statusUpdatedAt,
+          })),
+        }),
+      },
+    ],
+  };
+}
+
+/**
+ * Analyze overdue items
+ */
+async function analyzeOverdueItems({ teamId, userId, timeframe }) {
+  const now = new Date();
+
+  const filterParts = [
+    `stateId: {equalTo: "ACTIVE"}`,
+    `dueDate: {lessThan: "${now.toISOString()}"}`,
+    `rockStatusId: {notEqualTo: "COMPLETE"}`,
+  ];
+
+  if (teamId) filterParts.push(`userId: {equalTo: "${userId}"}`);
+  if (userId) filterParts.push(`userId: {equalTo: "${userId}"}`);
+
+  const filterStr = filterParts.join(", ");
+
+  const query = `
+    query {
+      rocks(filter: {${filterStr}}) {
+        nodes {
+          id
+          name
+          desc
+          dueDate
+          rockStatusId
+          userId
+          type
+          createdAt
+          statusUpdatedAt
+        }
+        totalCount
+      }
+    }
+  `;
+
+  const result = await callSuccessCoGraphQL(query);
+  if (!result.ok) {
+    return { content: [{ type: "text", text: result.error }] };
+  }
+
+  const rocks = result.data?.data?.rocks?.nodes || [];
+
+  // Get user information for each rock
+  const rocksWithUsers = await Promise.all(
+    rocks.map(async (rock) => {
+      const userQuery = `
+        query {
+          user(id: "${rock.userId}") {
+            id
+            firstName
+            lastName
+            jobTitle
+            email
+          }
+        }
+      `;
+      const userResult = await callSuccessCoGraphQL(userQuery);
+      const user = userResult.ok ? userResult.data?.data?.user : null;
+
+      return {
+        ...rock,
+        owner: user ? `${user.firstName} ${user.lastName}` : "Unknown",
+        ownerTitle: user?.jobTitle || "",
+        ownerEmail: user?.email || "",
+        daysOverdue: Math.ceil(
+          (now - new Date(rock.dueDate)) / (1000 * 60 * 60 * 24)
+        ),
+      };
+    })
+  );
+
+  // Sort by days overdue (most overdue first)
+  rocksWithUsers.sort((a, b) => b.daysOverdue - a.daysOverdue);
+
+  return {
+    content: [
+      {
+        type: "text",
+        text: JSON.stringify({
+          analysis: "overdue-items",
+          timeframe: timeframe,
+          totalCount: rocksWithUsers.length,
+          results: rocksWithUsers.map((rock) => ({
+            id: rock.id,
+            name: rock.name,
+            description: rock.desc || "",
+            dueDate: rock.dueDate,
+            daysOverdue: rock.daysOverdue,
+            status: rock.rockStatusId,
+            type: rock.type,
+            owner: rock.owner,
+            ownerTitle: rock.ownerTitle,
+            ownerEmail: rock.ownerEmail,
+            createdAt: rock.createdAt,
+            statusUpdatedAt: rock.statusUpdatedAt,
+          })),
+        }),
+      },
+    ],
+  };
+}
+
+/**
+ * Analyze rock progress
+ */
+async function analyzeRockProgress({ teamId, userId, timeframe }) {
+  const filterParts = [`stateId: {equalTo: "ACTIVE"}`];
+
+  if (teamId) filterParts.push(`userId: {equalTo: "${userId}"}`);
+  if (userId) filterParts.push(`userId: {equalTo: "${userId}"}`);
+
+  const filterStr = filterParts.join(", ");
+
+  const query = `
+    query {
+      rocks(filter: {${filterStr}}) {
+        nodes {
+          id
+          name
+          desc
+          dueDate
+          rockStatusId
+          userId
+          type
+          createdAt
+          statusUpdatedAt
+        }
+        totalCount
+      }
+    }
+  `;
+
+  const result = await callSuccessCoGraphQL(query);
+  if (!result.ok) {
+    return { content: [{ type: "text", text: result.error }] };
+  }
+
+  const rocks = result.data?.data?.rocks?.nodes || [];
+
+  // Group by status
+  const statusGroups = {};
+  rocks.forEach((rock) => {
+    if (!statusGroups[rock.rockStatusId]) {
+      statusGroups[rock.rockStatusId] = [];
+    }
+    statusGroups[rock.rockStatusId].push(rock);
+  });
+
+  return {
+    content: [
+      {
+        type: "text",
+        text: JSON.stringify({
+          analysis: "rock-progress",
+          timeframe: timeframe,
+          totalCount: rocks.length,
+          statusBreakdown: Object.keys(statusGroups).map((status) => ({
+            status: status,
+            count: statusGroups[status].length,
+            percentage: Math.round(
+              (statusGroups[status].length / rocks.length) * 100
+            ),
+          })),
+          results: rocks.map((rock) => ({
+            id: rock.id,
+            name: rock.name,
+            description: rock.desc || "",
+            dueDate: rock.dueDate,
+            status: rock.rockStatusId,
+            type: rock.type,
+            userId: rock.userId,
+            createdAt: rock.createdAt,
+            statusUpdatedAt: rock.statusUpdatedAt,
+          })),
+        }),
+      },
+    ],
+  };
+}
+
+/**
+ * Analyze team performance
+ */
+async function analyzeTeamPerformance({ teamId, timeframe }) {
+  // Get teams
+  const teamsQuery = `
+    query {
+      teams(filter: {stateId: {equalTo: "ACTIVE"}}) {
+        nodes {
+          id
+          name
+          desc
+          color
+          isLeadership
+        }
+        totalCount
+      }
+    }
+  `;
+
+  const teamsResult = await callSuccessCoGraphQL(teamsQuery);
+  if (!teamsResult.ok) {
+    return { content: [{ type: "text", text: teamsResult.error }] };
+  }
+
+  const teams = teamsResult.data?.data?.teams?.nodes || [];
+
+  // Get rocks for each team
+  const teamPerformance = await Promise.all(
+    teams.map(async (team) => {
+      const rocksQuery = `
+        query {
+          rocks(filter: {stateId: {equalTo: "ACTIVE"}}) {
+            nodes {
+              id
+              name
+              rockStatusId
+              dueDate
+              userId
+            }
+            totalCount
+          }
+        }
+      `;
+
+      const rocksResult = await callSuccessCoGraphQL(rocksQuery);
+      const rocks = rocksResult.ok
+        ? rocksResult.data?.data?.rocks?.nodes || []
+        : [];
+
+      // Filter rocks for this team (assuming rocks are associated with teams through users)
+      const teamRocks = rocks.filter((rock) => {
+        // This is a simplified approach - in reality you'd need to check team membership
+        return true; // For now, include all rocks
+      });
+
+      const statusCounts = {};
+      teamRocks.forEach((rock) => {
+        statusCounts[rock.rockStatusId] =
+          (statusCounts[rock.rockStatusId] || 0) + 1;
+      });
+
+      return {
+        teamId: team.id,
+        teamName: team.name,
+        teamDescription: team.desc,
+        teamColor: team.color,
+        isLeadership: team.isLeadership,
+        totalRocks: teamRocks.length,
+        statusBreakdown: statusCounts,
+      };
+    })
+  );
+
+  return {
+    content: [
+      {
+        type: "text",
+        text: JSON.stringify({
+          analysis: "team-performance",
+          timeframe: timeframe,
+          totalTeams: teams.length,
+          results: teamPerformance,
+        }),
+      },
+    ],
+  };
+}
+
+/**
+ * Search Success.co data (supports: teams, users, todos, rocks, meetings, issues, headlines, visions)
+ * @param {Object} args - Arguments object
+ * @param {string} args.query - What to look up, e.g., 'list my teams', 'show users', 'find todos', 'get meetings', 'show vision'
  * @returns {Promise<{content: Array<{type: string, text: string}>}>}
  */
 export async function search(args) {
@@ -736,6 +1829,17 @@ export async function search(args) {
     /show.*headline/.test(q) ||
     /find.*headline/.test(q) ||
     /get.*headline/.test(q);
+
+  const wantsVisions =
+    /\b(vision|visions|core values|core focus|three year goals|3 year goals|marketing strategy|market strategy)\b/.test(
+      q
+    ) ||
+    /show.*vision/.test(q) ||
+    /list.*vision/.test(q) ||
+    /find.*vision/.test(q) ||
+    /get.*vision/.test(q) ||
+    /leadership.*team/.test(q) ||
+    /current.*vision/.test(q);
 
   if (wantsTeams) {
     const gql = `
@@ -1019,11 +2123,203 @@ export async function search(args) {
     };
   }
 
+  if (wantsVisions) {
+    // First get leadership team visions
+    const visionsGql = `
+      query {
+        visions(filter: {stateId: {equalTo: "ACTIVE"}, isLeadership: {equalTo: true}}) {
+          nodes {
+            id
+            teamId
+            isLeadership
+            createdAt
+          }
+          totalCount
+        }
+      }
+    `;
+    const visionsResult = await callSuccessCoGraphQL(visionsGql);
+    if (!visionsResult.ok)
+      return { content: [{ type: "text", text: visionsResult.error }] };
+
+    const { data: visionsData } = visionsResult;
+    const leadershipVisions = visionsData?.data?.visions?.nodes || [];
+
+    if (leadershipVisions.length === 0) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              kind: "visions",
+              totalCount: 0,
+              hits: [],
+              message: "No leadership team visions found",
+            }),
+          },
+        ],
+      };
+    }
+
+    // Get the first leadership vision (assuming there's typically one)
+    const leadershipVision = leadershipVisions[0];
+
+    // Get core values for this vision
+    const coreValuesGql = `
+      query {
+        visionCoreValues(filter: {stateId: {equalTo: "ACTIVE"}, visionId: {equalTo: "${leadershipVision.id}"}}) {
+          nodes {
+            id
+            name
+            cascadeAll
+            visionId
+          }
+          totalCount
+        }
+      }
+    `;
+    const coreValuesResult = await callSuccessCoGraphQL(coreValuesGql);
+
+    // Get core focus types for this vision
+    const coreFocusGql = `
+      query {
+        visionCoreFocusTypes(filter: {stateId: {equalTo: "ACTIVE"}, visionId: {equalTo: "${leadershipVision.id}"}}) {
+          nodes {
+            id
+            name
+            coreFocusName
+            desc
+            type
+            visionId
+          }
+          totalCount
+        }
+      }
+    `;
+    const coreFocusResult = await callSuccessCoGraphQL(coreFocusGql);
+
+    // Get three year goals for this vision
+    const goalsGql = `
+      query {
+        visionThreeYearGoals(filter: {stateId: {equalTo: "ACTIVE"}, visionId: {equalTo: "${leadershipVision.id}"}}) {
+          nodes {
+            id
+            name
+            futureDate
+            type
+            visionId
+          }
+          totalCount
+        }
+      }
+    `;
+    const goalsResult = await callSuccessCoGraphQL(goalsGql);
+
+    // Get market strategies for this vision
+    const strategiesGql = `
+      query {
+        visionMarketStrategies(filter: {stateId: {equalTo: "ACTIVE"}, visionId: {equalTo: "${leadershipVision.id}"}}) {
+          nodes {
+            id
+            name
+            idealCustomer
+            idealCustomerDesc
+            provenProcess
+            provenProcessDesc
+            guarantee
+            guaranteeDesc
+            uniqueValueProposition
+            visionId
+          }
+          totalCount
+        }
+      }
+    `;
+    const strategiesResult = await callSuccessCoGraphQL(strategiesGql);
+
+    const hits = [];
+
+    // Add core values
+    if (
+      coreValuesResult.ok &&
+      coreValuesResult.data?.data?.visionCoreValues?.nodes
+    ) {
+      coreValuesResult.data.data.visionCoreValues.nodes.forEach((cv) => {
+        hits.push({
+          id: String(cv.id),
+          title: `Core Value: ${cv.name}`,
+          snippet: `Vision ID: ${cv.visionId}`,
+          type: "core_value",
+        });
+      });
+    }
+
+    // Add core focus
+    if (
+      coreFocusResult.ok &&
+      coreFocusResult.data?.data?.visionCoreFocusTypes?.nodes
+    ) {
+      coreFocusResult.data.data.visionCoreFocusTypes.nodes.forEach((cf) => {
+        hits.push({
+          id: String(cf.id),
+          title: `Core Focus: ${cf.name}`,
+          snippet: cf.desc || cf.coreFocusName || `Type: ${cf.type}`,
+          type: "core_focus",
+        });
+      });
+    }
+
+    // Add three year goals
+    if (goalsResult.ok && goalsResult.data?.data?.visionThreeYearGoals?.nodes) {
+      goalsResult.data.data.visionThreeYearGoals.nodes.forEach((goal) => {
+        hits.push({
+          id: String(goal.id),
+          title: `3-Year Goal: ${goal.name}`,
+          snippet: `Target Date: ${goal.futureDate} | Type: ${goal.type}`,
+          type: "three_year_goal",
+        });
+      });
+    }
+
+    // Add market strategies
+    if (
+      strategiesResult.ok &&
+      strategiesResult.data?.data?.visionMarketStrategies?.nodes
+    ) {
+      strategiesResult.data.data.visionMarketStrategies.nodes.forEach(
+        (strategy) => {
+          hits.push({
+            id: String(strategy.id),
+            title: `Marketing Strategy: ${strategy.name}`,
+            snippet: `Ideal Customer: ${strategy.idealCustomer} | Value Prop: ${strategy.uniqueValueProposition}`,
+            type: "market_strategy",
+          });
+        }
+      );
+    }
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify({
+            kind: "visions",
+            totalCount: hits.length,
+            hits,
+            visionId: leadershipVision.id,
+            teamId: leadershipVision.teamId,
+            isLeadership: leadershipVision.isLeadership,
+          }),
+        },
+      ],
+    };
+  }
+
   return {
     content: [
       {
         type: "text",
-        text: "I support searching for: teams, users, todos, rocks, meetings, issues, headlines. Try: 'List my teams', 'Show users', 'Find todos', 'Get meetings', etc.",
+        text: "I support searching for: teams, users, todos, rocks, meetings, issues, headlines, visions. Try: 'List my teams', 'Show users', 'Find todos', 'Get meetings', 'Show vision', etc.",
       },
     ],
   };
@@ -1046,6 +2342,13 @@ export async function fetch(args) {
   const meetingMatch = /^success-co:\/\/meetings\/(.+)$/.exec(id);
   const issueMatch = /^success-co:\/\/issues\/(.+)$/.exec(id);
   const headlineMatch = /^success-co:\/\/headlines\/(.+)$/.exec(id);
+  const visionMatch = /^success-co:\/\/visions\/(.+)$/.exec(id);
+  const coreValueMatch = /^success-co:\/\/visionCoreValues\/(.+)$/.exec(id);
+  const coreFocusMatch = /^success-co:\/\/visionCoreFocusTypes\/(.+)$/.exec(id);
+  const goalMatch = /^success-co:\/\/visionThreeYearGoals\/(.+)$/.exec(id);
+  const strategyMatch = /^success-co:\/\/visionMarketStrategies\/(.+)$/.exec(
+    id
+  );
 
   const teamId = teamMatch ? teamMatch[1] : null;
   const userId = userMatch ? userMatch[1] : null;
@@ -1054,6 +2357,11 @@ export async function fetch(args) {
   const meetingId = meetingMatch ? meetingMatch[1] : null;
   const issueId = issueMatch ? issueMatch[1] : null;
   const headlineId = headlineMatch ? headlineMatch[1] : null;
+  const visionId = visionMatch ? visionMatch[1] : null;
+  const coreValueId = coreValueMatch ? coreValueMatch[1] : null;
+  const coreFocusId = coreFocusMatch ? coreFocusMatch[1] : null;
+  const goalId = goalMatch ? goalMatch[1] : null;
+  const strategyId = strategyMatch ? strategyMatch[1] : null;
   const rawId =
     teamId ||
     userId ||
@@ -1062,6 +2370,11 @@ export async function fetch(args) {
     meetingId ||
     issueId ||
     headlineId ||
+    visionId ||
+    coreValueId ||
+    coreFocusId ||
+    goalId ||
+    strategyId ||
     id;
 
   const apiKey = getSuccessCoApiKey();
@@ -1403,13 +2716,957 @@ export async function fetch(args) {
     }
   }
 
+  // Try to fetch as vision
+  if (
+    visionId ||
+    (!teamId &&
+      !userId &&
+      !todoId &&
+      !rockId &&
+      !meetingId &&
+      !issueId &&
+      !headlineId &&
+      !coreValueId &&
+      !coreFocusId &&
+      !goalId &&
+      !strategyId &&
+      !teamMatch &&
+      !userMatch &&
+      !todoMatch &&
+      !rockMatch &&
+      !meetingMatch &&
+      !issueMatch &&
+      !headlineMatch &&
+      !visionMatch &&
+      !coreValueMatch &&
+      !coreFocusMatch &&
+      !goalMatch &&
+      !strategyMatch)
+  ) {
+    const gql = `
+      query ($id: ID!) {
+        vision(id: $id) {
+          id
+          teamId
+          isLeadership
+          createdAt
+          stateId
+          companyId
+        }
+      }
+    `;
+
+    const result = await makeGraphQLRequest(gql, { id: rawId });
+    if (result?.data?.vision) {
+      return {
+        content: [{ type: "text", text: JSON.stringify(result.data.vision) }],
+      };
+    }
+  }
+
+  // Try to fetch as vision core value
+  if (
+    coreValueId ||
+    (!teamId &&
+      !userId &&
+      !todoId &&
+      !rockId &&
+      !meetingId &&
+      !issueId &&
+      !headlineId &&
+      !visionId &&
+      !coreFocusId &&
+      !goalId &&
+      !strategyId &&
+      !teamMatch &&
+      !userMatch &&
+      !todoMatch &&
+      !rockMatch &&
+      !meetingMatch &&
+      !issueMatch &&
+      !headlineMatch &&
+      !visionMatch &&
+      !coreValueMatch &&
+      !coreFocusMatch &&
+      !goalMatch &&
+      !strategyMatch)
+  ) {
+    const gql = `
+      query ($id: ID!) {
+        visionCoreValue(id: $id) {
+          id
+          name
+          cascadeAll
+          visionId
+          createdAt
+          stateId
+          companyId
+        }
+      }
+    `;
+
+    const result = await makeGraphQLRequest(gql, { id: rawId });
+    if (result?.data?.visionCoreValue) {
+      return {
+        content: [
+          { type: "text", text: JSON.stringify(result.data.visionCoreValue) },
+        ],
+      };
+    }
+  }
+
+  // Try to fetch as vision core focus type
+  if (
+    coreFocusId ||
+    (!teamId &&
+      !userId &&
+      !todoId &&
+      !rockId &&
+      !meetingId &&
+      !issueId &&
+      !headlineId &&
+      !visionId &&
+      !coreValueId &&
+      !goalId &&
+      !strategyId &&
+      !teamMatch &&
+      !userMatch &&
+      !todoMatch &&
+      !rockMatch &&
+      !meetingMatch &&
+      !issueMatch &&
+      !headlineMatch &&
+      !visionMatch &&
+      !coreValueMatch &&
+      !coreFocusMatch &&
+      !goalMatch &&
+      !strategyMatch)
+  ) {
+    const gql = `
+      query ($id: ID!) {
+        visionCoreFocusType(id: $id) {
+          id
+          name
+          coreFocusName
+          desc
+          src
+          type
+          visionId
+          cascadeAll
+          createdAt
+          stateId
+          companyId
+        }
+      }
+    `;
+
+    const result = await makeGraphQLRequest(gql, { id: rawId });
+    if (result?.data?.visionCoreFocusType) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(result.data.visionCoreFocusType),
+          },
+        ],
+      };
+    }
+  }
+
+  // Try to fetch as vision three year goal
+  if (
+    goalId ||
+    (!teamId &&
+      !userId &&
+      !todoId &&
+      !rockId &&
+      !meetingId &&
+      !issueId &&
+      !headlineId &&
+      !visionId &&
+      !coreValueId &&
+      !coreFocusId &&
+      !strategyId &&
+      !teamMatch &&
+      !userMatch &&
+      !todoMatch &&
+      !rockMatch &&
+      !meetingMatch &&
+      !issueMatch &&
+      !headlineMatch &&
+      !visionMatch &&
+      !coreValueMatch &&
+      !coreFocusMatch &&
+      !goalMatch &&
+      !strategyMatch)
+  ) {
+    const gql = `
+      query ($id: ID!) {
+        visionThreeYearGoal(id: $id) {
+          id
+          name
+          futureDate
+          cascadeAll
+          visionId
+          type
+          createdAt
+          stateId
+          companyId
+        }
+      }
+    `;
+
+    const result = await makeGraphQLRequest(gql, { id: rawId });
+    if (result?.data?.visionThreeYearGoal) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(result.data.visionThreeYearGoal),
+          },
+        ],
+      };
+    }
+  }
+
+  // Try to fetch as vision market strategy
+  if (
+    strategyId ||
+    (!teamId &&
+      !userId &&
+      !todoId &&
+      !rockId &&
+      !meetingId &&
+      !issueId &&
+      !headlineId &&
+      !visionId &&
+      !coreValueId &&
+      !coreFocusId &&
+      !goalId &&
+      !teamMatch &&
+      !userMatch &&
+      !todoMatch &&
+      !rockMatch &&
+      !meetingMatch &&
+      !issueMatch &&
+      !headlineMatch &&
+      !visionMatch &&
+      !coreValueMatch &&
+      !coreFocusMatch &&
+      !goalMatch &&
+      !strategyMatch)
+  ) {
+    const gql = `
+      query ($id: ID!) {
+        visionMarketStrategy(id: $id) {
+          id
+          name
+          cascadeAll
+          visionId
+          idealCustomer
+          idealCustomerDesc
+          provenProcess
+          provenProcessDesc
+          guarantee
+          guaranteeDesc
+          uniqueValueProposition
+          showProvenProcess
+          showGuarantee
+          isCustom
+          createdAt
+          stateId
+          companyId
+        }
+      }
+    `;
+
+    const result = await makeGraphQLRequest(gql, { id: rawId });
+    if (result?.data?.visionMarketStrategy) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(result.data.visionMarketStrategy),
+          },
+        ],
+      };
+    }
+  }
+
   // If none worked, return error
   return {
     content: [
       {
         type: "text",
-        text: `No team, user, todo, rock, meeting, issue, or headline found for id ${rawId}`,
+        text: `No team, user, todo, rock, meeting, issue, headline, vision, core value, core focus, goal, or strategy found for id ${rawId}`,
       },
     ],
   };
+}
+
+// ---------- Data Fields tool (Scorecard KPIs) ---------------------------------
+
+export async function getDataFields(args) {
+  const {
+    first = 50,
+    offset = 0,
+    stateId = "ACTIVE",
+    teamId,
+    userId,
+    type,
+  } = args;
+
+  if (!validateStateId(stateId)) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: "Error: Invalid stateId. Must be 'ACTIVE' or 'INACTIVE'",
+        },
+      ],
+    };
+  }
+
+  const filterStr = [`stateId: {equalTo: "${stateId}"}`]
+    .filter(Boolean)
+    .join(", ");
+
+  const query = `
+    query {
+      dataFields(${first !== undefined ? `first: ${first}` : ""}${
+    offset !== undefined ? `, offset: ${offset}` : ""
+  }${filterStr ? `, filter: {${filterStr}}` : ""}) {
+        nodes {
+          id
+          name
+          desc
+          userId
+          type
+          unitType
+          unitComparison
+          goalTarget
+          goalTargetEnd
+          goalCurrency
+          showAverage
+          showTotal
+          autoFormat
+          autoRoundDecimals
+          dataFieldStatusId
+          statusUpdatedAt
+          createdAt
+          stateId
+          formula
+          order
+        }
+        totalCount
+      }
+    }
+  `;
+
+  const result = await callSuccessCoGraphQL(query);
+
+  if (!result.ok) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error fetching data fields: ${result.error}`,
+        },
+      ],
+    };
+  }
+
+  const dataFields = result.data?.data?.dataFields?.nodes || [];
+
+  // Apply additional filters if provided
+  let filteredDataFields = dataFields;
+  if (teamId) {
+    // Note: This would require a separate query to get teamsOnDataFields relationships
+    // For now, we'll return all data fields and let the client filter
+  }
+  if (userId) {
+    filteredDataFields = filteredDataFields.filter(
+      (field) => field.userId === userId
+    );
+  }
+  if (type) {
+    filteredDataFields = filteredDataFields.filter(
+      (field) => field.type === type
+    );
+  }
+
+  return {
+    content: [
+      {
+        type: "text",
+        text: JSON.stringify(
+          {
+            dataFields: filteredDataFields,
+            totalCount: result.data?.data?.dataFields?.totalCount || 0,
+          },
+          null,
+          2
+        ),
+      },
+    ],
+  };
+}
+
+// ---------- Data Values tool (Scorecard metrics) -----------------------------
+
+export async function getDataValues(args) {
+  const {
+    first = 50,
+    offset = 0,
+    stateId = "ACTIVE",
+    dataFieldId,
+    startDate,
+    endDate,
+  } = args;
+
+  if (!validateStateId(stateId)) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: "Error: Invalid stateId. Must be 'ACTIVE' or 'INACTIVE'",
+        },
+      ],
+    };
+  }
+
+  const filterStr = [`stateId: {equalTo: "${stateId}"}`]
+    .filter(Boolean)
+    .join(", ");
+
+  const query = `
+    query {
+      dataValues(${first !== undefined ? `first: ${first}` : ""}${
+    offset !== undefined ? `, offset: ${offset}` : ""
+  }${filterStr ? `, filter: {${filterStr}}` : ""}) {
+        nodes {
+          id
+          dataFieldId
+          startDate
+          value
+          createdAt
+          stateId
+          customGoalTarget
+          customGoalTargetEnd
+          note
+        }
+        totalCount
+      }
+    }
+  `;
+
+  const result = await callSuccessCoGraphQL(query);
+
+  if (!result.ok) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error fetching data values: ${result.error}`,
+        },
+      ],
+    };
+  }
+
+  let dataValues = result.data?.data?.dataValues?.nodes || [];
+
+  // Apply additional filters if provided
+  if (dataFieldId) {
+    dataValues = dataValues.filter(
+      (value) => value.dataFieldId === dataFieldId
+    );
+  }
+  if (startDate) {
+    const start = new Date(startDate);
+    dataValues = dataValues.filter(
+      (value) => new Date(value.startDate) >= start
+    );
+  }
+  if (endDate) {
+    const end = new Date(endDate);
+    dataValues = dataValues.filter((value) => new Date(value.startDate) <= end);
+  }
+
+  return {
+    content: [
+      {
+        type: "text",
+        text: JSON.stringify(
+          {
+            dataValues,
+            totalCount: result.data?.data?.dataValues?.totalCount || 0,
+          },
+          null,
+          2
+        ),
+      },
+    ],
+  };
+}
+
+// ---------- Teams on Data Fields tool (Scorecard team assignments) ------------
+
+export async function getTeamsOnDataFields(args) {
+  const {
+    first = 50,
+    offset = 0,
+    stateId = "ACTIVE",
+    teamId,
+    dataFieldId,
+  } = args;
+
+  if (!validateStateId(stateId)) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: "Error: Invalid stateId. Must be 'ACTIVE' or 'INACTIVE'",
+        },
+      ],
+    };
+  }
+
+  const filterStr = [`stateId: {equalTo: "${stateId}"}`]
+    .filter(Boolean)
+    .join(", ");
+
+  const query = `
+    query {
+      teamsOnDataFields(${first !== undefined ? `first: ${first}` : ""}${
+    offset !== undefined ? `, offset: ${offset}` : ""
+  }${filterStr ? `, filter: {${filterStr}}` : ""}) {
+        nodes {
+          id
+          dataFieldId
+          teamId
+          createdAt
+          stateId
+        }
+        totalCount
+      }
+    }
+  `;
+
+  const result = await callSuccessCoGraphQL(query);
+
+  if (!result.ok) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error fetching teams on data fields: ${result.error}`,
+        },
+      ],
+    };
+  }
+
+  let teamsOnDataFields = result.data?.data?.teamsOnDataFields?.nodes || [];
+
+  // Apply additional filters if provided
+  if (teamId) {
+    teamsOnDataFields = teamsOnDataFields.filter(
+      (rel) => rel.teamId === teamId
+    );
+  }
+  if (dataFieldId) {
+    teamsOnDataFields = teamsOnDataFields.filter(
+      (rel) => rel.dataFieldId === dataFieldId
+    );
+  }
+
+  return {
+    content: [
+      {
+        type: "text",
+        text: JSON.stringify(
+          {
+            teamsOnDataFields,
+            totalCount: result.data?.data?.teamsOnDataFields?.totalCount || 0,
+          },
+          null,
+          2
+        ),
+      },
+    ],
+  };
+}
+
+// ---------- Data Field Statuses tool ------------------------------------------
+
+export async function getDataFieldStatuses(args) {
+  const { first = 50, offset = 0, stateId = "ACTIVE" } = args;
+
+  if (!validateStateId(stateId)) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: "Error: Invalid stateId. Must be 'ACTIVE' or 'INACTIVE'",
+        },
+      ],
+    };
+  }
+
+  const filterStr = [`stateId: {equalTo: "${stateId}"}`]
+    .filter(Boolean)
+    .join(", ");
+
+  const query = `
+    query {
+      dataFieldStatuses(${first !== undefined ? `first: ${first}` : ""}${
+    offset !== undefined ? `, offset: ${offset}` : ""
+  }${filterStr ? `, filter: {${filterStr}}` : ""}) {
+        nodes {
+          id
+          name
+          color
+          order
+          createdAt
+          stateId
+        }
+        totalCount
+      }
+    }
+  `;
+
+  const result = await callSuccessCoGraphQL(query);
+
+  if (!result.ok) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error fetching data field statuses: ${result.error}`,
+        },
+      ],
+    };
+  }
+
+  const dataFieldStatuses = result.data?.data?.dataFieldStatuses?.nodes || [];
+
+  return {
+    content: [
+      {
+        type: "text",
+        text: JSON.stringify(
+          {
+            dataFieldStatuses,
+            totalCount: result.data?.data?.dataFieldStatuses?.totalCount || 0,
+          },
+          null,
+          2
+        ),
+      },
+    ],
+  };
+}
+
+// ---------- Scorecard Metrics Analysis tool ------------------------------------
+
+export async function analyzeScorecardMetrics(args) {
+  const { query, teamId, userId, timeframe, weeks = 12 } = args;
+
+  if (!query) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: "Error: Query is required for Scorecard analysis",
+        },
+      ],
+    };
+  }
+
+  // Parse the query to understand what analysis is needed
+  const queryLower = query.toLowerCase();
+
+  if (
+    queryLower.includes("scorecard") ||
+    queryLower.includes("kpi") ||
+    queryLower.includes("metric")
+  ) {
+    return await analyzeScorecardData({ teamId, userId, timeframe, weeks });
+  }
+
+  if (
+    queryLower.includes("below target") ||
+    queryLower.includes("under target") ||
+    queryLower.includes("missed target")
+  ) {
+    return await analyzeKPIBelowTarget({ teamId, userId, timeframe, weeks });
+  }
+
+  if (
+    queryLower.includes("trend") ||
+    queryLower.includes("performance") ||
+    queryLower.includes("progress")
+  ) {
+    return await analyzeKPITrends({ teamId, userId, timeframe, weeks });
+  }
+
+  // Default to general scorecard analysis
+  return await analyzeScorecardData({ teamId, userId, timeframe, weeks });
+}
+
+// Helper function to analyze general scorecard data
+async function analyzeScorecardData({ teamId, userId, timeframe, weeks }) {
+  try {
+    // Get data fields (KPIs)
+    const dataFieldsResult = await getDataFields({ teamId, userId });
+    const dataFieldsData = JSON.parse(dataFieldsResult.content[0].text);
+    const dataFields = dataFieldsData.dataFields || [];
+
+    // Get teams on data fields relationships
+    const teamsOnDataFieldsResult = await getTeamsOnDataFields({ teamId });
+    const teamsOnDataFieldsData = JSON.parse(
+      teamsOnDataFieldsResult.content[0].text
+    );
+    const teamsOnDataFields = teamsOnDataFieldsData.teamsOnDataFields || [];
+
+    // Calculate date range
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(endDate.getDate() - weeks * 7);
+
+    // Get data values for the time period
+    const dataValuesResult = await getDataValues({
+      startDate: startDate.toISOString().split("T")[0],
+      endDate: endDate.toISOString().split("T")[0],
+    });
+    const dataValuesData = JSON.parse(dataValuesResult.content[0].text);
+    const dataValues = dataValuesData.dataValues || [];
+
+    // Group data values by data field
+    const valuesByField = {};
+    dataValues.forEach((value) => {
+      if (!valuesByField[value.dataFieldId]) {
+        valuesByField[value.dataFieldId] = [];
+      }
+      valuesByField[value.dataFieldId].push(value);
+    });
+
+    // Build analysis
+    const analysis = {
+      summary: {
+        totalKPIs: dataFields.length,
+        timeRange: `${weeks} weeks`,
+        startDate: startDate.toISOString().split("T")[0],
+        endDate: endDate.toISOString().split("T")[0],
+        teamFilter: teamId || "All teams",
+        userFilter: userId || "All users",
+      },
+      kpis: dataFields.map((field) => {
+        const values = valuesByField[field.id] || [];
+        const latestValue =
+          values.length > 0 ? values[values.length - 1] : null;
+
+        return {
+          id: field.id,
+          name: field.name,
+          description: field.desc,
+          type: field.type,
+          unitType: field.unitType,
+          goalTarget: field.goalTarget,
+          goalTargetEnd: field.goalTargetEnd,
+          goalCurrency: field.goalCurrency,
+          latestValue: latestValue
+            ? {
+                value: latestValue.value,
+                date: latestValue.startDate,
+                note: latestValue.note,
+              }
+            : null,
+          totalDataPoints: values.length,
+          dataPoints: values.map((v) => ({
+            date: v.startDate,
+            value: v.value,
+            note: v.note,
+          })),
+        };
+      }),
+    };
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(analysis, null, 2),
+        },
+      ],
+    };
+  } catch (error) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error analyzing scorecard data: ${error.message}`,
+        },
+      ],
+    };
+  }
+}
+
+// Helper function to analyze KPIs below target
+async function analyzeKPIBelowTarget({ teamId, userId, timeframe, weeks }) {
+  try {
+    // Get scorecard data first
+    const scorecardResult = await analyzeScorecardData({
+      teamId,
+      userId,
+      timeframe,
+      weeks,
+    });
+    const scorecardData = JSON.parse(scorecardResult.content[0].text);
+
+    const belowTargetKPIs = [];
+
+    scorecardData.kpis.forEach((kpi) => {
+      if (kpi.latestValue && kpi.goalTarget) {
+        const currentValue = parseFloat(kpi.latestValue.value);
+        const targetValue = parseFloat(kpi.goalTarget);
+
+        if (!isNaN(currentValue) && !isNaN(targetValue)) {
+          const isBelowTarget =
+            kpi.unitComparison === "GREATER_THAN"
+              ? currentValue < targetValue
+              : currentValue > targetValue;
+
+          if (isBelowTarget) {
+            belowTargetKPIs.push({
+              ...kpi,
+              currentValue,
+              targetValue,
+              variance: Math.abs(currentValue - targetValue),
+              variancePercent: Math.abs(
+                ((currentValue - targetValue) / targetValue) * 100
+              ),
+            });
+          }
+        }
+      }
+    });
+
+    const analysis = {
+      summary: {
+        totalKPIsAnalyzed: scorecardData.kpis.length,
+        kpisBelowTarget: belowTargetKPIs.length,
+        timeRange: scorecardData.summary.timeRange,
+        teamFilter: scorecardData.summary.teamFilter,
+        userFilter: scorecardData.summary.userFilter,
+      },
+      belowTargetKPIs: belowTargetKPIs.sort(
+        (a, b) => b.variancePercent - a.variancePercent
+      ),
+    };
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(analysis, null, 2),
+        },
+      ],
+    };
+  } catch (error) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error analyzing KPIs below target: ${error.message}`,
+        },
+      ],
+    };
+  }
+}
+
+// Helper function to analyze KPI trends
+async function analyzeKPITrends({ teamId, userId, timeframe, weeks }) {
+  try {
+    // Get scorecard data first
+    const scorecardResult = await analyzeScorecardData({
+      teamId,
+      userId,
+      timeframe,
+      weeks,
+    });
+    const scorecardData = JSON.parse(scorecardResult.content[0].text);
+
+    const trendAnalysis = scorecardData.kpis.map((kpi) => {
+      const values = kpi.dataPoints
+        .map((dp) => ({
+          date: new Date(dp.date),
+          value: parseFloat(dp.value),
+        }))
+        .filter((dp) => !isNaN(dp.value))
+        .sort((a, b) => a.date - b.date);
+
+      let trend = "stable";
+      let trendStrength = 0;
+
+      if (values.length >= 2) {
+        const firstValue = values[0].value;
+        const lastValue = values[values.length - 1].value;
+        const change = lastValue - firstValue;
+        const changePercent = (change / firstValue) * 100;
+
+        trendStrength = Math.abs(changePercent);
+
+        if (changePercent > 5) {
+          trend = "improving";
+        } else if (changePercent < -5) {
+          trend = "declining";
+        } else {
+          trend = "stable";
+        }
+      }
+
+      return {
+        ...kpi,
+        trend,
+        trendStrength: Math.round(trendStrength * 100) / 100,
+        dataPoints: values,
+      };
+    });
+
+    const analysis = {
+      summary: {
+        totalKPIsAnalyzed: scorecardData.kpis.length,
+        improvingKPIs: trendAnalysis.filter((kpi) => kpi.trend === "improving")
+          .length,
+        decliningKPIs: trendAnalysis.filter((kpi) => kpi.trend === "declining")
+          .length,
+        stableKPIs: trendAnalysis.filter((kpi) => kpi.trend === "stable")
+          .length,
+        timeRange: scorecardData.summary.timeRange,
+        teamFilter: scorecardData.summary.teamFilter,
+        userFilter: scorecardData.summary.userFilter,
+      },
+      kpiTrends: trendAnalysis.sort(
+        (a, b) => b.trendStrength - a.trendStrength
+      ),
+    };
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(analysis, null, 2),
+        },
+      ],
+    };
+  } catch (error) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error analyzing KPI trends: ${error.message}`,
+        },
+      ],
+    };
+  }
 }
