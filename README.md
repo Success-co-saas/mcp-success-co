@@ -4,7 +4,7 @@
 
 ## Success.co EOS Framework MCP Server
 
-This MCP server provides comprehensive access to Success.co's EOS (Entrepreneurial Operating System) data, enabling AI assistants like ChatGPT and Claude to answer complex questions about company operations, team performance, and project management.
+This MCP server provides comprehensive access to Success.co's EOS (Entrepreneurial Operating System) data, enabling AI assistants like ChatGPT and Claude to answer complex questions about company operations, team performance, project management, and Level 10 meetings.
 
 [Overview](#overview) · [Features](#features) · [Installation](#installation) · [EOS Analysis Tools](#eos-analysis-tools) · [Testing with MCP Inspector](#testing-with-mcp-inspector) · [Setting Environment Variables for Testing](#setting-environment-variables-for-testing) · [Integrating with Cursor AI](#integrating-with-cursor-ai) · [Using the MCP Tool in Cursor (Agent Mode)](#using-the-mcp-tool-in-cursor-agent-mode) · [Code Overview](#code-overview) · [References & Resources](#references--resources) · [License](#license)
 
@@ -12,7 +12,7 @@ This MCP server provides comprehensive access to Success.co's EOS (Entrepreneuri
 
 **MCP (Model Context Protocol)** is a framework that allows you to integrate custom tools into AI-assisted development environments—such as Cursor AI. MCP servers expose functionality (like data retrieval or code analysis) so that an LLM-based IDE can call these tools on demand. Learn more about MCP in the [Model Context Protocol Introduction](https://modelcontextprotocol.io/introduction).
 
-This project demonstrates an MCP server implemented in JavaScript using Node.js that provides comprehensive access to Success.co's EOS framework data. It includes tools for retrieving teams, users, todos, rocks, meetings, issues, headlines, visions, and Scorecard metrics. Most importantly, it includes advanced analytical tools that can answer complex EOS-related questions like "Which company Rocks are at risk of missing their due dates this quarter, and who owns them?" and Scorecard questions like "Give me the last 12 weeks of Scorecard metrics for my team and flag any KPI below target."
+This project demonstrates an MCP server implemented in JavaScript using Node.js that provides comprehensive access to Success.co's EOS framework data. It includes tools for retrieving teams, users, todos, rocks, meetings, issues, headlines, visions, and Scorecard metrics. Most importantly, it includes advanced analytical tools that can answer complex EOS-related questions like "Which company Rocks are at risk of missing their due dates this quarter, and who owns them?", Scorecard questions like "Give me the last 12 weeks of Scorecard metrics for my team and flag any KPI below target", and Level 10 meeting questions like "What are the top 5 open Issues for this week's Level 10 meeting and their owners?"
 
 ## Requirements
 
@@ -21,9 +21,10 @@ This project demonstrates an MCP server implemented in JavaScript using Node.js 
 
 ## Features
 
-- **EOS Data Access:** Complete access to Success.co's EOS framework data including teams, users, todos, rocks, meetings, issues, headlines, and visions
+- **EOS Data Access:** Complete access to Success.co's EOS framework data including teams, users, todos, rocks, meetings, issues, headlines, visions, and meeting agendas
+- **Level 10 Meeting Analysis:** Specialized tools for analyzing Level 10 meetings, including issue tracking, facilitator/scribe information, and agenda sections
 - **Scorecard Metrics Analysis:** Comprehensive KPI analysis including target flagging, trend analysis, and performance tracking
-- **Advanced Analytics:** Sophisticated analysis tools for at-risk rocks, overdue items, team performance, and progress tracking
+- **Advanced Analytics:** Sophisticated analysis tools for at-risk rocks, overdue items, team performance, progress tracking, and meeting insights
 - **GraphQL Integration:** Full integration with Success.co's GraphQL API
 - **API Key Management:** Secure storage and retrieval of Success.co API keys
 - **Input Validation:** Uses [Zod](https://github.com/colinhacks/zod) for schema validation
@@ -166,6 +167,36 @@ Analyzes team performance based on rock completion and status. Returns:
 - Team information
 - Rock counts per team
 - Status breakdown per team
+
+#### Level 10 Meeting Analysis
+
+Specialized analysis for Level 10 meetings, including issue tracking and meeting management. Returns:
+
+- Level 10 meeting agendas and their details
+- Open issues for each meeting (sorted by priority)
+- Facilitator and scribe information
+- Meeting agenda sections and timing
+- Issue owners and team assignments
+
+#### Meeting Data Analysis
+
+Comprehensive analysis of all meeting-related data. Returns:
+
+- Meeting infos and their status
+- Meeting agendas and types
+- Facilitator and scribe assignments
+- Meeting ratings and performance metrics
+- Team meeting schedules
+
+#### Issue Analysis
+
+Detailed analysis of organizational issues and their management. Returns:
+
+- Issues grouped by status
+- Priority-based issue ranking
+- Issue owners and team assignments
+- Issue creation and update timestamps
+- Meeting associations
 
 ### Example Usage
 
@@ -597,6 +628,33 @@ What is the current progress status of all rocks?
 How are teams performing with their rocks?
 ```
 
+**Level 10 Meeting Analysis:**
+
+```
+What are the top 5 open Issues for this week's Level 10 meeting and their owners?
+Show me all Level 10 meetings and their facilitators
+Which issues are assigned to the leadership team for Level 10?
+Find Level 10 meeting agendas and their sections
+```
+
+**Meeting Analysis:**
+
+```
+Show me all meetings scheduled for this week and their facilitators
+What meeting agendas do we have and who are the facilitators?
+Which meetings have the highest ratings?
+Show me meeting performance metrics for this quarter
+```
+
+**Issue Analysis:**
+
+```
+What are the highest priority issues that need attention?
+Show me all open issues grouped by team
+Which issues have been open the longest?
+Find issues assigned to specific users
+```
+
 ### Data Retrieval Tool Usage
 
 You can retrieve specific data types using natural language:
@@ -639,6 +697,30 @@ show me todos assigned to John
 get meetings from Success.co
 list all meetings
 show me meetings for this month
+```
+
+**Meeting Infos:**
+
+```
+get meeting infos from Success.co
+list all meeting infos
+show me meeting infos for the leadership team
+```
+
+**Meeting Agendas:**
+
+```
+get meeting agendas from Success.co
+list all meeting agendas
+show me Level 10 meeting agendas
+```
+
+**Meeting Agenda Sections:**
+
+```
+get meeting agenda sections from Success.co
+list agenda sections for a specific meeting
+show me Level 10 agenda sections
 ```
 
 **Issues:**

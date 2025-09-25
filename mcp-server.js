@@ -36,6 +36,13 @@ import {
   getTeamsOnDataFields,
   getDataFieldStatuses,
   analyzeScorecardMetrics,
+  getMeetingInfos,
+  getMeetingAgendas,
+  getMeetingAgendaSections,
+  getMeetingInfoStatuses,
+  getMeetingAgendaStatuses,
+  getMeetingAgendaTypes,
+  getIssueStatuses,
 } from "./tools.js";
 
 // Ensure Node 18+ for global fetch.
@@ -588,6 +595,177 @@ server.tool(
       timeframe,
       weeks,
     });
+  }
+);
+
+// ---------- Meeting Infos tool -------------------------------------------------
+
+server.tool(
+  "getMeetingInfos",
+  "List Success.co meeting infos",
+  {
+    first: z.number().int().optional().describe("Optional page size"),
+    offset: z.number().int().optional().describe("Optional offset"),
+    stateId: z
+      .string()
+      .optional()
+      .describe("Meeting info state filter (defaults to 'ACTIVE')"),
+    teamId: z.string().optional().describe("Filter by team ID"),
+    meetingInfoStatusId: z
+      .string()
+      .optional()
+      .describe("Filter by meeting info status ID"),
+  },
+  async ({ first, offset, stateId, teamId, meetingInfoStatusId }) => {
+    return await getMeetingInfos({
+      first,
+      offset,
+      stateId,
+      teamId,
+      meetingInfoStatusId,
+    });
+  }
+);
+
+// ---------- Meeting Agendas tool -----------------------------------------------
+
+server.tool(
+  "getMeetingAgendas",
+  "List Success.co meeting agendas",
+  {
+    first: z.number().int().optional().describe("Optional page size"),
+    offset: z.number().int().optional().describe("Optional offset"),
+    stateId: z
+      .string()
+      .optional()
+      .describe("Meeting agenda state filter (defaults to 'ACTIVE')"),
+    teamId: z.string().optional().describe("Filter by team ID"),
+    meetingAgendaStatusId: z
+      .string()
+      .optional()
+      .describe("Filter by meeting agenda status ID"),
+    meetingAgendaTypeId: z
+      .string()
+      .optional()
+      .describe("Filter by meeting agenda type ID"),
+  },
+  async ({
+    first,
+    offset,
+    stateId,
+    teamId,
+    meetingAgendaStatusId,
+    meetingAgendaTypeId,
+  }) => {
+    return await getMeetingAgendas({
+      first,
+      offset,
+      stateId,
+      teamId,
+      meetingAgendaStatusId,
+      meetingAgendaTypeId,
+    });
+  }
+);
+
+// ---------- Meeting Agenda Sections tool ---------------------------------------
+
+server.tool(
+  "getMeetingAgendaSections",
+  "List Success.co meeting agenda sections",
+  {
+    first: z.number().int().optional().describe("Optional page size"),
+    offset: z.number().int().optional().describe("Optional offset"),
+    stateId: z
+      .string()
+      .optional()
+      .describe("Meeting agenda section state filter (defaults to 'ACTIVE')"),
+    meetingAgendaId: z
+      .string()
+      .optional()
+      .describe("Filter by meeting agenda ID"),
+    type: z.string().optional().describe("Filter by section type"),
+  },
+  async ({ first, offset, stateId, meetingAgendaId, type }) => {
+    return await getMeetingAgendaSections({
+      first,
+      offset,
+      stateId,
+      meetingAgendaId,
+      type,
+    });
+  }
+);
+
+// ---------- Meeting Info Statuses tool -----------------------------------------
+
+server.tool(
+  "getMeetingInfoStatuses",
+  "List Success.co meeting info statuses",
+  {
+    first: z.number().int().optional().describe("Optional page size"),
+    offset: z.number().int().optional().describe("Optional offset"),
+    stateId: z
+      .string()
+      .optional()
+      .describe("Meeting info status state filter (defaults to 'ACTIVE')"),
+  },
+  async ({ first, offset, stateId }) => {
+    return await getMeetingInfoStatuses({ first, offset, stateId });
+  }
+);
+
+// ---------- Meeting Agenda Statuses tool ---------------------------------------
+
+server.tool(
+  "getMeetingAgendaStatuses",
+  "List Success.co meeting agenda statuses",
+  {
+    first: z.number().int().optional().describe("Optional page size"),
+    offset: z.number().int().optional().describe("Optional offset"),
+    stateId: z
+      .string()
+      .optional()
+      .describe("Meeting agenda status state filter (defaults to 'ACTIVE')"),
+  },
+  async ({ first, offset, stateId }) => {
+    return await getMeetingAgendaStatuses({ first, offset, stateId });
+  }
+);
+
+// ---------- Meeting Agenda Types tool ------------------------------------------
+
+server.tool(
+  "getMeetingAgendaTypes",
+  "List Success.co meeting agenda types",
+  {
+    first: z.number().int().optional().describe("Optional page size"),
+    offset: z.number().int().optional().describe("Optional offset"),
+    stateId: z
+      .string()
+      .optional()
+      .describe("Meeting agenda type state filter (defaults to 'ACTIVE')"),
+  },
+  async ({ first, offset, stateId }) => {
+    return await getMeetingAgendaTypes({ first, offset, stateId });
+  }
+);
+
+// ---------- Issue Statuses tool ------------------------------------------------
+
+server.tool(
+  "getIssueStatuses",
+  "List Success.co issue statuses",
+  {
+    first: z.number().int().optional().describe("Optional page size"),
+    offset: z.number().int().optional().describe("Optional offset"),
+    stateId: z
+      .string()
+      .optional()
+      .describe("Issue status state filter (defaults to 'ACTIVE')"),
+  },
+  async ({ first, offset, stateId }) => {
+    return await getIssueStatuses({ first, offset, stateId });
   }
 );
 
@@ -1179,6 +1357,170 @@ function createFreshMcpServer() {
     }
   );
 
+  // Meeting Infos tool
+  freshServer.tool(
+    "getMeetingInfos",
+    "List Success.co meeting infos",
+    {
+      first: z.number().int().optional().describe("Optional page size"),
+      offset: z.number().int().optional().describe("Optional offset"),
+      stateId: z
+        .string()
+        .optional()
+        .describe("Meeting info state filter (defaults to 'ACTIVE')"),
+      teamId: z.string().optional().describe("Filter by team ID"),
+      meetingInfoStatusId: z
+        .string()
+        .optional()
+        .describe("Filter by meeting info status ID"),
+    },
+    async ({ first, offset, stateId, teamId, meetingInfoStatusId }) => {
+      return await getMeetingInfos({
+        first,
+        offset,
+        stateId,
+        teamId,
+        meetingInfoStatusId,
+      });
+    }
+  );
+
+  // Meeting Agendas tool
+  freshServer.tool(
+    "getMeetingAgendas",
+    "List Success.co meeting agendas",
+    {
+      first: z.number().int().optional().describe("Optional page size"),
+      offset: z.number().int().optional().describe("Optional offset"),
+      stateId: z
+        .string()
+        .optional()
+        .describe("Meeting agenda state filter (defaults to 'ACTIVE')"),
+      teamId: z.string().optional().describe("Filter by team ID"),
+      meetingAgendaStatusId: z
+        .string()
+        .optional()
+        .describe("Filter by meeting agenda status ID"),
+      meetingAgendaTypeId: z
+        .string()
+        .optional()
+        .describe("Filter by meeting agenda type ID"),
+    },
+    async ({
+      first,
+      offset,
+      stateId,
+      teamId,
+      meetingAgendaStatusId,
+      meetingAgendaTypeId,
+    }) => {
+      return await getMeetingAgendas({
+        first,
+        offset,
+        stateId,
+        teamId,
+        meetingAgendaStatusId,
+        meetingAgendaTypeId,
+      });
+    }
+  );
+
+  // Meeting Agenda Sections tool
+  freshServer.tool(
+    "getMeetingAgendaSections",
+    "List Success.co meeting agenda sections",
+    {
+      first: z.number().int().optional().describe("Optional page size"),
+      offset: z.number().int().optional().describe("Optional offset"),
+      stateId: z
+        .string()
+        .optional()
+        .describe("Meeting agenda section state filter (defaults to 'ACTIVE')"),
+      meetingAgendaId: z
+        .string()
+        .optional()
+        .describe("Filter by meeting agenda ID"),
+      type: z.string().optional().describe("Filter by section type"),
+    },
+    async ({ first, offset, stateId, meetingAgendaId, type }) => {
+      return await getMeetingAgendaSections({
+        first,
+        offset,
+        stateId,
+        meetingAgendaId,
+        type,
+      });
+    }
+  );
+
+  // Meeting Info Statuses tool
+  freshServer.tool(
+    "getMeetingInfoStatuses",
+    "List Success.co meeting info statuses",
+    {
+      first: z.number().int().optional().describe("Optional page size"),
+      offset: z.number().int().optional().describe("Optional offset"),
+      stateId: z
+        .string()
+        .optional()
+        .describe("Meeting info status state filter (defaults to 'ACTIVE')"),
+    },
+    async ({ first, offset, stateId }) => {
+      return await getMeetingInfoStatuses({ first, offset, stateId });
+    }
+  );
+
+  // Meeting Agenda Statuses tool
+  freshServer.tool(
+    "getMeetingAgendaStatuses",
+    "List Success.co meeting agenda statuses",
+    {
+      first: z.number().int().optional().describe("Optional page size"),
+      offset: z.number().int().optional().describe("Optional offset"),
+      stateId: z
+        .string()
+        .optional()
+        .describe("Meeting agenda status state filter (defaults to 'ACTIVE')"),
+    },
+    async ({ first, offset, stateId }) => {
+      return await getMeetingAgendaStatuses({ first, offset, stateId });
+    }
+  );
+
+  // Meeting Agenda Types tool
+  freshServer.tool(
+    "getMeetingAgendaTypes",
+    "List Success.co meeting agenda types",
+    {
+      first: z.number().int().optional().describe("Optional page size"),
+      offset: z.number().int().optional().describe("Optional offset"),
+      stateId: z
+        .string()
+        .optional()
+        .describe("Meeting agenda type state filter (defaults to 'ACTIVE')"),
+    },
+    async ({ first, offset, stateId }) => {
+      return await getMeetingAgendaTypes({ first, offset, stateId });
+    }
+  );
+
+  // Issue Statuses tool
+  freshServer.tool(
+    "getIssueStatuses",
+    "List Success.co issue statuses",
+    {
+      first: z.number().int().optional().describe("Optional page size"),
+      offset: z.number().int().optional().describe("Optional offset"),
+      stateId: z
+        .string()
+        .optional()
+        .describe("Issue status state filter (defaults to 'ACTIVE')"),
+    },
+    async ({ first, offset, stateId }) => {
+      return await getIssueStatuses({ first, offset, stateId });
+    }
+  );
+
   return freshServer;
 }
 
@@ -1312,6 +1654,27 @@ app.all("/mcp", async (req, res) => {
       },
       analyzeScorecardMetrics: async (args) => {
         return await analyzeScorecardMetrics(args);
+      },
+      getMeetingInfos: async (args) => {
+        return await getMeetingInfos(args);
+      },
+      getMeetingAgendas: async (args) => {
+        return await getMeetingAgendas(args);
+      },
+      getMeetingAgendaSections: async (args) => {
+        return await getMeetingAgendaSections(args);
+      },
+      getMeetingInfoStatuses: async (args) => {
+        return await getMeetingInfoStatuses(args);
+      },
+      getMeetingAgendaStatuses: async (args) => {
+        return await getMeetingAgendaStatuses(args);
+      },
+      getMeetingAgendaTypes: async (args) => {
+        return await getMeetingAgendaTypes(args);
+      },
+      getIssueStatuses: async (args) => {
+        return await getIssueStatuses(args);
       },
     };
 
@@ -1969,6 +2332,186 @@ app.all("/mcp", async (req, res) => {
               },
             },
             required: ["query"],
+          },
+        },
+        {
+          name: "getMeetingInfos",
+          description: "List Success.co meeting infos",
+          inputSchema: {
+            type: "object",
+            properties: {
+              first: {
+                type: "integer",
+                description: "Optional page size",
+              },
+              offset: {
+                type: "integer",
+                description: "Optional offset",
+              },
+              stateId: {
+                type: "string",
+                description: "Meeting info state filter (defaults to 'ACTIVE')",
+              },
+              teamId: {
+                type: "string",
+                description: "Filter by team ID",
+              },
+              meetingInfoStatusId: {
+                type: "string",
+                description: "Filter by meeting info status ID",
+              },
+            },
+          },
+        },
+        {
+          name: "getMeetingAgendas",
+          description: "List Success.co meeting agendas",
+          inputSchema: {
+            type: "object",
+            properties: {
+              first: {
+                type: "integer",
+                description: "Optional page size",
+              },
+              offset: {
+                type: "integer",
+                description: "Optional offset",
+              },
+              stateId: {
+                type: "string",
+                description:
+                  "Meeting agenda state filter (defaults to 'ACTIVE')",
+              },
+              teamId: {
+                type: "string",
+                description: "Filter by team ID",
+              },
+              meetingAgendaStatusId: {
+                type: "string",
+                description: "Filter by meeting agenda status ID",
+              },
+              meetingAgendaTypeId: {
+                type: "string",
+                description: "Filter by meeting agenda type ID",
+              },
+            },
+          },
+        },
+        {
+          name: "getMeetingAgendaSections",
+          description: "List Success.co meeting agenda sections",
+          inputSchema: {
+            type: "object",
+            properties: {
+              first: {
+                type: "integer",
+                description: "Optional page size",
+              },
+              offset: {
+                type: "integer",
+                description: "Optional offset",
+              },
+              stateId: {
+                type: "string",
+                description:
+                  "Meeting agenda section state filter (defaults to 'ACTIVE')",
+              },
+              meetingAgendaId: {
+                type: "string",
+                description: "Filter by meeting agenda ID",
+              },
+              type: {
+                type: "string",
+                description: "Filter by section type",
+              },
+            },
+          },
+        },
+        {
+          name: "getMeetingInfoStatuses",
+          description: "List Success.co meeting info statuses",
+          inputSchema: {
+            type: "object",
+            properties: {
+              first: {
+                type: "integer",
+                description: "Optional page size",
+              },
+              offset: {
+                type: "integer",
+                description: "Optional offset",
+              },
+              stateId: {
+                type: "string",
+                description:
+                  "Meeting info status state filter (defaults to 'ACTIVE')",
+              },
+            },
+          },
+        },
+        {
+          name: "getMeetingAgendaStatuses",
+          description: "List Success.co meeting agenda statuses",
+          inputSchema: {
+            type: "object",
+            properties: {
+              first: {
+                type: "integer",
+                description: "Optional page size",
+              },
+              offset: {
+                type: "integer",
+                description: "Optional offset",
+              },
+              stateId: {
+                type: "string",
+                description:
+                  "Meeting agenda status state filter (defaults to 'ACTIVE')",
+              },
+            },
+          },
+        },
+        {
+          name: "getMeetingAgendaTypes",
+          description: "List Success.co meeting agenda types",
+          inputSchema: {
+            type: "object",
+            properties: {
+              first: {
+                type: "integer",
+                description: "Optional page size",
+              },
+              offset: {
+                type: "integer",
+                description: "Optional offset",
+              },
+              stateId: {
+                type: "string",
+                description:
+                  "Meeting agenda type state filter (defaults to 'ACTIVE')",
+              },
+            },
+          },
+        },
+        {
+          name: "getIssueStatuses",
+          description: "List Success.co issue statuses",
+          inputSchema: {
+            type: "object",
+            properties: {
+              first: {
+                type: "integer",
+                description: "Optional page size",
+              },
+              offset: {
+                type: "integer",
+                description: "Optional offset",
+              },
+              stateId: {
+                type: "string",
+                description: "Issue status state filter (defaults to 'ACTIVE')",
+              },
+            },
           },
         },
       ];

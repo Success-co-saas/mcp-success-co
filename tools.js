@@ -1348,6 +1348,36 @@ export async function analyzeEOSData(args) {
   const { query, teamId, userId, timeframe = "quarter" } = args;
   const q = (query || "").toLowerCase();
 
+  // Check for Level 10 meeting queries
+  if (
+    q.includes("level 10") ||
+    q.includes("level10") ||
+    q.includes("l10") ||
+    (q.includes("meeting") && q.includes("issue"))
+  ) {
+    return await analyzeLevel10MeetingIssues({ teamId, userId, timeframe });
+  }
+
+  // Check for meeting-related queries
+  if (
+    q.includes("meeting") ||
+    q.includes("agenda") ||
+    q.includes("facilitator") ||
+    q.includes("scribe")
+  ) {
+    return await analyzeMeetingData({ teamId, userId, timeframe });
+  }
+
+  // Check for issue-related queries
+  if (
+    q.includes("issue") ||
+    q.includes("problem") ||
+    q.includes("challenge") ||
+    q.includes("priority")
+  ) {
+    return await analyzeIssueData({ teamId, userId, timeframe });
+  }
+
   // Check for at-risk rocks queries
   if (
     q.includes("at risk") ||
@@ -1385,7 +1415,7 @@ export async function analyzeEOSData(args) {
     content: [
       {
         type: "text",
-        text: "I can analyze: at-risk rocks, overdue items, rock progress, and team performance. Try queries like 'Which rocks are at risk of missing their due dates?' or 'Show me overdue items for this quarter'.",
+        text: "I can analyze: Level 10 meetings, issues, meetings, at-risk rocks, overdue items, rock progress, and team performance. Try queries like 'What are the top 5 open Issues for this week's Level 10 meeting?' or 'Which rocks are at risk of missing their due dates?'",
       },
     ],
   };
@@ -1769,6 +1799,632 @@ async function analyzeTeamPerformance({ teamId, timeframe }) {
       },
     ],
   };
+}
+
+/**
+ * Analyze Level 10 meeting issues
+ */
+async function analyzeLevel10MeetingIssues({ teamId, userId, timeframe }) {
+  try {
+    // Get Level 10 meeting agendas (assuming they have a specific type or name pattern)
+    const meetingAgendasQuery = `
+      query {
+        meetingAgendas(filter: {stateId: {equalTo: "ACTIVE"}}) {
+          nodes {
+            id
+            name
+            desc
+            teamId
+            meetingAgendaTypeId
+            facilitatorUserId
+            scribeUserId
+            team {
+              id
+              name
+              desc
+              color
+              isLeadership
+            }
+            facilitator {
+              id
+              firstName
+              lastName
+              email
+              jobTitle
+            }
+            scribe {
+              id
+              firstName
+              lastName
+              email
+              jobTitle
+            }
+            meetingAgendaSections {
+              id
+              name
+              desc
+              type
+              visible
+              duration
+              order
+            }
+          }
+        }
+      }
+    `;
+
+    const agendasResult = await callSuccessCoGraphQL(meetingAgendasQuery);
+    if (!agendasResult.ok) {
+      return { content: [{ type: "text", text: agendasResult.error }] };
+    }
+
+    const agendas = agendasResult.data?.data?.meetingAgendas?.nodes || [];
+
+    // Filter for Level 10 meetings (assuming they contain "Level 10" in name or are a specific type)
+    const level10Agendas = agendas.filter(
+      (agenda) =>
+        agenda.name.toLowerCase().includes("level 10") ||
+        agenda.name.toLowerCase().includes("l10") ||
+        agenda.meetingAgendaTypeId === "LEVEL_10"
+    );
+
+    // Get issues for each Level 10 meeting
+    const meetingIssues = await Promise.all(
+      level10Agendas.map(async (agenda) => {
+        const issuesQuery = `
+          query {
+            issues(filter: {stateId: {equalTo: "ACTIVE"}}) {
+              nodes {
+                id
+                name
+                desc
+                issueStatusId
+                teamId
+                userId
+                type
+                priorityNo
+                priorityOrder
+                statusUpdatedAt
+                meetingId
+                createdAt
+                user {
+                  id
+                  firstName
+                  lastName
+                  email
+                  jobTitle
+                }
+                team {
+                  id
+                  name
+                  desc
+                  color
+                }
+                issueStatus {
+                  id
+                  name
+                  color
+                  type
+                  order
+                }
+              }
+            }
+          }
+        `;
+
+        const issuesResult = await callSuccessCoGraphQL(issuesQuery);
+        const issues = issuesResult.ok
+          ? issuesResult.data?.data?.issues?.nodes || []
+          : [];
+
+        // Filter issues for this team and open status
+        const openIssues = issues.filter(
+          (issue) =>
+            issue.teamId === agenda.teamId &&
+            issue.issueStatusId !== "RESOLVED" &&
+            issue.issueStatusId !== "CLOSED"
+        );
+
+        // Sort by priority (lower priorityNo = higher priority)
+        const sortedIssues = openIssues.sort(
+          (a, b) => (a.priorityNo || 999) - (b.priorityNo || 999)
+        );
+
+        return {
+          agendaId: agenda.id,
+          agendaName: agenda.name,
+          agendaDescription: agenda.desc,
+          teamId: agenda.teamId,
+          teamName: agenda.team.name,
+          teamColor: agenda.team.color,
+          facilitator: agenda.facilitator
+            ? {
+                id: agenda.facilitator.id,
+                name: `${agenda.facilitator.firstName} ${agenda.facilitator.lastName}`,
+                email: agenda.facilitator.email,
+                jobTitle: agenda.facilitator.jobTitle,
+              }
+            : null,
+          scribe: agenda.scribe
+            ? {
+                id: agenda.scribe.id,
+                name: `${agenda.scribe.firstName} ${agenda.scribe.lastName}`,
+                email: agenda.scribe.email,
+                jobTitle: agenda.scribe.jobTitle,
+              }
+            : null,
+          sections: agenda.meetingAgendaSections.map((section) => ({
+            id: section.id,
+            name: section.name,
+            description: section.desc,
+            type: section.type,
+            visible: section.visible,
+            duration: section.duration,
+            order: section.order,
+          })),
+          openIssues: sortedIssues.slice(0, 5).map((issue) => ({
+            id: issue.id,
+            name: issue.name,
+            description: issue.desc,
+            status: issue.issueStatusId,
+            statusName: issue.issueStatus?.name,
+            statusColor: issue.issueStatus?.color,
+            priority: issue.priorityNo,
+            priorityOrder: issue.priorityOrder,
+            owner: {
+              id: issue.user.id,
+              name: `${issue.user.firstName} ${issue.user.lastName}`,
+              email: issue.user.email,
+              jobTitle: issue.user.jobTitle,
+            },
+            team: {
+              id: issue.team.id,
+              name: issue.team.name,
+              color: issue.team.color,
+            },
+            createdAt: issue.createdAt,
+            statusUpdatedAt: issue.statusUpdatedAt,
+          })),
+        };
+      })
+    );
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(
+            {
+              analysis: "level-10-meeting-issues",
+              timeframe: timeframe,
+              totalLevel10Meetings: level10Agendas.length,
+              results: meetingIssues,
+              summary: {
+                totalOpenIssues: meetingIssues.reduce(
+                  (sum, meeting) => sum + meeting.openIssues.length,
+                  0
+                ),
+                meetingsWithIssues: meetingIssues.filter(
+                  (meeting) => meeting.openIssues.length > 0
+                ).length,
+              },
+            },
+            null,
+            2
+          ),
+        },
+      ],
+    };
+  } catch (error) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error analyzing Level 10 meeting issues: ${error.message}`,
+        },
+      ],
+    };
+  }
+}
+
+/**
+ * Analyze meeting data
+ */
+async function analyzeMeetingData({ teamId, userId, timeframe }) {
+  try {
+    // Get meeting infos
+    const meetingInfosQuery = `
+      query {
+        meetingInfos(filter: {stateId: {equalTo: "ACTIVE"}}) {
+          nodes {
+            id
+            name
+            desc
+            meetingAgendaId
+            teamId
+            meetingInfoStatusId
+            meetingRepeatsId
+            createdAt
+            ownerUserId
+            repeatInterval
+            repeatUnit
+            selectedDays
+            team {
+              id
+              name
+              desc
+              color
+              isLeadership
+            }
+            meetingAgenda {
+              id
+              name
+              desc
+              meetingAgendaTypeId
+              facilitatorUserId
+              scribeUserId
+            }
+            owner {
+              id
+              firstName
+              lastName
+              email
+              jobTitle
+            }
+            meetingInfoStatus {
+              id
+              name
+              color
+              type
+              order
+            }
+          }
+        }
+      }
+    `;
+
+    const meetingInfosResult = await callSuccessCoGraphQL(meetingInfosQuery);
+    if (!meetingInfosResult.ok) {
+      return { content: [{ type: "text", text: meetingInfosResult.error }] };
+    }
+
+    const meetingInfos =
+      meetingInfosResult.data?.data?.meetingInfos?.nodes || [];
+
+    // Get actual meetings
+    const meetingsQuery = `
+      query {
+        meetings(filter: {stateId: {equalTo: "ACTIVE"}}) {
+          nodes {
+            id
+            meetingInfoId
+            date
+            startTime
+            endTime
+            averageRating
+            totalPausedTimeInSecs
+            meetingStatusId
+            facilitatorUserId
+            scribeUserId
+            createdAt
+            meetingInfo {
+              id
+              name
+              desc
+              teamId
+              team {
+                id
+                name
+                desc
+                color
+              }
+            }
+            facilitator {
+              id
+              firstName
+              lastName
+              email
+              jobTitle
+            }
+            scribe {
+              id
+              firstName
+              lastName
+              email
+              jobTitle
+            }
+            meetingStatus {
+              id
+              name
+              order
+            }
+          }
+        }
+      }
+    `;
+
+    const meetingsResult = await callSuccessCoGraphQL(meetingsQuery);
+    const meetings = meetingsResult.ok
+      ? meetingsResult.data?.data?.meetings?.nodes || []
+      : [];
+
+    // Analyze meeting data
+    const analysis = {
+      meetingInfos: meetingInfos.map((info) => ({
+        id: info.id,
+        name: info.name,
+        description: info.desc,
+        team: {
+          id: info.team.id,
+          name: info.team.name,
+          color: info.team.color,
+          isLeadership: info.team.isLeadership,
+        },
+        agenda: info.meetingAgenda
+          ? {
+              id: info.meetingAgenda.id,
+              name: info.meetingAgenda.name,
+              type: info.meetingAgenda.meetingAgendaTypeId,
+            }
+          : null,
+        owner: {
+          id: info.owner.id,
+          name: `${info.owner.firstName} ${info.owner.lastName}`,
+          email: info.owner.email,
+          jobTitle: info.owner.jobTitle,
+        },
+        status: info.meetingInfoStatus
+          ? {
+              id: info.meetingInfoStatus.id,
+              name: info.meetingInfoStatus.name,
+              color: info.meetingInfoStatus.color,
+              type: info.meetingInfoStatus.type,
+            }
+          : null,
+        repeatInterval: info.repeatInterval,
+        repeatUnit: info.repeatUnit,
+        selectedDays: info.selectedDays,
+        createdAt: info.createdAt,
+      })),
+      meetings: meetings.map((meeting) => ({
+        id: meeting.id,
+        date: meeting.date,
+        startTime: meeting.startTime,
+        endTime: meeting.endTime,
+        averageRating: meeting.averageRating,
+        totalPausedTimeInSecs: meeting.totalPausedTimeInSecs,
+        team: {
+          id: meeting.meetingInfo.team.id,
+          name: meeting.meetingInfo.team.name,
+          color: meeting.meetingInfo.team.color,
+        },
+        facilitator: meeting.facilitator
+          ? {
+              id: meeting.facilitator.id,
+              name: `${meeting.facilitator.firstName} ${meeting.facilitator.lastName}`,
+              email: meeting.facilitator.email,
+              jobTitle: meeting.facilitator.jobTitle,
+            }
+          : null,
+        scribe: meeting.scribe
+          ? {
+              id: meeting.scribe.id,
+              name: `${meeting.scribe.firstName} ${meeting.scribe.lastName}`,
+              email: meeting.scribe.email,
+              jobTitle: meeting.scribe.jobTitle,
+            }
+          : null,
+        status: meeting.meetingStatus
+          ? {
+              id: meeting.meetingStatus.id,
+              name: meeting.meetingStatus.name,
+            }
+          : null,
+        createdAt: meeting.createdAt,
+      })),
+      summary: {
+        totalMeetingInfos: meetingInfos.length,
+        totalMeetings: meetings.length,
+        averageRating:
+          meetings.length > 0
+            ? meetings.reduce((sum, m) => sum + (m.averageRating || 0), 0) /
+              meetings.length
+            : 0,
+        teamsWithMeetings: [
+          ...new Set(meetings.map((m) => m.meetingInfo.team.id)),
+        ].length,
+      },
+    };
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(analysis, null, 2),
+        },
+      ],
+    };
+  } catch (error) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error analyzing meeting data: ${error.message}`,
+        },
+      ],
+    };
+  }
+}
+
+/**
+ * Analyze issue data
+ */
+async function analyzeIssueData({ teamId, userId, timeframe }) {
+  try {
+    const issuesQuery = `
+      query {
+        issues(filter: {stateId: {equalTo: "ACTIVE"}}) {
+          nodes {
+            id
+            name
+            desc
+            issueStatusId
+            teamId
+            userId
+            type
+            priorityNo
+            priorityOrder
+            statusUpdatedAt
+            meetingId
+            createdAt
+            user {
+              id
+              firstName
+              lastName
+              email
+              jobTitle
+            }
+            team {
+              id
+              name
+              desc
+              color
+              isLeadership
+            }
+            issueStatus {
+              id
+              name
+              color
+              type
+              order
+            }
+          }
+        }
+      }
+    `;
+
+    const issuesResult = await callSuccessCoGraphQL(issuesQuery);
+    if (!issuesResult.ok) {
+      return { content: [{ type: "text", text: issuesResult.error }] };
+    }
+
+    const issues = issuesResult.data?.data?.issues?.nodes || [];
+
+    // Filter by team if specified
+    const filteredIssues = teamId
+      ? issues.filter((issue) => issue.teamId === teamId)
+      : issues;
+
+    // Filter by user if specified
+    const finalIssues = userId
+      ? filteredIssues.filter((issue) => issue.userId === userId)
+      : filteredIssues;
+
+    // Group by status
+    const statusGroups = {};
+    finalIssues.forEach((issue) => {
+      const status = issue.issueStatusId;
+      if (!statusGroups[status]) {
+        statusGroups[status] = {
+          statusId: status,
+          statusName: issue.issueStatus?.name,
+          statusColor: issue.issueStatus?.color,
+          statusType: issue.issueStatus?.type,
+          issues: [],
+        };
+      }
+      statusGroups[status].issues.push({
+        id: issue.id,
+        name: issue.name,
+        description: issue.desc,
+        type: issue.type,
+        priority: issue.priorityNo,
+        priorityOrder: issue.priorityOrder,
+        owner: {
+          id: issue.user.id,
+          name: `${issue.user.firstName} ${issue.user.lastName}`,
+          email: issue.user.email,
+          jobTitle: issue.user.jobTitle,
+        },
+        team: {
+          id: issue.team.id,
+          name: issue.team.name,
+          color: issue.team.color,
+          isLeadership: issue.team.isLeadership,
+        },
+        createdAt: issue.createdAt,
+        statusUpdatedAt: issue.statusUpdatedAt,
+        meetingId: issue.meetingId,
+      });
+    });
+
+    // Sort issues within each status by priority
+    Object.values(statusGroups).forEach((group) => {
+      group.issues.sort((a, b) => (a.priority || 999) - (b.priority || 999));
+    });
+
+    const analysis = {
+      summary: {
+        totalIssues: finalIssues.length,
+        teamFilter: teamId || "all",
+        userFilter: userId || "all",
+        timeframe: timeframe,
+        statusBreakdown: Object.keys(statusGroups).map((statusId) => ({
+          statusId,
+          statusName: statusGroups[statusId].statusName,
+          statusColor: statusGroups[statusId].statusColor,
+          count: statusGroups[statusId].issues.length,
+        })),
+      },
+      issuesByStatus: statusGroups,
+      topPriorityIssues: finalIssues
+        .filter((issue) => issue.priorityNo && issue.priorityNo < 10)
+        .sort((a, b) => (a.priorityNo || 999) - (b.priorityNo || 999))
+        .slice(0, 10)
+        .map((issue) => ({
+          id: issue.id,
+          name: issue.name,
+          description: issue.desc,
+          priority: issue.priorityNo,
+          owner: {
+            id: issue.user.id,
+            name: `${issue.user.firstName} ${issue.user.lastName}`,
+            email: issue.user.email,
+            jobTitle: issue.user.jobTitle,
+          },
+          team: {
+            id: issue.team.id,
+            name: issue.team.name,
+            color: issue.team.color,
+          },
+          status: {
+            id: issue.issueStatusId,
+            name: issue.issueStatus?.name,
+            color: issue.issueStatus?.color,
+          },
+          createdAt: issue.createdAt,
+          statusUpdatedAt: issue.statusUpdatedAt,
+        })),
+    };
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(analysis, null, 2),
+        },
+      ],
+    };
+  } catch (error) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error analyzing issue data: ${error.message}`,
+        },
+      ],
+    };
+  }
 }
 
 /**
@@ -3669,4 +4325,375 @@ async function analyzeKPITrends({ teamId, userId, timeframe, weeks }) {
       ],
     };
   }
+}
+
+// ---------- Meeting Infos tool -------------------------------------------------
+
+export async function getMeetingInfos(args) {
+  const {
+    first = 50,
+    offset = 0,
+    stateId = "ACTIVE",
+    teamId,
+    meetingInfoStatusId,
+  } = args;
+
+  const query = `
+    query GetMeetingInfos($first: Int, $offset: Int, $stateId: String, $teamId: String, $meetingInfoStatusId: String) {
+      meetingInfos(
+        first: $first
+        offset: $offset
+        where: {
+          stateId: { equals: $stateId }
+          ${teamId ? "teamId: { equals: $teamId }" : ""}
+          ${
+            meetingInfoStatusId
+              ? "meetingInfoStatusId: { equals: $meetingInfoStatusId }"
+              : ""
+          }
+        }
+        orderBy: { createdAt: desc }
+      ) {
+        id
+        name
+        desc
+        meetingAgendaId
+        teamId
+        meetingInfoStatusId
+        meetingRepeatsId
+        createdAt
+        isBulkUpdate
+        stateId
+        companyId
+        ownerUserId
+        repeatInterval
+        repeatUnit
+        selectedDays
+        team {
+          id
+          name
+          desc
+          color
+          isLeadership
+        }
+        meetingAgenda {
+          id
+          name
+          desc
+          meetingAgendaStatusId
+          meetingRepeatsId
+          builtIn
+          meetingAgendaTypeId
+          facilitatorUserId
+          scribeUserId
+        }
+        owner {
+          id
+          firstName
+          lastName
+          email
+          jobTitle
+        }
+        meetingInfoStatus {
+          id
+          name
+          color
+          type
+          order
+        }
+      }
+    }
+  `;
+
+  const variables = {
+    first,
+    offset,
+    stateId,
+    ...(teamId && { teamId }),
+    ...(meetingInfoStatusId && { meetingInfoStatusId }),
+  };
+
+  return await callSuccessCoGraphQL(query, variables);
+}
+
+// ---------- Meeting Agendas tool -----------------------------------------------
+
+export async function getMeetingAgendas(args) {
+  const {
+    first = 50,
+    offset = 0,
+    stateId = "ACTIVE",
+    teamId,
+    meetingAgendaStatusId,
+    meetingAgendaTypeId,
+  } = args;
+
+  const query = `
+    query GetMeetingAgendas($first: Int, $offset: Int, $stateId: String, $teamId: String, $meetingAgendaStatusId: String, $meetingAgendaTypeId: String) {
+      meetingAgendas(
+        first: $first
+        offset: $offset
+        where: {
+          stateId: { equals: $stateId }
+          ${teamId ? "teamId: { equals: $teamId }" : ""}
+          ${
+            meetingAgendaStatusId
+              ? "meetingAgendaStatusId: { equals: $meetingAgendaStatusId }"
+              : ""
+          }
+          ${
+            meetingAgendaTypeId
+              ? "meetingAgendaTypeId: { equals: $meetingAgendaTypeId }"
+              : ""
+          }
+        }
+        orderBy: { createdAt: desc }
+      ) {
+        id
+        name
+        desc
+        teamId
+        meetingAgendaStatusId
+        meetingRepeatsId
+        builtIn
+        createdAt
+        stateId
+        companyId
+        copiedFromMeetingAgendaId
+        meetingAgendaTypeId
+        facilitatorUserId
+        scribeUserId
+        team {
+          id
+          name
+          desc
+          color
+          isLeadership
+        }
+        meetingAgendaStatus {
+          id
+          name
+          color
+          type
+          order
+        }
+        facilitator {
+          id
+          firstName
+          lastName
+          email
+          jobTitle
+        }
+        scribe {
+          id
+          firstName
+          lastName
+          email
+          jobTitle
+        }
+        meetingAgendaSections {
+          id
+          name
+          desc
+          type
+          visible
+          duration
+          order
+          embedUrl
+        }
+      }
+    }
+  `;
+
+  const variables = {
+    first,
+    offset,
+    stateId,
+    ...(teamId && { teamId }),
+    ...(meetingAgendaStatusId && { meetingAgendaStatusId }),
+    ...(meetingAgendaTypeId && { meetingAgendaTypeId }),
+  };
+
+  return await callSuccessCoGraphQL(query, variables);
+}
+
+// ---------- Meeting Agenda Sections tool ---------------------------------------
+
+export async function getMeetingAgendaSections(args) {
+  const {
+    first = 50,
+    offset = 0,
+    stateId = "ACTIVE",
+    meetingAgendaId,
+    type,
+  } = args;
+
+  const query = `
+    query GetMeetingAgendaSections($first: Int, $offset: Int, $stateId: String, $meetingAgendaId: String, $type: String) {
+      meetingAgendaSections(
+        first: $first
+        offset: $offset
+        where: {
+          stateId: { equals: $stateId }
+          ${
+            meetingAgendaId
+              ? "meetingAgendaId: { equals: $meetingAgendaId }"
+              : ""
+          }
+          ${type ? "type: { equals: $type }" : ""}
+        }
+        orderBy: { order: asc }
+      ) {
+        id
+        meetingAgendaId
+        name
+        desc
+        type
+        visible
+        duration
+        order
+        embedUrl
+        createdAt
+        stateId
+        companyId
+        meetingAgenda {
+          id
+          name
+          desc
+          teamId
+        }
+      }
+    }
+  `;
+
+  const variables = {
+    first,
+    offset,
+    stateId,
+    ...(meetingAgendaId && { meetingAgendaId }),
+    ...(type && { type }),
+  };
+
+  return await callSuccessCoGraphQL(query, variables);
+}
+
+// ---------- Meeting Info Statuses tool -----------------------------------------
+
+export async function getMeetingInfoStatuses(args) {
+  const { first = 50, offset = 0, stateId = "ACTIVE" } = args;
+
+  const query = `
+    query GetMeetingInfoStatuses($first: Int, $offset: Int, $stateId: String) {
+      meetingInfoStatuses(
+        first: $first
+        offset: $offset
+        where: { stateId: { equals: $stateId } }
+        orderBy: { order: asc }
+      ) {
+        id
+        name
+        color
+        type
+        order
+        builtIn
+        createdAt
+        stateId
+        companyId
+      }
+    }
+  `;
+
+  const variables = { first, offset, stateId };
+
+  return await callSuccessCoGraphQL(query, variables);
+}
+
+// ---------- Meeting Agenda Statuses tool ---------------------------------------
+
+export async function getMeetingAgendaStatuses(args) {
+  const { first = 50, offset = 0, stateId = "ACTIVE" } = args;
+
+  const query = `
+    query GetMeetingAgendaStatuses($first: Int, $offset: Int, $stateId: String) {
+      meetingAgendaStatuses(
+        first: $first
+        offset: $offset
+        where: { stateId: { equals: $stateId } }
+        orderBy: { order: asc }
+      ) {
+        id
+        name
+        color
+        type
+        order
+        builtIn
+        createdAt
+        stateId
+        companyId
+      }
+    }
+  `;
+
+  const variables = { first, offset, stateId };
+
+  return await callSuccessCoGraphQL(query, variables);
+}
+
+// ---------- Meeting Agenda Types tool ------------------------------------------
+
+export async function getMeetingAgendaTypes(args) {
+  const { first = 50, offset = 0, stateId = "ACTIVE" } = args;
+
+  const query = `
+    query GetMeetingAgendaTypes($first: Int, $offset: Int, $stateId: String) {
+      meetingAgendaTypes(
+        first: $first
+        offset: $offset
+        where: { stateId: { equals: $stateId } }
+        orderBy: { order: asc }
+      ) {
+        id
+        name
+        order
+        createdAt
+        stateId
+        companyId
+      }
+    }
+  `;
+
+  const variables = { first, offset, stateId };
+
+  return await callSuccessCoGraphQL(query, variables);
+}
+
+// ---------- Issue Statuses tool ------------------------------------------------
+
+export async function getIssueStatuses(args) {
+  const { first = 50, offset = 0, stateId = "ACTIVE" } = args;
+
+  const query = `
+    query GetIssueStatuses($first: Int, $offset: Int, $stateId: String) {
+      issueStatuses(
+        first: $first
+        offset: $offset
+        where: { stateId: { equals: $stateId } }
+        orderBy: { order: asc }
+      ) {
+        id
+        name
+        color
+        type
+        order
+        builtIn
+        createdAt
+        stateId
+        companyId
+      }
+    }
+  `;
+
+  const variables = { first, offset, stateId };
+
+  return await callSuccessCoGraphQL(query, variables);
 }
