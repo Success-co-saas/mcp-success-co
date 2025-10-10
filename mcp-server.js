@@ -64,6 +64,50 @@ const server = new McpServer({
   version: "0.0.3",
 });
 
+// Helper function to detect transport type and provide guidance
+function detectTransportType(req) {
+  const isSSERequest =
+    req.method === "GET" &&
+    req.headers.accept &&
+    req.headers.accept.includes("text/event-stream");
+
+  const isJSONRPCRequest =
+    req.method === "POST" &&
+    req.headers["content-type"] &&
+    req.headers["content-type"].includes("application/json");
+
+  return {
+    isSSERequest,
+    isJSONRPCRequest,
+    hasValidHeaders: isSSERequest || isJSONRPCRequest,
+  };
+}
+
+function getTransportGuidance(endpoint) {
+  const guidance = {
+    "/mcp": {
+      purpose: "JSON-RPC tool calls",
+      method: "POST",
+      headers: "Content-Type: application/json",
+      example: "POST /mcp with JSON-RPC request body",
+    },
+    "/sse": {
+      purpose: "Server-Sent Events connection",
+      method: "GET",
+      headers: "Accept: text/event-stream",
+      example: "GET /sse with SSE headers",
+    },
+    "/messages": {
+      purpose: "SSE message handling",
+      method: "POST",
+      headers: "sessionId query parameter",
+      example: "POST /messages?sessionId=xxx for SSE messages",
+    },
+  };
+
+  return guidance[endpoint] || null;
+}
+
 // Tool to set the Success.co API key
 server.tool(
   "setSuccessCoApiKey",
@@ -1554,6 +1598,66 @@ app.all("/mcp", async (req, res) => {
       }
     }
 
+    // Detect transport type based on request characteristics
+    const transportType = detectTransportType(req);
+    const guidance = getTransportGuidance("/mcp");
+
+    // Return friendly error for wrong transport type
+    if (transportType.isSSERequest) {
+      console.error(
+        `[MCP] SSE request detected on /mcp endpoint - use /sse instead`
+      );
+      res.status(400).json({
+        error: "Wrong transport type",
+        message:
+          "This endpoint expects JSON-RPC requests. For SSE connections, use the /sse endpoint instead.",
+        suggestion:
+          "Use GET /sse for Server-Sent Events or POST /mcp with JSON-RPC for tool calls",
+        guidance: {
+          current: "SSE request (GET with Accept: text/event-stream)",
+          expected: `${guidance.method} ${req.path} with ${guidance.headers}`,
+          example: guidance.example,
+        },
+      });
+      return;
+    }
+
+    if (req.method === "GET" && !transportType.isSSERequest) {
+      console.error(`[MCP] GET request without SSE headers on /mcp endpoint`);
+      res.status(400).json({
+        error: "Invalid request method",
+        message:
+          "GET requests to /mcp must include 'Accept: text/event-stream' header for SSE connections.",
+        suggestion:
+          "Use POST /mcp with JSON-RPC for tool calls, or GET /sse for Server-Sent Events",
+        guidance: {
+          current: `GET request without proper SSE headers`,
+          expected: `${guidance.method} ${req.path} with ${guidance.headers}`,
+          example: guidance.example,
+        },
+      });
+      return;
+    }
+
+    if (req.method === "POST" && !transportType.isJSONRPCRequest) {
+      console.error(
+        `[MCP] POST request without JSON content-type on /mcp endpoint`
+      );
+      res.status(400).json({
+        error: "Invalid content type",
+        message:
+          "POST requests to /mcp must include 'Content-Type: application/json' header.",
+        suggestion:
+          "Send JSON-RPC requests with proper headers: Content-Type: application/json",
+        guidance: {
+          current: `POST request without proper JSON headers`,
+          expected: `${guidance.method} ${req.path} with ${guidance.headers}`,
+          example: guidance.example,
+        },
+      });
+      return;
+    }
+
     // Use the StreamableHTTPServerTransport to handle the request
     const sessionId =
       req.headers["x-mcp-session-id"] ||
@@ -1576,6 +1680,20 @@ app.all("/mcp", async (req, res) => {
     // Process MCP request manually since handleRequest doesn't exist
     const mcpRequest = req.body;
     console.error(`[MCP] Processing MCP request:`, mcpRequest);
+
+    // Check if mcpRequest is valid
+    if (!mcpRequest || typeof mcpRequest !== "object") {
+      console.error(`[MCP] Invalid request body:`, mcpRequest);
+      res.status(400).json({
+        jsonrpc: "2.0",
+        id: null,
+        error: {
+          code: -32700,
+          message: "Parse error - request body must be valid JSON",
+        },
+      });
+      return;
+    }
 
     // Create a fresh server instance for this request
     const requestServer = createFreshMcpServer();
@@ -2623,6 +2741,52 @@ app.all("/mcp", async (req, res) => {
 app.get("/sse", async (req, res) => {
   try {
     console.error(`[SSE] Received GET request to /sse`);
+    console.error(`[SSE] Headers:`, req.headers);
+
+    // Detect transport type and provide guidance
+    const transportType = detectTransportType(req);
+    const guidance = getTransportGuidance("/sse");
+
+    if (transportType.isJSONRPCRequest) {
+      console.error(
+        `[SSE] JSON-RPC request detected on /sse endpoint - use /mcp instead`
+      );
+      res.status(400).json({
+        error: "Wrong transport type",
+        message:
+          "This endpoint expects SSE connections. For JSON-RPC requests, use the /mcp endpoint instead.",
+        suggestion:
+          "Use POST /mcp with JSON-RPC for tool calls, or GET /sse for Server-Sent Events",
+        guidance: {
+          current:
+            "JSON-RPC request (POST with Content-Type: application/json)",
+          expected: `${guidance.method} ${req.path} with ${guidance.headers}`,
+          example: guidance.example,
+        },
+      });
+      return;
+    }
+
+    // Check if Accept header is missing or incorrect for SSE
+    if (!transportType.isSSERequest) {
+      console.error(
+        `[SSE] Missing or incorrect Accept header for SSE connection`
+      );
+      res.status(400).json({
+        error: "Invalid SSE request",
+        message:
+          "SSE connections must include 'Accept: text/event-stream' header.",
+        suggestion:
+          "Add 'Accept: text/event-stream' header to your SSE connection request",
+        guidance: {
+          current: `GET request without proper SSE headers`,
+          expected: `${guidance.method} ${req.path} with ${guidance.headers}`,
+          example: guidance.example,
+        },
+      });
+      return;
+    }
+
     const transport = new SSEServerTransport("/messages", res);
     transports.sse[transport.sessionId] = transport;
 
@@ -2649,12 +2813,56 @@ app.get("/sse", async (req, res) => {
 
 // Legacy message endpoint for older clients
 app.post("/messages", async (req, res) => {
-  const sessionId = String(req.query.sessionId || "");
-  const transport = transports.sse[sessionId];
-  if (transport) {
-    await transport.handlePostMessage(req, res, req.body);
-  } else {
-    res.status(400).send("No transport found for sessionId");
+  try {
+    console.error(`[MESSAGES] Received POST request to /messages`);
+    console.error(`[MESSAGES] Headers:`, req.headers);
+
+    const sessionId = String(req.query.sessionId || "");
+
+    // Detect transport type and provide guidance
+    const transportType = detectTransportType(req);
+    const guidance = getTransportGuidance("/messages");
+
+    if (transportType.isJSONRPCRequest && !sessionId) {
+      console.error(
+        `[MESSAGES] JSON-RPC request detected on /messages endpoint without sessionId`
+      );
+      res.status(400).json({
+        error: "Wrong transport type",
+        message:
+          "This endpoint is for SSE message handling. For JSON-RPC requests, use the /mcp endpoint instead.",
+        suggestion:
+          "Use POST /mcp with JSON-RPC for tool calls, or ensure you have a valid SSE sessionId for /messages",
+        guidance: {
+          current: "JSON-RPC request without SSE sessionId",
+          expected: `${guidance.method} ${req.path} with ${guidance.headers}`,
+          example: guidance.example,
+        },
+      });
+      return;
+    }
+
+    const transport = transports.sse[sessionId];
+    if (transport) {
+      await transport.handlePostMessage(req, res, req.body);
+    } else {
+      console.error(
+        `[MESSAGES] No SSE transport found for sessionId: ${sessionId}`
+      );
+      res.status(400).json({
+        error: "No transport found",
+        message: `No SSE transport found for sessionId: ${sessionId}`,
+        suggestion:
+          "Ensure you have an active SSE connection before sending messages",
+      });
+    }
+  } catch (error) {
+    console.error(`[MESSAGES] Error in /messages endpoint:`, error);
+    if (!res.headersSent) {
+      res
+        .status(500)
+        .json({ error: "Internal server error", details: error.message });
+    }
   }
 });
 

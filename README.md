@@ -14,10 +14,16 @@ This MCP server provides comprehensive access to Success.co's EOS (Entrepreneuri
 
 This project demonstrates an MCP server implemented in JavaScript using Node.js that provides comprehensive access to Success.co's EOS framework data. It includes tools for retrieving teams, users, todos, rocks, meetings, issues, headlines, visions, and Scorecard metrics. Most importantly, it includes advanced analytical tools that can answer complex EOS-related questions like "Which company Rocks are at risk of missing their due dates this quarter, and who owns them?", Scorecard questions like "Give me the last 12 weeks of Scorecard metrics for my team and flag any KPI below target", and Level 10 meeting questions like "What are the top 5 open Issues for this week's Level 10 meeting and their owners?"
 
-## Requirements
+## Quick dev setup and notes
 
-- **Node.js:** Version 20 or higher is required.
-- **Success.co API Key:** You'll need a valid Success.co API key to access the data.
+- Run this locally
+- Run a proxy to it ngrok http :3001
+- Run npx @modelcontextprotocol/inspector
+- Connect on either Streamable HTTP (/mcp) or alternatively SSE (/sse). Note that Streamable HTTP is preferred.
+- You should be able to list and run tools
+
+* **Node.js:** Version 20 or higher is required.
+* **Success.co API Key:** You'll need a valid Success.co API key to access the data.
 
 ## Features
 
@@ -802,7 +808,3 @@ The AI agent will automatically infer the appropriate tools to use based on your
 - [Use Your Own MCP on Cursor in 5 Minutes](https://dev.to/andyrewlee/use-your-own-mcp-on-cursor-in-5-minutes-1ag4)
 - [Model Context Protocol Introduction](https://modelcontextprotocol.io/introduction)
 - [Success.co API Documentation](https://coda.io/@successco/success-co-api)
-
-## License
-
-This project is licensed under the [MIT License](LICENSE).
