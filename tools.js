@@ -702,14 +702,20 @@ export async function getVisions(args) {
   if (teamId) filterParts.push(`teamId: {equalTo: "${teamId}"}`);
   if (isLeadership !== undefined)
     filterParts.push(`isLeadership: {equalTo: ${isLeadership}}`);
-  if (first !== undefined) filterParts.push(`first: ${first}`);
-  if (offset !== undefined) filterParts.push(`offset: ${offset}`);
 
   const filterStr = filterParts.join(", ");
 
+  // Build query parameters separately
+  const queryParams = [];
+  if (filterStr) queryParams.push(`filter: {${filterStr}}`);
+  if (first !== undefined) queryParams.push(`first: ${first}`);
+  if (offset !== undefined) queryParams.push(`offset: ${offset}`);
+
+  const queryParamStr = queryParams.join(", ");
+
   const query = `
     query {
-      visions(${filterStr ? `filter: {${filterStr}}` : ""}) {
+      visions(${queryParamStr}) {
         nodes {
           id
           teamId
@@ -769,14 +775,20 @@ export async function getVisionCoreValues(args) {
 
   const filterParts = [`stateId: {equalTo: "${stateId}"}`];
   if (visionId) filterParts.push(`visionId: {equalTo: "${visionId}"}`);
-  if (first !== undefined) filterParts.push(`first: ${first}`);
-  if (offset !== undefined) filterParts.push(`offset: ${offset}`);
 
   const filterStr = filterParts.join(", ");
 
+  // Build query parameters separately
+  const queryParams = [];
+  if (filterStr) queryParams.push(`filter: {${filterStr}}`);
+  if (first !== undefined) queryParams.push(`first: ${first}`);
+  if (offset !== undefined) queryParams.push(`offset: ${offset}`);
+
+  const queryParamStr = queryParams.join(", ");
+
   const query = `
     query {
-      visionCoreValues(${filterStr ? `filter: {${filterStr}}` : ""}) {
+      visionCoreValues(${queryParamStr}) {
         nodes {
           id
           name
@@ -840,14 +852,20 @@ export async function getVisionCoreFocusTypes(args) {
   const filterParts = [`stateId: {equalTo: "${stateId}"}`];
   if (visionId) filterParts.push(`visionId: {equalTo: "${visionId}"}`);
   if (type) filterParts.push(`type: {equalTo: "${type}"}`);
-  if (first !== undefined) filterParts.push(`first: ${first}`);
-  if (offset !== undefined) filterParts.push(`offset: ${offset}`);
 
   const filterStr = filterParts.join(", ");
 
+  // Build query parameters separately
+  const queryParams = [];
+  if (filterStr) queryParams.push(`filter: {${filterStr}}`);
+  if (first !== undefined) queryParams.push(`first: ${first}`);
+  if (offset !== undefined) queryParams.push(`offset: ${offset}`);
+
+  const queryParamStr = queryParams.join(", ");
+
   const query = `
     query {
-      visionCoreFocusTypes(${filterStr ? `filter: {${filterStr}}` : ""}) {
+      visionCoreFocusTypes(${queryParamStr}) {
         nodes {
           id
           name
@@ -919,14 +937,20 @@ export async function getVisionThreeYearGoals(args) {
   const filterParts = [`stateId: {equalTo: "${stateId}"}`];
   if (visionId) filterParts.push(`visionId: {equalTo: "${visionId}"}`);
   if (type) filterParts.push(`type: {equalTo: "${type}"}`);
-  if (first !== undefined) filterParts.push(`first: ${first}`);
-  if (offset !== undefined) filterParts.push(`offset: ${offset}`);
 
   const filterStr = filterParts.join(", ");
 
+  // Build query parameters separately
+  const queryParams = [];
+  if (filterStr) queryParams.push(`filter: {${filterStr}}`);
+  if (first !== undefined) queryParams.push(`first: ${first}`);
+  if (offset !== undefined) queryParams.push(`offset: ${offset}`);
+
+  const queryParamStr = queryParams.join(", ");
+
   const query = `
     query {
-      visionThreeYearGoals(${filterStr ? `filter: {${filterStr}}` : ""}) {
+      visionThreeYearGoals(${queryParamStr}) {
         nodes {
           id
           name
@@ -995,14 +1019,20 @@ export async function getVisionMarketStrategies(args) {
   if (visionId) filterParts.push(`visionId: {equalTo: "${visionId}"}`);
   if (isCustom !== undefined)
     filterParts.push(`isCustom: {equalTo: ${isCustom}}`);
-  if (first !== undefined) filterParts.push(`first: ${first}`);
-  if (offset !== undefined) filterParts.push(`offset: ${offset}`);
 
   const filterStr = filterParts.join(", ");
 
+  // Build query parameters separately
+  const queryParams = [];
+  if (filterStr) queryParams.push(`filter: {${filterStr}}`);
+  if (first !== undefined) queryParams.push(`first: ${first}`);
+  if (offset !== undefined) queryParams.push(`offset: ${offset}`);
+
+  const queryParamStr = queryParams.join(", ");
+
   const query = `
     query {
-      visionMarketStrategies(${filterStr ? `filter: {${filterStr}}` : ""}) {
+      visionMarketStrategies(${queryParamStr}) {
         nodes {
           id
           name
@@ -1411,11 +1441,25 @@ export async function analyzeEOSData(args) {
     return await analyzeTeamPerformance({ teamId, timeframe });
   }
 
+  // Check for vision/VTO queries
+  if (
+    q.includes("vision") ||
+    q.includes("traction") ||
+    q.includes("organizer") ||
+    q.includes("vto") ||
+    q.includes("core values") ||
+    q.includes("three year") ||
+    q.includes("market strategy") ||
+    q.includes("core focus")
+  ) {
+    return await analyzeVisionTractionOrganizer({ teamId, userId, timeframe });
+  }
+
   return {
     content: [
       {
         type: "text",
-        text: "I can analyze: Level 10 meetings, issues, meetings, at-risk rocks, overdue items, rock progress, and team performance. Try queries like 'What are the top 5 open Issues for this week's Level 10 meeting?' or 'Which rocks are at risk of missing their due dates?'",
+        text: "I can analyze: Level 10 meetings, issues, meetings, at-risk rocks, overdue items, rock progress, team performance, and Vision/Traction Organizer. Try queries like 'What are the top 5 open Issues for this week's Level 10 meeting?' or 'Which rocks are at risk of missing their due dates?' or 'Summarize our company's Vision/Traction Organizer'",
       },
     ],
   };
@@ -4416,8 +4460,255 @@ export async function getMeetingInfos(args) {
   return await callSuccessCoGraphQL(query, variables);
 }
 
-// ---------- Meeting Agendas tool -----------------------------------------------
+/**
+ * Analyze Vision/Traction Organizer data
+ */
+async function analyzeVisionTractionOrganizer({ teamId, userId, timeframe }) {
+  try {
+    // Get all vision-related data
+    const [
+      visions,
+      coreValues,
+      coreFocusTypes,
+      threeYearGoals,
+      marketStrategies,
+    ] = await Promise.all([
+      getVisions({ first: 50, stateId: "ACTIVE", teamId }),
+      getVisionCoreValues({ first: 50, stateId: "ACTIVE" }),
+      getVisionCoreFocusTypes({ first: 50, stateId: "ACTIVE" }),
+      getVisionThreeYearGoals({ first: 50, stateId: "ACTIVE" }),
+      getVisionMarketStrategies({ first: 50, stateId: "ACTIVE" }),
+    ]);
 
+    // Parse the JSON responses
+    const visionsData = JSON.parse(visions.content[0].text);
+    const coreValuesData = JSON.parse(coreValues.content[0].text);
+    const coreFocusData = JSON.parse(coreFocusTypes.content[0].text);
+    const goalsData = JSON.parse(threeYearGoals.content[0].text);
+    const strategiesData = JSON.parse(marketStrategies.content[0].text);
+
+    // Filter by team if specified
+    let filteredVisions = visionsData.results;
+    if (teamId) {
+      filteredVisions = visionsData.results.filter(
+        (vision) => vision.teamId === teamId
+      );
+    }
+
+    // Build comprehensive VTO summary
+    let summary = `# Vision/Traction Organizer Summary\n\n`;
+
+    if (filteredVisions.length > 0) {
+      summary += `## Vision Overview\n`;
+      summary += `Found ${filteredVisions.length} vision(s) for ${
+        teamId ? "the specified team" : "the organization"
+      }.\n\n`;
+
+      filteredVisions.forEach((vision, index) => {
+        summary += `### Vision ${index + 1}\n`;
+        summary += `- **ID**: ${vision.id}\n`;
+        summary += `- **Team ID**: ${vision.teamId}\n`;
+        summary += `- **Leadership Team**: ${
+          vision.isLeadership ? "Yes" : "No"
+        }\n`;
+        summary += `- **Created**: ${new Date(
+          vision.createdAt
+        ).toLocaleDateString()}\n`;
+        summary += `- **Status**: ${vision.status}\n\n`;
+      });
+    }
+
+    if (coreValuesData.results.length > 0) {
+      summary += `## Core Values\n`;
+      summary += `Found ${coreValuesData.results.length} core value(s):\n\n`;
+
+      coreValuesData.results.forEach((value, index) => {
+        summary += `### ${value.name}\n`;
+        summary += `- **ID**: ${value.id}\n`;
+        summary += `- **Vision ID**: ${value.visionId}\n`;
+        summary += `- **Cascade All**: ${value.cascadeAll ? "Yes" : "No"}\n`;
+        summary += `- **Created**: ${new Date(
+          value.createdAt
+        ).toLocaleDateString()}\n\n`;
+      });
+    }
+
+    if (coreFocusData.results.length > 0) {
+      summary += `## Core Focus Areas\n`;
+      summary += `Found ${coreFocusData.results.length} core focus area(s):\n\n`;
+
+      coreFocusData.results.forEach((focus, index) => {
+        summary += `### ${focus.name}\n`;
+        summary += `- **ID**: ${focus.id}\n`;
+        summary += `- **Core Focus Name**: ${focus.coreFocusName}\n`;
+        summary += `- **Description**: ${focus.description || "N/A"}\n`;
+        summary += `- **Type**: ${focus.type}\n`;
+        summary += `- **Vision ID**: ${focus.visionId}\n`;
+        summary += `- **Created**: ${new Date(
+          focus.createdAt
+        ).toLocaleDateString()}\n\n`;
+      });
+    }
+
+    if (goalsData.results.length > 0) {
+      summary += `## Three-Year Goals\n`;
+      summary += `Found ${goalsData.results.length} three-year goal(s):\n\n`;
+
+      goalsData.results.forEach((goal, index) => {
+        summary += `### ${goal.name}\n`;
+        summary += `- **ID**: ${goal.id}\n`;
+        summary += `- **Future Date**: ${
+          goal.futureDate
+            ? new Date(goal.futureDate).toLocaleDateString()
+            : "N/A"
+        }\n`;
+        summary += `- **Type**: ${goal.type}\n`;
+        summary += `- **Vision ID**: ${goal.visionId}\n`;
+        summary += `- **Created**: ${new Date(
+          goal.createdAt
+        ).toLocaleDateString()}\n\n`;
+      });
+    }
+
+    if (strategiesData.results.length > 0) {
+      summary += `## Market Strategies\n`;
+      summary += `Found ${strategiesData.results.length} market strateg(ies):\n\n`;
+
+      strategiesData.results.forEach((strategy, index) => {
+        summary += `### Strategy ${index + 1}\n`;
+        summary += `- **ID**: ${strategy.id}\n`;
+        summary += `- **Vision ID**: ${strategy.visionId}\n`;
+        summary += `- **Custom**: ${strategy.isCustom ? "Yes" : "No"}\n`;
+        summary += `- **Created**: ${new Date(
+          strategy.createdAt
+        ).toLocaleDateString()}\n\n`;
+      });
+    }
+
+    // Add summary statistics
+    summary += `## Summary Statistics\n`;
+    summary += `- **Total Visions**: ${filteredVisions.length}\n`;
+    summary += `- **Total Core Values**: ${coreValuesData.results.length}\n`;
+    summary += `- **Total Core Focus Areas**: ${coreFocusData.results.length}\n`;
+    summary += `- **Total Three-Year Goals**: ${goalsData.results.length}\n`;
+    summary += `- **Total Market Strategies**: ${strategiesData.results.length}\n\n`;
+
+    if (
+      filteredVisions.length === 0 &&
+      coreValuesData.results.length === 0 &&
+      coreFocusData.results.length === 0 &&
+      goalsData.results.length === 0 &&
+      strategiesData.results.length === 0
+    ) {
+      summary += `⚠️ **No Vision/Traction Organizer data found.** This could mean:\n`;
+      summary += `- No VTO data has been set up yet\n`;
+      summary += `- The data is inactive or archived\n`;
+      summary += `- There's an issue with data access permissions\n`;
+    }
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: summary,
+        },
+      ],
+    };
+  } catch (error) {
+    console.error("Error analyzing Vision/Traction Organizer:", error);
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error analyzing Vision/Traction Organizer: ${error.message}`,
+        },
+      ],
+    };
+  }
+}
+
+/**
+ * List Success.co issue statuses
+ * @param {Object} args - Arguments object
+ * @param {number} [args.first] - Optional page size
+ * @param {number} [args.offset] - Optional offset
+ * @param {string} [args.stateId] - Issue status state filter (defaults to 'ACTIVE')
+ * @returns {Promise<{content: Array<{type: string, text: string}>}>}
+ */
+export async function getIssueStatuses(args) {
+  const { first, offset, stateId = "ACTIVE" } = args;
+  // Validate stateId
+  const validation = validateStateId(stateId);
+  if (!validation.isValid) {
+    return {
+      content: [{ type: "text", text: validation.error }],
+    };
+  }
+  const filterStr = [
+    `stateId: {equalTo: "${stateId}"}`,
+    first !== undefined ? `first: ${first}` : "",
+    offset !== undefined ? `offset: ${offset}` : "",
+  ]
+    .filter(Boolean)
+    .join(", ");
+
+  const query = `
+    query {
+      issueStatuses(${filterStr ? `filter: {${filterStr}}` : ""}) {
+        nodes {
+          id
+          name
+          color
+          type
+          order
+          builtIn
+          createdAt
+          stateId
+          companyId
+        }
+        totalCount
+      }
+    }
+  `;
+
+  const result = await callSuccessCoGraphQL(query);
+  if (!result.ok) {
+    return { content: [{ type: "text", text: result.error }] };
+  }
+
+  const data = result.data;
+  return {
+    content: [
+      {
+        type: "text",
+        text: JSON.stringify({
+          totalCount: data.data.issueStatuses.totalCount,
+          results: data.data.issueStatuses.nodes.map((status) => ({
+            id: status.id,
+            name: status.name,
+            color: status.color,
+            type: status.type,
+            order: status.order,
+            builtIn: status.builtIn,
+            createdAt: status.createdAt,
+            status: status.stateId,
+          })),
+        }),
+      },
+    ],
+  };
+}
+/**
+ * List Success.co meeting agendas
+ * @param {Object} args - Arguments object
+ * @param {number} [args.first] - Optional page size
+ * @param {number} [args.offset] - Optional offset
+ * @param {string} [args.stateId] - Meeting agenda state filter (defaults to 'ACTIVE')
+ * @param {string} [args.teamId] - Filter by team ID
+ * @param {string} [args.meetingAgendaStatusId] - Filter by meeting agenda status ID
+ * @param {string} [args.meetingAgendaTypeId] - Filter by meeting agenda type ID
+ * @returns {Promise<{content: Array<{type: string, text: string}>}>}
+ */
 export async function getMeetingAgendas(args) {
   const {
     first = 50,
@@ -4428,97 +4719,76 @@ export async function getMeetingAgendas(args) {
     meetingAgendaTypeId,
   } = args;
 
+  const filterParts = [`stateId: {equalTo: "${stateId}"}`];
+  if (teamId) filterParts.push(`teamId: {equalTo: "${teamId}"}`);
+  if (meetingAgendaStatusId)
+    filterParts.push(
+      `meetingAgendaStatusId: {equalTo: "${meetingAgendaStatusId}"}`
+    );
+  if (meetingAgendaTypeId)
+    filterParts.push(
+      `meetingAgendaTypeId: {equalTo: "${meetingAgendaTypeId}"}`
+    );
+
+  const filterStr = filterParts.join(", ");
+
   const query = `
-    query GetMeetingAgendas($first: Int, $offset: Int, $stateId: String, $teamId: String, $meetingAgendaStatusId: String, $meetingAgendaTypeId: String) {
-      meetingAgendas(
-        first: $first
-        offset: $offset
-        where: {
-          stateId: { equals: $stateId }
-          ${teamId ? "teamId: { equals: $teamId }" : ""}
-          ${
-            meetingAgendaStatusId
-              ? "meetingAgendaStatusId: { equals: $meetingAgendaStatusId }"
-              : ""
-          }
-          ${
-            meetingAgendaTypeId
-              ? "meetingAgendaTypeId: { equals: $meetingAgendaTypeId }"
-              : ""
-          }
-        }
-        orderBy: { createdAt: desc }
-      ) {
-        id
-        name
-        desc
-        teamId
-        meetingAgendaStatusId
-        meetingRepeatsId
-        builtIn
-        createdAt
-        stateId
-        companyId
-        copiedFromMeetingAgendaId
-        meetingAgendaTypeId
-        facilitatorUserId
-        scribeUserId
-        team {
+    query {
+      meetingAgendas(filter: {${filterStr}}, first: ${first}, offset: ${offset}) {
+        nodes {
           id
           name
           desc
-          color
-          isLeadership
+          teamId
+          meetingAgendaStatusId
+          meetingAgendaTypeId
+          createdAt
+          stateId
+          companyId
         }
-        meetingAgendaStatus {
-          id
-          name
-          color
-          type
-          order
-        }
-        facilitator {
-          id
-          firstName
-          lastName
-          email
-          jobTitle
-        }
-        scribe {
-          id
-          firstName
-          lastName
-          email
-          jobTitle
-        }
-        meetingAgendaSections {
-          id
-          name
-          desc
-          type
-          visible
-          duration
-          order
-          embedUrl
-        }
+        totalCount
       }
     }
   `;
 
-  const variables = {
-    first,
-    offset,
-    stateId,
-    ...(teamId && { teamId }),
-    ...(meetingAgendaStatusId && { meetingAgendaStatusId }),
-    ...(meetingAgendaTypeId && { meetingAgendaTypeId }),
-  };
+  const result = await callSuccessCoGraphQL(query);
+  if (!result.ok) {
+    return { content: [{ type: "text", text: result.error }] };
+  }
 
-  return await callSuccessCoGraphQL(query, variables);
+  const data = result.data;
+  return {
+    content: [
+      {
+        type: "text",
+        text: JSON.stringify({
+          totalCount: data.data.meetingAgendas.totalCount,
+          results: data.data.meetingAgendas.nodes.map((agenda) => ({
+            id: agenda.id,
+            name: agenda.name,
+            description: agenda.desc,
+            teamId: agenda.teamId,
+            meetingAgendaStatusId: agenda.meetingAgendaStatusId,
+            meetingAgendaTypeId: agenda.meetingAgendaTypeId,
+            createdAt: agenda.createdAt,
+            status: agenda.stateId,
+          })),
+        }),
+      },
+    ],
+  };
 }
 
-// ---------- Meeting Agenda Sections tool ---------------------------------------
-
+/**
+ * List Success.co meeting agenda sections
+ * @param {Object} args - Arguments object
+ * @param {number} [args.first] - Optional page size
+ * @param {number} [args.offset] - Optional offset
+ * @param {string} [args.stateId] - Meeting agenda section state filter (defaults to 'ACTIVE')
+ * @param {string} [args.meetingAgendaId] - Filter by meeting agenda ID
+ * @param {string} [args.type] - Filter by section type
+ * @returns {Promise<{content: Array<{type: string, text: string}>}>}
+ */
 export async function getMeetingAgendaSections(args) {
   const {
     first = 50,
@@ -4528,172 +4798,251 @@ export async function getMeetingAgendaSections(args) {
     type,
   } = args;
 
+  const filterParts = [`stateId: {equalTo: "${stateId}"}`];
+  if (meetingAgendaId)
+    filterParts.push(`meetingAgendaId: {equalTo: "${meetingAgendaId}"}`);
+  if (type) filterParts.push(`type: {equalTo: "${type}"}`);
+
+  const filterStr = filterParts.join(", ");
+
   const query = `
-    query GetMeetingAgendaSections($first: Int, $offset: Int, $stateId: String, $meetingAgendaId: String, $type: String) {
-      meetingAgendaSections(
-        first: $first
-        offset: $offset
-        where: {
-          stateId: { equals: $stateId }
-          ${
-            meetingAgendaId
-              ? "meetingAgendaId: { equals: $meetingAgendaId }"
-              : ""
-          }
-          ${type ? "type: { equals: $type }" : ""}
-        }
-        orderBy: { order: asc }
-      ) {
-        id
-        meetingAgendaId
-        name
-        desc
-        type
-        visible
-        duration
-        order
-        embedUrl
-        createdAt
-        stateId
-        companyId
-        meetingAgenda {
+    query {
+      meetingAgendaSections(filter: {${filterStr}}, first: ${first}, offset: ${offset}) {
+        nodes {
           id
           name
           desc
-          teamId
+          meetingAgendaId
+          type
+          order
+          createdAt
+          stateId
+          companyId
         }
+        totalCount
       }
     }
   `;
 
-  const variables = {
-    first,
-    offset,
-    stateId,
-    ...(meetingAgendaId && { meetingAgendaId }),
-    ...(type && { type }),
+  const result = await callSuccessCoGraphQL(query);
+  if (!result.ok) {
+    return { content: [{ type: "text", text: result.error }] };
+  }
+
+  const data = result.data;
+  return {
+    content: [
+      {
+        type: "text",
+        text: JSON.stringify({
+          totalCount: data.data.meetingAgendaSections.totalCount,
+          results: data.data.meetingAgendaSections.nodes.map((section) => ({
+            id: section.id,
+            name: section.name,
+            description: section.desc,
+            meetingAgendaId: section.meetingAgendaId,
+            type: section.type,
+            order: section.order,
+            createdAt: section.createdAt,
+            status: section.stateId,
+          })),
+        }),
+      },
+    ],
   };
-
-  return await callSuccessCoGraphQL(query, variables);
 }
 
-// ---------- Meeting Info Statuses tool -----------------------------------------
-
+/**
+ * List Success.co meeting info statuses
+ * @param {Object} args - Arguments object
+ * @param {number} [args.first] - Optional page size
+ * @param {number} [args.offset] - Optional offset
+ * @param {string} [args.stateId] - Meeting info status state filter (defaults to 'ACTIVE')
+ * @returns {Promise<{content: Array<{type: string, text: string}>}>}
+ */
 export async function getMeetingInfoStatuses(args) {
-  const { first = 50, offset = 0, stateId = "ACTIVE" } = args;
+  const { first, offset, stateId = "ACTIVE" } = args;
+  const filterStr = [
+    `stateId: {equalTo: "${stateId}"}`,
+    first !== undefined ? `first: ${first}` : "",
+    offset !== undefined ? `offset: ${offset}` : "",
+  ]
+    .filter(Boolean)
+    .join(", ");
 
   const query = `
-    query GetMeetingInfoStatuses($first: Int, $offset: Int, $stateId: String) {
-      meetingInfoStatuses(
-        first: $first
-        offset: $offset
-        where: { stateId: { equals: $stateId } }
-        orderBy: { order: asc }
-      ) {
-        id
-        name
-        color
-        type
-        order
-        builtIn
-        createdAt
-        stateId
-        companyId
+    query {
+      meetingInfoStatuses(${filterStr ? `filter: {${filterStr}}` : ""}) {
+        nodes {
+          id
+          name
+          color
+          type
+          order
+          builtIn
+          createdAt
+          stateId
+          companyId
+        }
+        totalCount
       }
     }
   `;
 
-  const variables = { first, offset, stateId };
+  const result = await callSuccessCoGraphQL(query);
+  if (!result.ok) {
+    return { content: [{ type: "text", text: result.error }] };
+  }
 
-  return await callSuccessCoGraphQL(query, variables);
+  const data = result.data;
+  return {
+    content: [
+      {
+        type: "text",
+        text: JSON.stringify({
+          totalCount: data.data.meetingInfoStatuses.totalCount,
+          results: data.data.meetingInfoStatuses.nodes.map((status) => ({
+            id: status.id,
+            name: status.name,
+            color: status.color,
+            type: status.type,
+            order: status.order,
+            builtIn: status.builtIn,
+            createdAt: status.createdAt,
+            status: status.stateId,
+          })),
+        }),
+      },
+    ],
+  };
 }
 
-// ---------- Meeting Agenda Statuses tool ---------------------------------------
-
+/**
+ * List Success.co meeting agenda statuses
+ * @param {Object} args - Arguments object
+ * @param {number} [args.first] - Optional page size
+ * @param {number} [args.offset] - Optional offset
+ * @param {string} [args.stateId] - Meeting agenda status state filter (defaults to 'ACTIVE')
+ * @returns {Promise<{content: Array<{type: string, text: string}>}>}
+ */
 export async function getMeetingAgendaStatuses(args) {
-  const { first = 50, offset = 0, stateId = "ACTIVE" } = args;
+  const { first, offset, stateId = "ACTIVE" } = args;
+  const filterStr = [
+    `stateId: {equalTo: "${stateId}"}`,
+    first !== undefined ? `first: ${first}` : "",
+    offset !== undefined ? `offset: ${offset}` : "",
+  ]
+    .filter(Boolean)
+    .join(", ");
 
   const query = `
-    query GetMeetingAgendaStatuses($first: Int, $offset: Int, $stateId: String) {
-      meetingAgendaStatuses(
-        first: $first
-        offset: $offset
-        where: { stateId: { equals: $stateId } }
-        orderBy: { order: asc }
-      ) {
-        id
-        name
-        color
-        type
-        order
-        builtIn
-        createdAt
-        stateId
-        companyId
+    query {
+      meetingAgendaStatuses(${filterStr ? `filter: {${filterStr}}` : ""}) {
+        nodes {
+          id
+          name
+          color
+          type
+          order
+          builtIn
+          createdAt
+          stateId
+          companyId
+        }
+        totalCount
       }
     }
   `;
 
-  const variables = { first, offset, stateId };
+  const result = await callSuccessCoGraphQL(query);
+  if (!result.ok) {
+    return { content: [{ type: "text", text: result.error }] };
+  }
 
-  return await callSuccessCoGraphQL(query, variables);
+  const data = result.data;
+  return {
+    content: [
+      {
+        type: "text",
+        text: JSON.stringify({
+          totalCount: data.data.meetingAgendaStatuses.totalCount,
+          results: data.data.meetingAgendaStatuses.nodes.map((status) => ({
+            id: status.id,
+            name: status.name,
+            color: status.color,
+            type: status.type,
+            order: status.order,
+            builtIn: status.builtIn,
+            createdAt: status.createdAt,
+            status: status.stateId,
+          })),
+        }),
+      },
+    ],
+  };
 }
 
-// ---------- Meeting Agenda Types tool ------------------------------------------
-
+/**
+ * List Success.co meeting agenda types
+ * @param {Object} args - Arguments object
+ * @param {number} [args.first] - Optional page size
+ * @param {number} [args.offset] - Optional offset
+ * @param {string} [args.stateId] - Meeting agenda type state filter (defaults to 'ACTIVE')
+ * @returns {Promise<{content: Array<{type: string, text: string}>}>}
+ */
 export async function getMeetingAgendaTypes(args) {
-  const { first = 50, offset = 0, stateId = "ACTIVE" } = args;
+  const { first, offset, stateId = "ACTIVE" } = args;
+  const filterStr = [
+    `stateId: {equalTo: "${stateId}"}`,
+    first !== undefined ? `first: ${first}` : "",
+    offset !== undefined ? `offset: ${offset}` : "",
+  ]
+    .filter(Boolean)
+    .join(", ");
 
   const query = `
-    query GetMeetingAgendaTypes($first: Int, $offset: Int, $stateId: String) {
-      meetingAgendaTypes(
-        first: $first
-        offset: $offset
-        where: { stateId: { equals: $stateId } }
-        orderBy: { order: asc }
-      ) {
-        id
-        name
-        order
-        createdAt
-        stateId
-        companyId
+    query {
+      meetingAgendaTypes(${filterStr ? `filter: {${filterStr}}` : ""}) {
+        nodes {
+          id
+          name
+          color
+          type
+          order
+          builtIn
+          createdAt
+          stateId
+          companyId
+        }
+        totalCount
       }
     }
   `;
 
-  const variables = { first, offset, stateId };
+  const result = await callSuccessCoGraphQL(query);
+  if (!result.ok) {
+    return { content: [{ type: "text", text: result.error }] };
+  }
 
-  return await callSuccessCoGraphQL(query, variables);
-}
-
-// ---------- Issue Statuses tool ------------------------------------------------
-
-export async function getIssueStatuses(args) {
-  const { first = 50, offset = 0, stateId = "ACTIVE" } = args;
-
-  const query = `
-    query GetIssueStatuses($first: Int, $offset: Int, $stateId: String) {
-      issueStatuses(
-        first: $first
-        offset: $offset
-        where: { stateId: { equals: $stateId } }
-        orderBy: { order: asc }
-      ) {
-        id
-        name
-        color
-        type
-        order
-        builtIn
-        createdAt
-        stateId
-        companyId
-      }
-    }
-  `;
-
-  const variables = { first, offset, stateId };
-
-  return await callSuccessCoGraphQL(query, variables);
+  const data = result.data;
+  return {
+    content: [
+      {
+        type: "text",
+        text: JSON.stringify({
+          totalCount: data.data.meetingAgendaTypes.totalCount,
+          results: data.data.meetingAgendaTypes.nodes.map((type) => ({
+            id: type.id,
+            name: type.name,
+            color: type.color,
+            type: type.type,
+            order: type.order,
+            builtIn: type.builtIn,
+            createdAt: type.createdAt,
+            status: type.stateId,
+          })),
+        }),
+      },
+    ],
+  };
 }
