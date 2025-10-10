@@ -43,6 +43,7 @@ import {
   getMeetingAgendaStatuses,
   getMeetingAgendaTypes,
   getIssueStatuses,
+  getLeadershipVTO,
 } from "./tools.js";
 
 // Ensure Node 18+ for global fetch.
@@ -818,6 +819,22 @@ server.tool(
   }
 );
 
+// ---------- Leadership VTO tool ------------------------------------------------
+
+server.tool(
+  "getLeadershipVTO",
+  "Get the complete leadership Vision/Traction Organizer in one call. Fetches all VTO components (core values, core focus, goals, market strategies) in parallel for maximum efficiency.",
+  {
+    stateId: z
+      .string()
+      .optional()
+      .describe("State filter (defaults to 'ACTIVE')"),
+  },
+  async ({ stateId }) => {
+    return await getLeadershipVTO({ stateId });
+  }
+);
+
 // --- HTTP transports ---------------------------------------------------------
 
 const app = express();
@@ -1570,6 +1587,21 @@ function createFreshMcpServer() {
     }
   );
 
+  // Leadership VTO tool
+  freshServer.tool(
+    "getLeadershipVTO",
+    "Get the complete leadership Vision/Traction Organizer in one call. Fetches all VTO components (core values, core focus, goals, market strategies) in parallel for maximum efficiency.",
+    {
+      stateId: z
+        .string()
+        .optional()
+        .describe("State filter (defaults to 'ACTIVE')"),
+    },
+    async ({ stateId }) => {
+      return await getLeadershipVTO({ stateId });
+    }
+  );
+
   return freshServer;
 }
 
@@ -1798,6 +1830,9 @@ app.all("/mcp", async (req, res) => {
       },
       getIssueStatuses: async (args) => {
         return await getIssueStatuses(args);
+      },
+      getLeadershipVTO: async (args) => {
+        return await getLeadershipVTO(args);
       },
     };
 
@@ -2633,6 +2668,20 @@ app.all("/mcp", async (req, res) => {
               stateId: {
                 type: "string",
                 description: "Issue status state filter (defaults to 'ACTIVE')",
+              },
+            },
+          },
+        },
+        {
+          name: "getLeadershipVTO",
+          description:
+            "Get the complete leadership Vision/Traction Organizer in one call. Fetches all VTO components (core values, core focus, goals, market strategies) in parallel for maximum efficiency.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              stateId: {
+                type: "string",
+                description: "State filter (defaults to 'ACTIVE')",
               },
             },
           },
