@@ -50,6 +50,11 @@ import {
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const API_KEY_FILE = path.join(__dirname, ".api_key");
 
+// Check if running in development mode
+const isDev =
+  process.env.NODE_ENV === "development" ||
+  process.env.NODE_ENV !== "production";
+
 // --- Success.co API key management ------------------------------------------
 
 // --- MCP server --------------------------------------------------------------
@@ -2663,8 +2668,16 @@ const httpServer = app
     console.error("HTTP server is running on port 3001");
   })
   .on("error", (error) => {
-    // Just log the error but don't exit - allow STDIO to work even if HTTP fails
-    console.error(`HTTP server error: ${error.message}`);
+    if (error.code === "EADDRINUSE" && isDev) {
+      console.error(
+        "Port 3001 is already in use. Run this command to kill the process:"
+      );
+      console.error("lsof -ti:3001 | xargs kill -9");
+    } else {
+      console.error(`HTTP server error: ${error.message}`);
+    }
+    // exit the process
+    process.exit(1);
   });
 
 // Check if running in Claude conversation or other non-TTY environment

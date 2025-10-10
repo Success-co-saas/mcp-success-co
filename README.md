@@ -365,6 +365,12 @@ The MCP Inspector is a debugging tool that lets you test your server's tools int
 npx @modelcontextprotocol/inspector node ./mcp-server.js
 ```
 
+Note to just run the inspector on it's own:
+
+```bash
+npx @modelcontextprotocol/inspector
+```
+
 **Option 2: Use the npm script**
 
 ```bash
