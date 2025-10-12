@@ -31,6 +31,7 @@ import {
   fetch,
   setSuccessCoApiKey,
   getSuccessCoApiKeyTool,
+  getGraphQLDebugLog,
   getSuccessCoApiKey,
   callSuccessCoGraphQL,
   getDataFields,
@@ -145,6 +146,25 @@ server.tool(
   {},
   async () => {
     return await getSuccessCoApiKeyTool({});
+  }
+);
+
+// Tool to get GraphQL debug log status and recent entries
+server.tool(
+  "getGraphQLDebugLog",
+  "Get GraphQL debug log status and recent entries (dev mode only)",
+  {
+    type: "object",
+    properties: {
+      lines: {
+        type: "number",
+        description: "Number of recent lines to show (default: 50)",
+        default: 50,
+      },
+    },
+  },
+  async (args) => {
+    return await getGraphQLDebugLog(args);
   }
 );
 
@@ -937,6 +957,21 @@ function createFreshMcpServer() {
     {},
     async () => {
       return await getSuccessCoApiKeyTool({});
+    }
+  );
+
+  // Tool to get GraphQL debug log status and recent entries
+  freshServer.tool(
+    "getGraphQLDebugLog",
+    "Get GraphQL debug log status and recent entries (dev mode only)",
+    {
+      lines: z
+        .number()
+        .optional()
+        .describe("Number of recent lines to show (default: 50)"),
+    },
+    async (args) => {
+      return await getGraphQLDebugLog(args);
     }
   );
 
@@ -1754,6 +1789,9 @@ app.all("/mcp", async (req, res) => {
       },
       getSuccessCoApiKey: async () => {
         return await getSuccessCoApiKeyTool({});
+      },
+      getGraphQLDebugLog: async (args) => {
+        return await getGraphQLDebugLog(args);
       },
       getTeams: async (args) => {
         return await getTeams(args);

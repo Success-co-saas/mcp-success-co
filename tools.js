@@ -10,6 +10,46 @@ import dotenv from "dotenv";
 // Load environment variables from .env file (disabled to avoid polluting STDIO)
 // dotenv.config();
 
+// Debug logging configuration
+const DEBUG_LOG_FILE = "/tmp/mcp-success-co-graphql-debug.log";
+const isDevMode =
+  process.env.NODE_ENV === "development" || process.env.DEBUG === "true";
+
+/**
+ * Log GraphQL request and response to debug file
+ * @param {string} url - The GraphQL endpoint URL
+ * @param {string} query - The GraphQL query
+ * @param {Object} response - The response object
+ * @param {number} status - HTTP status code
+ */
+function logGraphQLCall(url, query, response, status) {
+  if (!isDevMode) return;
+
+  try {
+    const timestamp = new Date().toISOString();
+    const logEntry = {
+      timestamp,
+      url,
+      query: query.replace(/\s+/g, " ").trim(), // Clean up whitespace
+      status,
+      response: response ? JSON.stringify(response, null, 2) : null,
+    };
+
+    const logLine =
+      `\n=== GraphQL Call ${timestamp} ===\n` +
+      `URL: ${logEntry.url}\n` +
+      `Status: ${logEntry.status}\n` +
+      `Query: ${logEntry.query}\n` +
+      `Response: ${logEntry.response}\n` +
+      `=== End GraphQL Call ===\n`;
+
+    fs.appendFileSync(DEBUG_LOG_FILE, logLine, "utf8");
+  } catch (error) {
+    // Silently fail logging to avoid breaking the main functionality
+    console.error("Failed to write GraphQL debug log:", error.message);
+  }
+}
+
 /**
  * Calls the Success.co GraphQL API
  * @param {string} query - The GraphQL query string
@@ -26,7 +66,6 @@ export async function callSuccessCoGraphQL(query) {
   }
 
   const url = getGraphQLEndpoint();
-  // Debug logging removed to avoid polluting STDIO transport
   const response = await globalThis.fetch(url, {
     method: "POST",
     headers: {
@@ -37,7 +76,8 @@ export async function callSuccessCoGraphQL(query) {
   });
 
   if (!response.ok) {
-    // Debug logging removed to avoid polluting STDIO transport
+    // Log failed request
+    logGraphQLCall(url, query, null, response.status);
     return {
       ok: false,
       error: `HTTP error! status: ${response.status}`,
@@ -45,6 +85,10 @@ export async function callSuccessCoGraphQL(query) {
   }
 
   const data = await response.json();
+
+  // Log successful request
+  logGraphQLCall(url, query, data, response.status);
+
   return { ok: true, data };
 }
 
@@ -152,6 +196,71 @@ export async function getSuccessCoApiKeyTool(args) {
       },
     ],
   };
+}
+
+/**
+ * Get GraphQL debug log status and recent entries
+ * @param {Object} args - Arguments object
+ * @param {number} [args.lines] - Number of recent lines to show (default: 50)
+ * @returns {Promise<{content: Array<{type: string, text: string}>}>}
+ */
+export async function getGraphQLDebugLog(args) {
+  const { lines = 50 } = args;
+
+  if (!isDevMode) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: "GraphQL debug logging is disabled. Enable with NODE_ENV=development or DEBUG=true",
+        },
+      ],
+    };
+  }
+
+  try {
+    if (!fs.existsSync(DEBUG_LOG_FILE)) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Debug log file does not exist yet: ${DEBUG_LOG_FILE}\nMake some GraphQL calls to generate log entries.`,
+          },
+        ],
+      };
+    }
+
+    const logContent = fs.readFileSync(DEBUG_LOG_FILE, "utf8");
+    const logLines = logContent.split("\n");
+    const recentLines = logLines.slice(-lines).join("\n");
+
+    const stats = fs.statSync(DEBUG_LOG_FILE);
+
+    return {
+      content: [
+        {
+          type: "text",
+          text:
+            `GraphQL Debug Log Status:\n` +
+            `File: ${DEBUG_LOG_FILE}\n` +
+            `Size: ${(stats.size / 1024).toFixed(2)} KB\n` +
+            `Last Modified: ${stats.mtime.toISOString()}\n` +
+            `Dev Mode: ${isDevMode}\n\n` +
+            `Last ${lines} lines:\n` +
+            `---\n${recentLines}\n---`,
+        },
+      ],
+    };
+  } catch (error) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error reading debug log: ${error.message}`,
+        },
+      ],
+    };
+  }
 }
 
 /**
@@ -3127,9 +3236,14 @@ export async function fetch(args) {
 
     if (response.ok) {
       const data = await response.json();
+      // Log successful request
+      logGraphQLCall(url, query, data, response.status);
       if (!data.errors) {
         return data;
       }
+    } else {
+      // Log failed request
+      logGraphQLCall(url, query, null, response.status);
     }
     return null;
   };
