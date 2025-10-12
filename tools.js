@@ -5,6 +5,10 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { validateStateId } from "./helpers.js";
+import dotenv from "dotenv";
+
+// Load environment variables from .env file
+dotenv.config();
 
 /**
  * Calls the Success.co GraphQL API
@@ -21,7 +25,9 @@ export async function callSuccessCoGraphQL(query) {
     };
   }
 
-  const url = "https://www.success.co/graphql";
+  const url = getGraphQLEndpoint();
+  console.info("xxx GraphQL endpoint:", url);
+  console.info(`xxx GraphQL apiKey`, apiKey);
   const response = await globalThis.fetch(url, {
     method: "POST",
     headers: {
@@ -32,6 +38,8 @@ export async function callSuccessCoGraphQL(query) {
   });
 
   if (!response.ok) {
+    console.info(`xxx GraphQLresponse`, response);
+    console.info(`xxx GraphQL HTTP error! status: ${response.status}:`);
     return {
       ok: false,
       error: `HTTP error! status: ${response.status}`,
@@ -40,6 +48,24 @@ export async function callSuccessCoGraphQL(query) {
 
   const data = await response.json();
   return { ok: true, data };
+}
+
+/**
+ * Gets the GraphQL endpoint URL based on environment configuration
+ * @returns {string}
+ */
+export function getGraphQLEndpoint() {
+  const mode = process.env.GRAPHQL_ENDPOINT_MODE || "online";
+
+  if (mode === "local") {
+    return (
+      process.env.GRAPHQL_ENDPOINT_LOCAL || "http://localhost:5174/graphql"
+    );
+  }
+
+  return (
+    process.env.GRAPHQL_ENDPOINT_ONLINE || "https://www.success.co/graphql"
+  );
 }
 
 /**
@@ -3091,7 +3117,7 @@ export async function fetch(args) {
 
   // Helper function to make GraphQL requests
   const makeGraphQLRequest = async (query, variables = {}) => {
-    const url = "https://www.success.co/graphql";
+    const url = getGraphQLEndpoint();
     const response = await globalThis.fetch(url, {
       method: "POST",
       headers: {

@@ -7,6 +7,10 @@ import { z } from "zod";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import dotenv from "dotenv";
+
+// Load environment variables from .env file
+dotenv.config();
 import {
   getTeams,
   getUsers,
