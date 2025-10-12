@@ -7,10 +7,10 @@ import { fileURLToPath } from "url";
 import { validateStateId } from "./helpers.js";
 import dotenv from "dotenv";
 
-// Load environment variables from .env file (disabled to avoid polluting STDIO)
-// dotenv.config();
+// Load environment variables from .env file
+dotenv.config();
 
-// Debug logging configuration
+// Logging - Debug
 const DEBUG_LOG_FILE = "/tmp/mcp-success-co-graphql-debug.log";
 const isDevMode =
   process.env.NODE_ENV === "development" || process.env.DEBUG === "true";
@@ -350,7 +350,7 @@ export async function getUsers(args) {
     };
   }
   const filterStr = [
-    `userStatusId: {equalTo: "${stateId}"}`,
+    `stateId: {equalTo: "${stateId}"}`,
     first !== undefined ? `first: ${first}` : "",
     offset !== undefined ? `offset: ${offset}` : "",
   ]
@@ -2715,7 +2715,7 @@ export async function search(args) {
   if (wantsUsers) {
     const gql = `
     query {
-        users {
+        users(filter: {stateId: {equalTo: "ACTIVE"}}) {
           nodes {
             id
             firstName
@@ -2756,7 +2756,7 @@ export async function search(args) {
   if (wantsTodos) {
     const gql = `
       query {
-        todos {
+        todos(filter: {stateId: {equalTo: "ACTIVE"}}) {
         nodes {
           id
           name
@@ -2797,7 +2797,7 @@ export async function search(args) {
   if (wantsRocks) {
     const gql = `
       query {
-        rocks {
+        rocks(filter: {stateId: {equalTo: "ACTIVE"}}) {
           nodes {
             id
             name
@@ -2837,7 +2837,7 @@ export async function search(args) {
   if (wantsMeetings) {
     const gql = `
       query {
-        meetings {
+        meetings(filter: {stateId: {equalTo: "ACTIVE"}}) {
           nodes {
             id
             date
@@ -2879,7 +2879,7 @@ export async function search(args) {
   if (wantsIssues) {
     const gql = `
       query {
-        issues {
+        issues(filter: {stateId: {equalTo: "ACTIVE"}}) {
           nodes {
             id
             name
@@ -2920,7 +2920,7 @@ export async function search(args) {
   if (wantsHeadlines) {
     const gql = `
       query {
-        headlines {
+        headlines(filter: {stateId: {equalTo: "ACTIVE"}}) {
           nodes {
             id
             name
