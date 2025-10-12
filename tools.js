@@ -7,8 +7,8 @@ import { fileURLToPath } from "url";
 import { validateStateId } from "./helpers.js";
 import dotenv from "dotenv";
 
-// Load environment variables from .env file
-dotenv.config();
+// Load environment variables from .env file (disabled to avoid polluting STDIO)
+// dotenv.config();
 
 /**
  * Calls the Success.co GraphQL API
@@ -26,8 +26,7 @@ export async function callSuccessCoGraphQL(query) {
   }
 
   const url = getGraphQLEndpoint();
-  console.info("xxx GraphQL endpoint:", url);
-  console.info(`xxx GraphQL apiKey`, apiKey);
+  // Debug logging removed to avoid polluting STDIO transport
   const response = await globalThis.fetch(url, {
     method: "POST",
     headers: {
@@ -38,8 +37,7 @@ export async function callSuccessCoGraphQL(query) {
   });
 
   if (!response.ok) {
-    console.info(`xxx GraphQLresponse`, response);
-    console.info(`xxx GraphQL HTTP error! status: ${response.status}:`);
+    // Debug logging removed to avoid polluting STDIO transport
     return {
       ok: false,
       error: `HTTP error! status: ${response.status}`,

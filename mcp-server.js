@@ -9,8 +9,6 @@ import path from "path";
 import { fileURLToPath } from "url";
 import dotenv from "dotenv";
 
-// Load environment variables from .env file
-dotenv.config();
 import {
   getTeams,
   getUsers,
@@ -53,6 +51,21 @@ import {
 // Ensure Node 18+ for global fetch.
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// Load environment variables from .env file (silently to avoid polluting STDIO)
+// Load from the script directory regardless of current working directory
+const envPath = path.join(__dirname, ".env");
+try {
+  const result = dotenv.config({
+    path: envPath,
+    silent: true,
+    quiet: true,
+    override: false,
+  });
+  // Note: We can't log here because logToFile isn't defined yet
+} catch (error) {
+  // Silently ignore .env file errors to avoid polluting STDIO
+}
 const API_KEY_FILE = path.join(__dirname, ".api_key");
 
 // Check if running in development mode
@@ -2919,23 +2932,52 @@ app.post("/messages", async (req, res) => {
   }
 });
 
-// Use console.error for operational logs (will appear in mcp.log but not break the protocol)
-console.error("Starting MCP server");
+// Create a log file for operational logs to avoid polluting STDIO
+const logFile = path.join(__dirname, "mcp.log");
+
+function logToFile(message) {
+  const timestamp = new Date().toISOString();
+  fs.appendFileSync(logFile, `[${timestamp}] ${message}\n`);
+}
+
+// Log .env file loading status
+if (fs.existsSync(envPath)) {
+  logToFile(`Found .env file at ${envPath}`);
+} else {
+  logToFile(`No .env file found at ${envPath}`);
+}
+
+// Validate required environment variables at startup
+if (!process.env.GRAPHQL_ENDPOINT_MODE) {
+  const error =
+    "GRAPHQL_ENDPOINT_MODE environment variable is required but not set";
+  console.error(`[STARTUP ERROR] ${error}`);
+  logToFile(`STARTUP ERROR: ${error}`);
+  console.error(
+    `[STARTUP ERROR] Please set GRAPHQL_ENDPOINT_MODE in your environment or .env file`
+  );
+  console.error(`[STARTUP ERROR] Example: GRAPHQL_ENDPOINT_MODE=online`);
+  console.error(`[STARTUP ERROR] Valid values: 'online', 'local'`);
+  process.exit(1);
+}
+
+// Log startup information to file instead of console
+logToFile("Starting MCP server");
 
 // Always start HTTP server (with error handling for port conflicts)
-console.error("Starting HTTP server on port 3001");
+logToFile("Starting HTTP server on port 3001");
 const httpServer = app
   .listen(3001, () => {
-    console.error("HTTP server is running on port 3001");
+    logToFile("HTTP server is running on port 3001");
   })
   .on("error", (error) => {
     if (error.code === "EADDRINUSE" && isDev) {
-      console.error(
+      logToFile(
         "Port 3001 is already in use. Run this command to kill the process:"
       );
-      console.error("lsof -ti:3001 | xargs kill -9");
+      logToFile("lsof -ti:3001 | xargs kill -9");
     } else {
-      console.error(`HTTP server error: ${error.message}`);
+      logToFile(`HTTP server error: ${error.message}`);
     }
     // exit the process
     process.exit(1);
@@ -2950,16 +2992,16 @@ const stdioTransport = new StdioServerTransport();
 server
   .connect(stdioTransport)
   .then(() => {
-    console.error("STDIO transport connected successfully");
+    logToFile("STDIO transport connected successfully");
   })
   .catch((error) => {
-    console.error(`Error connecting STDIO transport: ${error.message}`);
+    logToFile(`Error connecting STDIO transport: ${error.message}`);
     // Don't exit - HTTP server might still be running
   });
 
 // Handle process termination signals
 process.on("SIGINT", () => {
-  console.error("Received SIGINT, shutting down");
+  logToFile("Received SIGINT, shutting down");
   if (httpServer) {
     httpServer.close();
   }
@@ -2967,7 +3009,7 @@ process.on("SIGINT", () => {
 });
 
 process.on("SIGTERM", () => {
-  console.error("Received SIGTERM, shutting down");
+  logToFile("Received SIGTERM, shutting down");
   if (httpServer) {
     httpServer.close();
   }
