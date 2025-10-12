@@ -6,7 +6,7 @@
 
 This MCP server provides comprehensive access to Success.co's EOS (Entrepreneurial Operating System) data, enabling AI assistants like ChatGPT and Claude to answer complex questions about company operations, team performance, project management, and Level 10 meetings.
 
-[Overview](#overview) · [Features](#features) · [Installation](#installation) · [EOS Analysis Tools](#eos-analysis-tools) · [Testing with MCP Inspector](#testing-with-mcp-inspector) · [Setting Environment Variables for Testing](#setting-environment-variables-for-testing) · [Integrating with Cursor AI](#integrating-with-cursor-ai) · [Using the MCP Tool in Cursor (Agent Mode)](#using-the-mcp-tool-in-cursor-agent-mode) · [Code Overview](#code-overview) · [References & Resources](#references--resources) · [License](#license)
+[Overview](#overview) · [Quick dev setup and notes](#quick-dev-setup-and-notes) · [Features](#features) · [MCP Transport Mechanisms](#mcp-transport-mechanisms) · [Installation](#installation) · [EOS Analysis Tools](#eos-analysis-tools) · [Testing with MCP Inspector](#testing-with-mcp-inspector) · [Setting Environment Variables for Testing](#setting-environment-variables-for-testing) · [Integrating with Cursor AI](#integrating-with-cursor-ai) · [Using the MCP Tool in Cursor (Agent Mode)](#using-the-mcp-tool-in-cursor-agent-mode) · [Code Overview](#code-overview) · [References & Resources](#references--resources) · [License](#license)
 
 ## Overview
 
@@ -16,14 +16,43 @@ This project demonstrates an MCP server implemented in JavaScript using Node.js 
 
 ## Quick dev setup and notes
 
-- Run this locally
-- Run a proxy to it ngrok http :3001
-- Run npx @modelcontextprotocol/inspector
-- Connect on either Streamable HTTP (/mcp) or alternatively SSE (/sse). Note that Streamable HTTP is preferred.
-- You should be able to list and run tools
+### Local Development Setup
 
-* **Node.js:** Version 20 or higher is required.
-* **Success.co API Key:** You'll need a valid Success.co API key to access the data.
+1. **Start the MCP Server:**
+
+   ```bash
+   node mcp-server.js
+   ```
+
+   The server will start and listen on port 3001 with both STDIO and HTTP transports available.
+
+2. **Test with MCP Inspector:**
+
+   ```bash
+   npx @modelcontextprotocol/inspector
+   ```
+
+3. **Connect to the Server:**
+
+   - **Streamable HTTP (Recommended):** `http://localhost:3001/mcp`
+   - **Legacy SSE (Backwards Compatible):** `http://localhost:3001/sse`
+
+4. **For External Access (Optional):**
+
+   ```bash
+   # Expose server via ngrok for external testing
+   ngrok http 3001
+   ```
+
+### Transport Notes
+
+- **Streamable HTTP** is the preferred transport method per MCP specification
+- **STDIO** transport is used automatically when integrating with IDEs like Cursor
+- **SSE endpoint** is maintained for backwards compatibility with older clients
+- The server automatically detects and handles both transport methods
+
+- **Node.js:** Version 20 or higher is required.
+- **Success.co API Key:** You'll need a valid Success.co API key to access the data.
 
 ## Features
 
@@ -37,6 +66,83 @@ This project demonstrates an MCP server implemented in JavaScript using Node.js 
 - **Multiple Transports:** Supports both STDIO and HTTP transports
 - **Comprehensive Search:** Intelligent search across all EOS data types
 - **Real-time Analysis:** Dynamic analysis of rock statuses, milestones, team performance, and KPI metrics
+
+## MCP Transport Mechanisms
+
+This MCP server supports both standard transport mechanisms defined in the [MCP Specification](https://modelcontextprotocol.io/specification/2025-06-18/basic/transports):
+
+### 1. STDIO Transport (Recommended)
+
+The **stdio** transport is the preferred method for MCP communication:
+
+- **How it works:** The client launches the MCP server as a subprocess
+- **Communication:** Server reads JSON-RPC messages from `stdin` and sends responses to `stdout`
+- **Message format:** Individual JSON-RPC requests, notifications, or responses delimited by newlines
+- **Logging:** Server may write UTF-8 strings to `stderr` for logging purposes
+- **Security:** No network exposure, runs locally as a subprocess
+
+**Usage in Cursor IDE:**
+
+```json
+{
+  "MCP Server Boilerplate": {
+    "command": "node",
+    "args": ["/path/to/mcp-server.js"],
+    "env": {
+      "SUCCESS_CO_API_KEY": "your-api-key"
+    }
+  }
+}
+```
+
+### 2. Streamable HTTP Transport
+
+The **Streamable HTTP** transport allows the server to operate as an independent process handling multiple client connections:
+
+- **How it works:** Server operates independently and can handle multiple client connections
+- **Protocol:** Uses HTTP POST and GET requests with optional Server-Sent Events (SSE)
+- **Endpoint:** Single HTTP endpoint (e.g., `https://example.com/mcp`) supporting both POST and GET methods
+- **Features:** Supports streaming, server-to-client notifications, and resumable connections
+
+**Security Requirements:**
+
+- **Origin validation:** Servers MUST validate the `Origin` header to prevent DNS rebinding attacks
+- **Local binding:** When running locally, servers SHOULD bind only to localhost (127.0.0.1)
+- **Authentication:** Servers SHOULD implement proper authentication for all connections
+
+**HTTP Headers:**
+
+- **MCP-Protocol-Version:** Clients MUST include this header (e.g., `MCP-Protocol-Version: 2025-06-18`)
+- **Accept:** Clients MUST include `Accept: application/json, text/event-stream`
+- **Mcp-Session-Id:** For session management (optional)
+
+**Message Flow:**
+
+1. **Client to Server:** JSON-RPC messages sent via HTTP POST requests
+2. **Server to Client:** Responses via `Content-Type: application/json` or `Content-Type: text/event-stream` (SSE)
+3. **Streaming:** Server can initiate SSE streams for multiple messages
+4. **Resumability:** Supports connection resumption using `Last-Event-ID` header
+
+**Usage with MCP Inspector:**
+
+```bash
+# Start server with HTTP transport
+node mcp-server.js
+
+# In another terminal, start inspector and connect to HTTP endpoint
+npx @modelcontextprotocol/inspector
+# Connect to: http://localhost:3001/mcp
+```
+
+### Transport Selection
+
+- **For IDE Integration:** Use STDIO transport (recommended for Cursor, VS Code, etc.)
+- **For Web Applications:** Use Streamable HTTP transport
+- **For Testing:** Both transports work with MCP Inspector
+
+### Backwards Compatibility
+
+The server maintains backwards compatibility with the deprecated HTTP+SSE transport from protocol version 2024-11-05. Clients can automatically detect and use the appropriate transport method.
 
 ## Installation
 
