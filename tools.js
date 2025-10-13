@@ -3968,6 +3968,8 @@ export async function getDataValues(args) {
     dataFieldId,
     startDate,
     endDate,
+    timeframe = "weeks",
+    weeks = 12,
   } = args;
 
   if (!validateStateId(stateId)) {
@@ -3983,14 +3985,47 @@ export async function getDataValues(args) {
 
   const filters = [`stateId: {equalTo: "${stateId}"}`];
 
-  // Build startDate filter with range if both dates provided
-  if (startDate || endDate) {
-    const startDateFilters = [];
-    if (startDate) {
-      startDateFilters.push(`greaterThanOrEqualTo: "${startDate}"`);
+  // Calculate date range based on timeframe if not explicitly provided
+  let calculatedStartDate = startDate;
+  let calculatedEndDate = endDate;
+
+  if (!startDate && !endDate) {
+    const endDateObj = new Date();
+    const startDateObj = new Date();
+
+    switch (timeframe) {
+      case "days":
+        startDateObj.setDate(endDateObj.getDate() - weeks * 7);
+        break;
+      case "weeks":
+        startDateObj.setDate(endDateObj.getDate() - weeks * 7);
+        break;
+      case "months":
+        startDateObj.setMonth(endDateObj.getMonth() - weeks);
+        break;
+      case "quarters":
+        startDateObj.setMonth(endDateObj.getMonth() - weeks * 3);
+        break;
+      case "years":
+        startDateObj.setFullYear(endDateObj.getFullYear() - weeks / 52);
+        break;
+      default:
+        // Default to weeks
+        startDateObj.setDate(endDateObj.getDate() - weeks * 7);
     }
-    if (endDate) {
-      startDateFilters.push(`lessThanOrEqualTo: "${endDate}"`);
+
+    calculatedStartDate = startDateObj.toISOString().split("T")[0];
+    calculatedEndDate = endDateObj.toISOString().split("T")[0];
+  }
+
+  // Build startDate filter with range if both dates provided
+  if (calculatedStartDate || calculatedEndDate) {
+    const startDateFilters = [];
+    if (calculatedStartDate) {
+      startDateFilters.push(`greaterThanOrEqualTo: "${calculatedStartDate}"`);
+    }
+    if (calculatedEndDate) {
+      startDateFilters.push(`lessThanOrEqualTo: "${calculatedEndDate}"`);
     }
     filters.push(`startDate: {${startDateFilters.join(", ")}}`);
   }

@@ -39,7 +39,7 @@ import {
   getDataValues,
   getTeamsOnDataFields,
   getDataFieldStatuses,
-  analyzeScorecardMetrics,
+  // DISABLED: analyzeScorecardMetrics,
   getMeetingInfos,
   getMeetingAgendas,
   getMeetingAgendaSections,
@@ -592,8 +592,26 @@ server.tool(
       .optional()
       .describe("Filter by start date (YYYY-MM-DD)"),
     endDate: z.string().optional().describe("Filter by end date (YYYY-MM-DD)"),
+    timeframe: z
+      .enum(["days", "weeks", "months", "quarters", "years"])
+      .optional()
+      .describe("Timeframe for data analysis (defaults to 'weeks')"),
+    weeks: z
+      .number()
+      .int()
+      .optional()
+      .describe("Number of weeks/periods to analyze (defaults to 12)"),
   },
-  async ({ first, offset, stateId, dataFieldId, startDate, endDate }) => {
+  async ({
+    first,
+    offset,
+    stateId,
+    dataFieldId,
+    startDate,
+    endDate,
+    timeframe,
+    weeks,
+  }) => {
     return await getDataValues({
       first,
       offset,
@@ -601,6 +619,8 @@ server.tool(
       dataFieldId,
       startDate,
       endDate,
+      timeframe,
+      weeks,
     });
   }
 );
@@ -650,46 +670,46 @@ server.tool(
 );
 
 // ---------- Scorecard measurables Analysis tool ------------------------------------
-
-server.tool(
-  "analyzeScorecardMetrics",
-  "Analyze Scorecard measurables and KPIs to answer business questions. Automatically detects query intent and provides comprehensive analysis of KPIs, targets, and performance trends. Use this for questions about scorecard performance, KPI targets, and metric analysis.",
-  {
-    query: z
-      .string()
-      .describe(
-        "The analytical question to answer (e.g., 'Give me the last 12 weeks of Scorecard measurables for my team and flag any KPI below target', 'Show KPI trends', 'Which KPIs are underperforming?')"
-      ),
-    teamId: z
-      .string()
-      .optional()
-      .describe("Optional team filter - filter analysis to specific team"),
-    userId: z
-      .string()
-      .optional()
-      .describe("Optional user filter - filter analysis to specific user"),
-    timeframe: z
-      .string()
-      .optional()
-      .describe(
-        "Optional timeframe filter - 'quarter', 'month', 'week', or 'year'"
-      ),
-    weeks: z
-      .number()
-      .int()
-      .optional()
-      .describe("Number of weeks to analyze (defaults to 12)"),
-  },
-  async ({ query, teamId, userId, timeframe, weeks }) => {
-    return await analyzeScorecardMetrics({
-      query,
-      teamId,
-      userId,
-      timeframe,
-      weeks,
-    });
-  }
-);
+// DISABLED: analyzeScorecardMetrics tool
+// server.tool(
+//   "analyzeScorecardMetrics",
+//   "Analyze Scorecard measurables and KPIs to answer business questions. Automatically detects query intent and provides comprehensive analysis of KPIs, targets, and performance trends. Use this for questions about scorecard performance, KPI targets, and metric analysis.",
+//   {
+//     query: z
+//       .string()
+//       .describe(
+//         "The analytical question to answer (e.g., 'Give me the last 12 weeks of Scorecard measurables for my team and flag any KPI below target', 'Show KPI trends', 'Which KPIs are underperforming?')"
+//       ),
+//     teamId: z
+//       .string()
+//       .optional()
+//       .describe("Optional team filter - filter analysis to specific team"),
+//     userId: z
+//       .string()
+//       .optional()
+//       .describe("Optional user filter - filter analysis to specific user"),
+//     timeframe: z
+//       .string()
+//       .optional()
+//       .describe(
+//         "Optional timeframe filter - 'quarter', 'month', 'week', or 'year'"
+//       ),
+//     weeks: z
+//       .number()
+//       .int()
+//       .optional()
+//       .describe("Number of weeks to analyze (defaults to 12)"),
+//   },
+//   async ({ query, teamId, userId, timeframe, weeks }) => {
+//     return await analyzeScorecardMetrics({
+//       query,
+//       teamId,
+//       userId,
+//       timeframe,
+//       weeks,
+//     });
+//   }
+// );
 
 // ---------- Meeting Infos tool -------------------------------------------------
 
@@ -1405,8 +1425,26 @@ function createFreshMcpServer() {
         .string()
         .optional()
         .describe("Filter by end date (YYYY-MM-DD)"),
+      timeframe: z
+        .enum(["days", "weeks", "months", "quarters", "years"])
+        .optional()
+        .describe("Timeframe for data analysis (defaults to 'weeks')"),
+      weeks: z
+        .number()
+        .int()
+        .optional()
+        .describe("Number of weeks/periods to analyze (defaults to 12)"),
     },
-    async ({ first, offset, stateId, dataFieldId, startDate, endDate }) => {
+    async ({
+      first,
+      offset,
+      stateId,
+      dataFieldId,
+      startDate,
+      endDate,
+      timeframe,
+      weeks,
+    }) => {
       return await getDataValues({
         first,
         offset,
@@ -1414,6 +1452,8 @@ function createFreshMcpServer() {
         dataFieldId,
         startDate,
         endDate,
+        timeframe,
+        weeks,
       });
     }
   );
@@ -1460,46 +1500,46 @@ function createFreshMcpServer() {
     }
   );
 
-  // Scorecard measurables Analysis tool
-  freshServer.tool(
-    "analyzeScorecardMetrics",
-    "Analyze Scorecard measurables and KPIs to answer business questions. Automatically detects query intent and provides comprehensive analysis of KPIs, targets, and performance trends. Use this for questions about scorecard performance, KPI targets, and metric analysis.",
-    {
-      query: z
-        .string()
-        .describe(
-          "The analytical question to answer (e.g., 'Give me the last 12 weeks of Scorecard measurables for my team and flag any KPI below target', 'Show KPI trends', 'Which KPIs are underperforming?')"
-        ),
-      teamId: z
-        .string()
-        .optional()
-        .describe("Optional team filter - filter analysis to specific team"),
-      userId: z
-        .string()
-        .optional()
-        .describe("Optional user filter - filter analysis to specific user"),
-      timeframe: z
-        .string()
-        .optional()
-        .describe(
-          "Optional timeframe filter - 'quarter', 'month', 'week', or 'year'"
-        ),
-      weeks: z
-        .number()
-        .int()
-        .optional()
-        .describe("Number of weeks to analyze (defaults to 12)"),
-    },
-    async ({ query, teamId, userId, timeframe, weeks }) => {
-      return await analyzeScorecardMetrics({
-        query,
-        teamId,
-        userId,
-        timeframe,
-        weeks,
-      });
-    }
-  );
+  // DISABLED: Scorecard measurables Analysis tool
+  // freshServer.tool(
+  //   "analyzeScorecardMetrics",
+  //   "Analyze Scorecard measurables and KPIs to answer business questions. Automatically detects query intent and provides comprehensive analysis of KPIs, targets, and performance trends. Use this for questions about scorecard performance, KPI targets, and metric analysis.",
+  //   {
+  //     query: z
+  //       .string()
+  //       .describe(
+  //         "The analytical question to answer (e.g., 'Give me the last 12 weeks of Scorecard measurables for my team and flag any KPI below target', 'Show KPI trends', 'Which KPIs are underperforming?')"
+  //       ),
+  //     teamId: z
+  //       .string()
+  //       .optional()
+  //       .describe("Optional team filter - filter analysis to specific team"),
+  //     userId: z
+  //       .string()
+  //       .optional()
+  //       .describe("Optional user filter - filter analysis to specific user"),
+  //     timeframe: z
+  //       .string()
+  //       .optional()
+  //       .describe(
+  //         "Optional timeframe filter - 'quarter', 'month', 'week', or 'year'"
+  //       ),
+  //     weeks: z
+  //       .number()
+  //       .int()
+  //       .optional()
+  //       .describe("Number of weeks to analyze (defaults to 12)"),
+  //   },
+  //   async ({ query, teamId, userId, timeframe, weeks }) => {
+  //     return await analyzeScorecardMetrics({
+  //       query,
+  //       teamId,
+  //       userId,
+  //       timeframe,
+  //       weeks,
+  //     });
+  //   }
+  // );
 
   // Meeting Infos tool
   freshServer.tool(
@@ -1907,9 +1947,9 @@ app.all("/mcp", async (req, res) => {
       getDataFieldStatuses: async (args) => {
         return await getDataFieldStatuses(args);
       },
-      analyzeScorecardMetrics: async (args) => {
-        return await analyzeScorecardMetrics(args);
-      },
+      // DISABLED: analyzeScorecardMetrics: async (args) => {
+      //   return await analyzeScorecardMetrics(args);
+      // },
       getMeetingInfos: async (args) => {
         return await getMeetingInfos(args);
       },
@@ -2504,6 +2544,17 @@ app.all("/mcp", async (req, res) => {
                 type: "string",
                 description: "Filter by end date (YYYY-MM-DD)",
               },
+              timeframe: {
+                type: "string",
+                enum: ["days", "weeks", "months", "quarters", "years"],
+                description:
+                  "Timeframe for data analysis (defaults to 'weeks')",
+              },
+              weeks: {
+                type: "integer",
+                description:
+                  "Number of weeks/periods to analyze (defaults to 12)",
+              },
             },
           },
         },
@@ -2560,41 +2611,42 @@ app.all("/mcp", async (req, res) => {
             },
           },
         },
-        {
-          name: "analyzeScorecardMetrics",
-          description:
-            "Analyze Scorecard measurables and KPIs to answer business questions. Automatically detects query intent and provides comprehensive analysis of KPIs, targets, and performance trends. Use this for questions about scorecard performance, KPI targets, and metric analysis.",
-          inputSchema: {
-            type: "object",
-            properties: {
-              query: {
-                type: "string",
-                description:
-                  "The analytical question to answer (e.g., 'Give me the last 12 weeks of Scorecard measurables for my team and flag any KPI below target', 'Show KPI trends', 'Which KPIs are underperforming?')",
-              },
-              teamId: {
-                type: "string",
-                description:
-                  "Optional team filter - filter analysis to specific team",
-              },
-              userId: {
-                type: "string",
-                description:
-                  "Optional user filter - filter analysis to specific user",
-              },
-              timeframe: {
-                type: "string",
-                description:
-                  "Optional timeframe filter - 'quarter', 'month', 'week', or 'year'",
-              },
-              weeks: {
-                type: "integer",
-                description: "Number of weeks to analyze (defaults to 12)",
-              },
-            },
-            required: ["query"],
-          },
-        },
+        // DISABLED: analyzeScorecardMetrics tool
+        // {
+        //   name: "analyzeScorecardMetrics",
+        //   description:
+        //     "Analyze Scorecard measurables and KPIs to answer business questions. Automatically detects query intent and provides comprehensive analysis of KPIs, targets, and performance trends. Use this for questions about scorecard performance, KPI targets, and metric analysis.",
+        //   inputSchema: {
+        //     type: "object",
+        //     properties: {
+        //       query: {
+        //         type: "string",
+        //         description:
+        //           "The analytical question to answer (e.g., 'Give me the last 12 weeks of Scorecard measurables for my team and flag any KPI below target', 'Show KPI trends', 'Which KPIs are underperforming?')",
+        //       },
+        //       teamId: {
+        //         type: "string",
+        //         description:
+        //           "Optional team filter - filter analysis to specific team",
+        //       },
+        //       userId: {
+        //         type: "string",
+        //         description:
+        //           "Optional user filter - filter analysis to specific user",
+        //       },
+        //       timeframe: {
+        //         type: "string",
+        //         description:
+        //           "Optional timeframe filter - 'quarter', 'month', 'week', or 'year'",
+        //       },
+        //       weeks: {
+        //         type: "integer",
+        //         description: "Number of weeks to analyze (defaults to 12)",
+        //       },
+        //     },
+        //     required: ["query"],
+        //   },
+        // },
         {
           name: "getMeetingInfos",
           description: "List Success.co meeting infos",
