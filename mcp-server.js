@@ -10,6 +10,7 @@ import { fileURLToPath } from "url";
 import dotenv from "dotenv";
 
 import {
+  init,
   getTeams,
   getUsers,
   getTodos,
@@ -49,24 +50,28 @@ import {
   getLeadershipVTO,
 } from "./tools.js";
 
-// Ensure Node 18+ for global fetch.
-
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // Load environment variables from .env file (silently to avoid polluting STDIO)
 // Load from the script directory regardless of current working directory
 const envPath = path.join(__dirname, ".env");
-try {
-  const result = dotenv.config({
-    path: envPath,
-    silent: true,
-    quiet: true,
-    override: false,
-  });
-  // Note: We can't log here because logToFile isn't defined yet
-} catch (error) {
-  // Silently ignore .env file errors to avoid polluting STDIO
-}
+
+const result = dotenv.config({
+  path: envPath,
+  silent: true,
+  quiet: true,
+  override: false,
+});
+
+// Initialize tools with environment configuration
+init({
+  NODE_ENV: process.env.NODE_ENV,
+  DEBUG: process.env.DEBUG,
+  GRAPHQL_ENDPOINT_MODE: process.env.GRAPHQL_ENDPOINT_MODE,
+  GRAPHQL_ENDPOINT_LOCAL: process.env.GRAPHQL_ENDPOINT_LOCAL,
+  GRAPHQL_ENDPOINT_ONLINE: process.env.GRAPHQL_ENDPOINT_ONLINE,
+  SUCCESS_CO_API_KEY: process.env.SUCCESS_CO_API_KEY,
+});
 const API_KEY_FILE = path.join(__dirname, ".api_key");
 
 // Check if running in development mode

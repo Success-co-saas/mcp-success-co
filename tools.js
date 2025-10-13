@@ -5,15 +5,27 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { validateStateId } from "./helpers.js";
-import dotenv from "dotenv";
-
-// Load environment variables from .env file
-dotenv.config();
 
 // Logging - Debug
 const DEBUG_LOG_FILE = "/tmp/mcp-success-co-graphql-debug.log";
-const isDevMode =
-  process.env.NODE_ENV === "development" || process.env.DEBUG === "true";
+let isDevMode = false;
+let envConfig = {};
+
+/**
+ * Initialize tools with environment configuration
+ * @param {Object} config - Environment configuration object
+ * @param {string} config.NODE_ENV - The NODE_ENV value
+ * @param {string} config.DEBUG - The DEBUG value
+ * @param {string} config.GRAPHQL_ENDPOINT_MODE - The GRAPHQL_ENDPOINT_MODE value
+ * @param {string} config.GRAPHQL_ENDPOINT_LOCAL - The GRAPHQL_ENDPOINT_LOCAL value
+ * @param {string} config.GRAPHQL_ENDPOINT_ONLINE - The GRAPHQL_ENDPOINT_ONLINE value
+ * @param {string} config.SUCCESS_CO_API_KEY - The SUCCESS_CO_API_KEY value
+ */
+export function init(config) {
+  envConfig = config || {};
+  isDevMode =
+    envConfig.NODE_ENV === "development" || envConfig.DEBUG === "true";
+}
 
 /**
  * Log GraphQL request and response to debug file
@@ -97,17 +109,13 @@ export async function callSuccessCoGraphQL(query) {
  * @returns {string}
  */
 export function getGraphQLEndpoint() {
-  const mode = process.env.GRAPHQL_ENDPOINT_MODE || "online";
+  const mode = envConfig.GRAPHQL_ENDPOINT_MODE || "online";
 
   if (mode === "local") {
-    return (
-      process.env.GRAPHQL_ENDPOINT_LOCAL || "http://localhost:5174/graphql"
-    );
+    return envConfig.GRAPHQL_ENDPOINT_LOCAL || "http://localhost:5174/graphql";
   }
 
-  return (
-    process.env.GRAPHQL_ENDPOINT_ONLINE || "https://www.success.co/graphql"
-  );
+  return envConfig.GRAPHQL_ENDPOINT_ONLINE || "https://www.success.co/graphql";
 }
 
 /**
@@ -115,7 +123,7 @@ export function getGraphQLEndpoint() {
  * @returns {string|null}
  */
 export function getSuccessCoApiKey() {
-  if (process.env.SUCCESS_CO_API_KEY) return process.env.SUCCESS_CO_API_KEY;
+  if (envConfig.SUCCESS_CO_API_KEY) return envConfig.SUCCESS_CO_API_KEY;
 
   try {
     const __dirname = path.dirname(fileURLToPath(import.meta.url));
