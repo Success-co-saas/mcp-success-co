@@ -44,6 +44,12 @@ This project demonstrates an MCP server implemented in JavaScript using Node.js 
    ngrok http 3001
    ```
 
+   Tip: To install ngrok, use this to install it and create an account at ngrok.com to get an authtoken
+
+   ```bash
+   brew install ngrok
+   ```
+
 ### Transport Notes
 
 - **Streamable HTTP** is the preferred transport method per MCP specification
