@@ -5607,7 +5607,7 @@ export async function getAccountabilityChart({
 
         const rolesQuery = `
           query {
-            orgChartRolesResponsibilities(filter: {orgChartSeatId: {in: [${seatIdsStr}]}}) {
+            orgChartRolesResponsibilities(filter: {orgChartSeatId: {in: [${seatIdsStr}]}, stateId: {equalTo: "ACTIVE"}}) {
               nodes {
                 id
                 orgChartSeatId
@@ -5647,7 +5647,17 @@ export async function getAccountabilityChart({
       roles.forEach((role) => {
         // Create a key based on name and description to identify duplicates
         const key = `${role.name}:${role.description || ""}`;
-        if (!seen.has(key) && role.name && role.name.trim()) {
+        const cleanName = role.name ? role.name.trim() : "";
+
+        // Filter out invalid entries: empty names, single characters, or very short names
+        const isValidRole =
+          cleanName &&
+          cleanName.length > 1 &&
+          !/^[A-Z]$/.test(cleanName) && // Single letters
+          !/^\d+$/.test(cleanName) && // Just numbers
+          cleanName.length > 2; // At least 3 characters
+
+        if (!seen.has(key) && isValidRole) {
           seen.add(key);
           uniqueRoles.push(role);
         }
