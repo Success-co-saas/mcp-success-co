@@ -5594,6 +5594,68 @@ export async function getAccountabilityChart({
 
     const orgChartSeats = orgChartSeatsResult.data.data.orgChartSeats.nodes;
 
+    // Get roles and responsibilities for each seat
+    const seatIds = orgChartSeats.map((seat) => seat.id);
+    const rolesMap = {};
+
+    if (seatIds.length > 0) {
+      // Query roles and responsibilities in batches
+      const batchSize = 50;
+      for (let i = 0; i < seatIds.length; i += batchSize) {
+        const batch = seatIds.slice(i, i + batchSize);
+        const seatIdsStr = batch.map((id) => `"${id}"`).join(", ");
+
+        const rolesQuery = `
+          query {
+            orgChartRolesResponsibilities(filter: {orgChartSeatId: {in: [${seatIdsStr}]}}) {
+              nodes {
+                id
+                orgChartSeatId
+                name
+                description
+                order
+                createdAt
+                updatedAt
+              }
+            }
+          }
+        `;
+
+        const rolesResult = await callSuccessCoGraphQL(rolesQuery);
+        if (
+          rolesResult.ok &&
+          rolesResult.data.data.orgChartRolesResponsibilities.nodes
+        ) {
+          rolesResult.data.data.orgChartRolesResponsibilities.nodes.forEach(
+            (role) => {
+              if (!rolesMap[role.orgChartSeatId]) {
+                rolesMap[role.orgChartSeatId] = [];
+              }
+              rolesMap[role.orgChartSeatId].push(role);
+            }
+          );
+        }
+      }
+    }
+
+    // Deduplicate roles and responsibilities by name and description
+    Object.keys(rolesMap).forEach((seatId) => {
+      const roles = rolesMap[seatId];
+      const uniqueRoles = [];
+      const seen = new Set();
+
+      roles.forEach((role) => {
+        // Create a key based on name and description to identify duplicates
+        const key = `${role.name}:${role.description || ""}`;
+        if (!seen.has(key) && role.name && role.name.trim()) {
+          seen.add(key);
+          uniqueRoles.push(role);
+        }
+      });
+
+      rolesMap[seatId] = uniqueRoles;
+    });
+
     // Get all unique user IDs from seat holders
     const allHolderIds = new Set();
     orgChartSeats.forEach((seat) => {
@@ -5744,8 +5806,30 @@ export async function getAccountabilityChart({
         accountabilityChart += `${indent}**Seat Holders:** *Vacant*\n`;
       }
 
-      // Note: Role responsibilities would need a separate query to fetch
-      // For now, we'll focus on the basic seat structure
+      // Add role responsibilities if any
+      const seatRoles = rolesMap[seat.id] || [];
+      if (seatRoles.length > 0) {
+        accountabilityChart += `${indent}**Roles & Responsibilities:**\n`;
+        seatRoles
+          .sort((a, b) => a.order - b.order)
+          .forEach((responsibility) => {
+            // Clean up the name and description
+            const cleanName = responsibility.name
+              ? responsibility.name.trim()
+              : "";
+            const cleanDescription = responsibility.description
+              ? responsibility.description.trim()
+              : "";
+
+            if (cleanName) {
+              accountabilityChart += `${indent}  • ${cleanName}`;
+              if (cleanDescription && cleanDescription.length > 0) {
+                accountabilityChart += `: ${cleanDescription}`;
+              }
+              accountabilityChart += `\n`;
+            }
+          });
+      }
 
       accountabilityChart += `\n`;
     });
@@ -5760,6 +5844,12 @@ export async function getAccountabilityChart({
       orgChartSeats.filter((seat) => !seat.holders || !seat.holders.trim())
         .length
     }\n`;
+
+    // Count total roles and responsibilities
+    const totalRoles = Object.values(rolesMap).reduce((total, roles) => {
+      return total + roles.length;
+    }, 0);
+    accountabilityChart += `- **Total Roles & Responsibilities:** ${totalRoles}\n`;
     accountabilityChart += `- **Chart ID:** ${primaryOrgChart.id}\n`;
 
     return {
