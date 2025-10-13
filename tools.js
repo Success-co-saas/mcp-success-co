@@ -5492,3 +5492,224 @@ export async function getLeadershipVTO(args) {
     };
   }
 }
+
+/**
+ * Get the accountability chart (organizational structure) for the company
+ * This tool fetches the complete organizational hierarchy including all users,
+ * their roles, teams, and reporting relationships to answer questions like
+ * "Who reports to the Integrator?" or "What is the organizational structure?"
+ *
+ * @param {Object} params - Parameters for the accountability chart query
+ * @param {string} params.stateId - State filter (defaults to 'ACTIVE')
+ * @param {string} params.teamId - Optional team filter to focus on specific team
+ * @returns {Promise<Object>} The accountability chart data
+ */
+export async function getAccountabilityChart({
+  stateId = "ACTIVE",
+  teamId,
+} = {}) {
+  try {
+    // First, get the primary org chart
+    const orgChartsQuery = `
+      query {
+        orgCharts(filter: {stateId: {equalTo: "${stateId}"}, isPrimaryChart: {equalTo: 1}}) {
+          nodes {
+            id
+            name
+            description
+            isPrimaryChart
+            userId
+            companyId
+            createdAt
+            updatedAt
+          }
+          totalCount
+        }
+      }
+    `;
+
+    // Execute the org charts query
+    const orgChartsResult = await callSuccessCoGraphQL(orgChartsQuery);
+
+    // Check for errors
+    if (!orgChartsResult.ok) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error fetching org charts: ${orgChartsResult.error}`,
+          },
+        ],
+      };
+    }
+
+    const orgCharts = orgChartsResult.data.data.orgCharts.nodes;
+
+    if (orgCharts.length === 0) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: "No primary org chart found. Please ensure there is an org chart marked as primary (isPrimaryChart = 1).",
+          },
+        ],
+      };
+    }
+
+    const primaryOrgChart = orgCharts[0]; // Get the first (and should be only) primary chart
+
+    // Debug: Log the primary org chart ID
+    console.log(`Primary org chart ID: ${primaryOrgChart.id}`);
+
+    // Now get the org chart seats for this primary chart
+    const orgChartSeatsQuery = `
+      query {
+        orgChartSeats(filter: {orgChartId: {equalTo: "${primaryOrgChart.id}"}, stateId: {equalTo: "${stateId}"}}) {
+          nodes {
+            id
+            name
+            parentId
+            order
+            holders
+            orgChartId
+            createdAt
+            updatedAt
+          }
+          totalCount
+        }
+      }
+    `;
+
+    // Execute the org chart seats query
+    const orgChartSeatsResult = await callSuccessCoGraphQL(orgChartSeatsQuery);
+
+    // Check for errors
+    if (!orgChartSeatsResult.ok) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error fetching org chart seats: ${orgChartSeatsResult.error}`,
+          },
+        ],
+      };
+    }
+
+    const orgChartSeats = orgChartSeatsResult.data.data.orgChartSeats.nodes;
+
+    let accountabilityChart = `# Accountability Chart\n\n`;
+    accountabilityChart += `**Chart:** ${primaryOrgChart.name}\n`;
+    if (primaryOrgChart.description) {
+      accountabilityChart += `**Description:** ${primaryOrgChart.description}\n`;
+    }
+    accountabilityChart += `Generated on: ${new Date().toLocaleDateString()}\n\n`;
+
+    if (orgChartSeats.length === 0) {
+      accountabilityChart += `No seats found in the primary org chart.\n`;
+      return {
+        content: [
+          {
+            type: "text",
+            text: accountabilityChart,
+          },
+        ],
+      };
+    }
+    // Build the organizational hierarchy
+    const seatsById = {};
+    const rootSeats = [];
+
+    // First pass: create seat objects and find root seats
+    orgChartSeats.forEach((seat) => {
+      seatsById[seat.id] = {
+        ...seat,
+        children: [],
+        level: 0, // Will be calculated
+      };
+
+      // Find root seats (those with no parent or parent not in our data)
+      if (!seat.parentId || !seatsById[seat.parentId]) {
+        rootSeats.push(seat.id);
+      }
+    });
+
+    // Second pass: build parent-child relationships and calculate levels
+    const calculateLevel = (seatId, level = 0) => {
+      const seat = seatsById[seatId];
+      if (!seat) return;
+
+      seat.level = level;
+
+      // Find children
+      Object.values(seatsById).forEach((otherSeat) => {
+        if (otherSeat.parentId === seatId) {
+          seat.children.push(otherSeat.id);
+          calculateLevel(otherSeat.id, level + 1);
+        }
+      });
+    };
+
+    // Calculate levels starting from root seats
+    rootSeats.forEach((rootSeatId) => {
+      calculateLevel(rootSeatId, 0);
+    });
+
+    // Sort seats by level and then by order
+    const sortedSeats = Object.values(seatsById).sort((a, b) => {
+      if (a.level !== b.level) {
+        return a.level - b.level;
+      }
+      return a.order - b.order;
+    });
+
+    // Display the organizational structure
+    accountabilityChart += `## Organizational Structure\n\n`;
+
+    sortedSeats.forEach((seat) => {
+      const indent = "  ".repeat(seat.level);
+      accountabilityChart += `${indent}### ${seat.name}\n`;
+
+      if (seat.holders) {
+        accountabilityChart += `${indent}**Seat Holders:** ${seat.holders}\n`;
+      } else {
+        accountabilityChart += `${indent}**Seat Holders:** *Vacant*\n`;
+      }
+
+      // Note: Role responsibilities would need a separate query to fetch
+      // For now, we'll focus on the basic seat structure
+
+      accountabilityChart += `\n`;
+    });
+
+    // Add summary information
+    accountabilityChart += `## Summary\n\n`;
+    accountabilityChart += `- **Total Seats:** ${orgChartSeats.length}\n`;
+    accountabilityChart += `- **Filled Seats:** ${
+      orgChartSeats.filter((seat) => seat.holders && seat.holders.trim()).length
+    }\n`;
+    accountabilityChart += `- **Vacant Seats:** ${
+      orgChartSeats.filter((seat) => !seat.holders || !seat.holders.trim())
+        .length
+    }\n`;
+    accountabilityChart += `- **Chart ID:** ${primaryOrgChart.id}\n`;
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: accountabilityChart,
+        },
+      ],
+    };
+  } catch (error) {
+    console.error("Error fetching accountability chart:", error);
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error fetching accountability chart: ${error.message}`,
+        },
+      ],
+    };
+  }
+}

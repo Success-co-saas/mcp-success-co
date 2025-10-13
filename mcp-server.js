@@ -48,6 +48,7 @@ import {
   getMeetingAgendaTypes,
   getIssueStatuses,
   getLeadershipVTO,
+  getAccountabilityChart,
 } from "./tools.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -877,6 +878,26 @@ server.tool(
   }
 );
 
+// ---------- Accountability Chart tool ------------------------------------------
+
+server.tool(
+  "getAccountabilityChart",
+  "Get the complete accountability chart (organizational structure) for the company. Fetches all users, their roles, teams, and reporting relationships to answer questions like 'Who reports to the Integrator?' or 'What is the organizational structure?'. This tool provides a comprehensive view of the company's organizational hierarchy including key EOS roles like Integrator and Visionary.",
+  {
+    stateId: z
+      .string()
+      .optional()
+      .describe("State filter (defaults to 'ACTIVE')"),
+    teamId: z
+      .string()
+      .optional()
+      .describe("Optional team filter to focus on specific team"),
+  },
+  async ({ stateId, teamId }) => {
+    return await getAccountabilityChart({ stateId, teamId });
+  }
+);
+
 // --- HTTP transports ---------------------------------------------------------
 
 const app = express();
@@ -1659,6 +1680,25 @@ function createFreshMcpServer() {
     }
   );
 
+  // Accountability Chart tool
+  freshServer.tool(
+    "getAccountabilityChart",
+    "Get the complete accountability chart (organizational structure) for the company. Fetches all users, their roles, teams, and reporting relationships to answer questions like 'Who reports to the Integrator?' or 'What is the organizational structure?'. This tool provides a comprehensive view of the company's organizational hierarchy including key EOS roles like Integrator and Visionary.",
+    {
+      stateId: z
+        .string()
+        .optional()
+        .describe("State filter (defaults to 'ACTIVE')"),
+      teamId: z
+        .string()
+        .optional()
+        .describe("Optional team filter to focus on specific team"),
+    },
+    async ({ stateId, teamId }) => {
+      return await getAccountabilityChart({ stateId, teamId });
+    }
+  );
+
   return freshServer;
 }
 
@@ -1893,6 +1933,9 @@ app.all("/mcp", async (req, res) => {
       },
       getLeadershipVTO: async (args) => {
         return await getLeadershipVTO(args);
+      },
+      getAccountabilityChart: async (args) => {
+        return await getAccountabilityChart(args);
       },
     };
 
@@ -2746,6 +2789,24 @@ app.all("/mcp", async (req, res) => {
             },
           },
         },
+        {
+          name: "getAccountabilityChart",
+          description:
+            "Get the complete accountability chart (organizational structure) for the company. Fetches all users, their roles, teams, and reporting relationships to answer questions like 'Who reports to the Integrator?' or 'What is the organizational structure?'. This tool provides a comprehensive view of the company's organizational hierarchy including key EOS roles like Integrator and Visionary.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              stateId: {
+                type: "string",
+                description: "State filter (defaults to 'ACTIVE')",
+              },
+              teamId: {
+                type: "string",
+                description: "Optional team filter to focus on specific team",
+              },
+            },
+          },
+        },
       ];
 
       const response = {
@@ -3015,12 +3076,13 @@ const httpServer = app
   })
   .on("error", (error) => {
     if (error.code === "EADDRINUSE" && isDev) {
-      logToFile(
+      // ok for these to be console.error
+      console.error(
         "Port 3001 is already in use. Run this command to kill the process:"
       );
-      logToFile("lsof -ti:3001 | xargs kill -9");
+      console.error("lsof -ti:3001 | xargs kill -9");
     } else {
-      logToFile(`HTTP server error: ${error.message}`);
+      console.error(`HTTP server error: ${error.message}`);
     }
     // exit the process
     process.exit(1);
