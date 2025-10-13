@@ -3958,7 +3958,7 @@ export async function getDataFields(args) {
   };
 }
 
-// ---------- Data Values tool (Scorecard metrics) -----------------------------
+// ---------- Data Values tool (Scorecard measurables) -----------------------------
 
 export async function getDataValues(args) {
   const {
@@ -3981,9 +3981,25 @@ export async function getDataValues(args) {
     };
   }
 
-  const filterStr = [`stateId: {equalTo: "${stateId}"}`]
-    .filter(Boolean)
-    .join(", ");
+  const filters = [`stateId: {equalTo: "${stateId}"}`];
+
+  // Build startDate filter with range if both dates provided
+  if (startDate || endDate) {
+    const startDateFilters = [];
+    if (startDate) {
+      startDateFilters.push(`greaterThanOrEqualTo: "${startDate}"`);
+    }
+    if (endDate) {
+      startDateFilters.push(`lessThanOrEqualTo: "${endDate}"`);
+    }
+    filters.push(`startDate: {${startDateFilters.join(", ")}}`);
+  }
+
+  if (dataFieldId) {
+    filters.push(`dataFieldId: {equalTo: "${dataFieldId}"}`);
+  }
+
+  const filterStr = filters.join(", ");
 
   const query = `
     query {
@@ -4021,22 +4037,7 @@ export async function getDataValues(args) {
 
   let dataValues = result.data?.data?.dataValues?.nodes || [];
 
-  // Apply additional filters if provided
-  if (dataFieldId) {
-    dataValues = dataValues.filter(
-      (value) => value.dataFieldId === dataFieldId
-    );
-  }
-  if (startDate) {
-    const start = new Date(startDate);
-    dataValues = dataValues.filter(
-      (value) => new Date(value.startDate) >= start
-    );
-  }
-  if (endDate) {
-    const end = new Date(endDate);
-    dataValues = dataValues.filter((value) => new Date(value.startDate) <= end);
-  }
+  // Note: Date and dataFieldId filters are now applied in the GraphQL query above
 
   return {
     content: [
@@ -4212,7 +4213,7 @@ export async function getDataFieldStatuses(args) {
   };
 }
 
-// ---------- Scorecard Metrics Analysis tool ------------------------------------
+// ---------- Scorecard measurables Analysis tool ------------------------------------
 
 export async function analyzeScorecardMetrics(args) {
   const { query, teamId, userId, timeframe, weeks = 12 } = args;

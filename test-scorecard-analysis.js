@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * Test script for Scorecard metrics analysis functionality
+ * Test script for Scorecard measurables analysis functionality
  * This demonstrates how to use the new Scorecard analytical tools
  */
 
@@ -14,22 +14,22 @@ import {
 } from "./tools.js";
 
 async function testScorecardAnalysis() {
-  console.log("Testing Scorecard Metrics Analysis...\n");
+  console.log("Testing Scorecard measurables Analysis...\n");
 
-  // Test 1: Basic Scorecard metrics analysis
-  console.log("1. Testing basic Scorecard metrics analysis:");
+  // Test 1: Basic Scorecard measurables analysis
+  console.log("1. Testing basic Scorecard measurables analysis:");
   try {
     const scorecardResult = await analyzeScorecardMetrics({
       query:
-        "Give me the last 12 weeks of Scorecard metrics for my team and flag any KPI below target",
+        "Give me the last 12 weeks of Scorecard measurables for my team and flag any KPI below target",
       weeks: 12,
     });
     console.log(
-      "Scorecard metrics result:",
+      "Scorecard measurables result:",
       JSON.stringify(scorecardResult, null, 2)
     );
   } catch (error) {
-    console.error("Error testing scorecard metrics:", error.message);
+    console.error("Error testing Scorecard measurables:", error.message);
   }
 
   console.log("\n" + "=".repeat(50) + "\n");
@@ -157,7 +157,7 @@ async function testScorecardAnalysis() {
   console.log("9. Testing general help:");
   try {
     const helpResult = await analyzeScorecardMetrics({
-      query: "What can you analyze about Scorecard metrics?",
+      query: "What can you analyze about Scorecard measurables?",
     });
     console.log("Help result:", JSON.stringify(helpResult, null, 2));
   } catch (error) {

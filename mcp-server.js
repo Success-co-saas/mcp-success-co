@@ -574,11 +574,11 @@ server.tool(
   }
 );
 
-// ---------- Data Values tool (Scorecard metrics) -----------------------------
+// ---------- Data Values tool (Scorecard measurables) -----------------------------
 
 server.tool(
   "getDataValues",
-  "List Success.co data values (Scorecard metrics)",
+  "List Success.co data values (Scorecard measurables)",
   {
     first: z.number().int().optional().describe("Optional page size"),
     offset: z.number().int().optional().describe("Optional offset"),
@@ -649,16 +649,16 @@ server.tool(
   }
 );
 
-// ---------- Scorecard Metrics Analysis tool ------------------------------------
+// ---------- Scorecard measurables Analysis tool ------------------------------------
 
 server.tool(
   "analyzeScorecardMetrics",
-  "Analyze Scorecard metrics and KPIs to answer business questions. Automatically detects query intent and provides comprehensive analysis of KPIs, targets, and performance trends. Use this for questions about scorecard performance, KPI targets, and metric analysis.",
+  "Analyze Scorecard measurables and KPIs to answer business questions. Automatically detects query intent and provides comprehensive analysis of KPIs, targets, and performance trends. Use this for questions about scorecard performance, KPI targets, and metric analysis.",
   {
     query: z
       .string()
       .describe(
-        "The analytical question to answer (e.g., 'Give me the last 12 weeks of Scorecard metrics for my team and flag any KPI below target', 'Show KPI trends', 'Which KPIs are underperforming?')"
+        "The analytical question to answer (e.g., 'Give me the last 12 weeks of Scorecard measurables for my team and flag any KPI below target', 'Show KPI trends', 'Which KPIs are underperforming?')"
       ),
     teamId: z
       .string()
@@ -1388,7 +1388,7 @@ function createFreshMcpServer() {
   // Data Values tool
   freshServer.tool(
     "getDataValues",
-    "List Success.co data values (Scorecard metrics)",
+    "List Success.co data values (Scorecard measurables)",
     {
       first: z.number().int().optional().describe("Optional page size"),
       offset: z.number().int().optional().describe("Optional offset"),
@@ -1460,15 +1460,15 @@ function createFreshMcpServer() {
     }
   );
 
-  // Scorecard Metrics Analysis tool
+  // Scorecard measurables Analysis tool
   freshServer.tool(
     "analyzeScorecardMetrics",
-    "Analyze Scorecard metrics and KPIs to answer business questions. Automatically detects query intent and provides comprehensive analysis of KPIs, targets, and performance trends. Use this for questions about scorecard performance, KPI targets, and metric analysis.",
+    "Analyze Scorecard measurables and KPIs to answer business questions. Automatically detects query intent and provides comprehensive analysis of KPIs, targets, and performance trends. Use this for questions about scorecard performance, KPI targets, and metric analysis.",
     {
       query: z
         .string()
         .describe(
-          "The analytical question to answer (e.g., 'Give me the last 12 weeks of Scorecard metrics for my team and flag any KPI below target', 'Show KPI trends', 'Which KPIs are underperforming?')"
+          "The analytical question to answer (e.g., 'Give me the last 12 weeks of Scorecard measurables for my team and flag any KPI below target', 'Show KPI trends', 'Which KPIs are underperforming?')"
         ),
       teamId: z
         .string()
@@ -2476,7 +2476,7 @@ app.all("/mcp", async (req, res) => {
         },
         {
           name: "getDataValues",
-          description: "List Success.co data values (Scorecard metrics)",
+          description: "List Success.co data values (Scorecard measurables)",
           inputSchema: {
             type: "object",
             properties: {
@@ -2563,14 +2563,14 @@ app.all("/mcp", async (req, res) => {
         {
           name: "analyzeScorecardMetrics",
           description:
-            "Analyze Scorecard metrics and KPIs to answer business questions. Automatically detects query intent and provides comprehensive analysis of KPIs, targets, and performance trends. Use this for questions about scorecard performance, KPI targets, and metric analysis.",
+            "Analyze Scorecard measurables and KPIs to answer business questions. Automatically detects query intent and provides comprehensive analysis of KPIs, targets, and performance trends. Use this for questions about scorecard performance, KPI targets, and metric analysis.",
           inputSchema: {
             type: "object",
             properties: {
               query: {
                 type: "string",
                 description:
-                  "The analytical question to answer (e.g., 'Give me the last 12 weeks of Scorecard metrics for my team and flag any KPI below target', 'Show KPI trends', 'Which KPIs are underperforming?')",
+                  "The analytical question to answer (e.g., 'Give me the last 12 weeks of Scorecard measurables for my team and flag any KPI below target', 'Show KPI trends', 'Which KPIs are underperforming?')",
               },
               teamId: {
                 type: "string",

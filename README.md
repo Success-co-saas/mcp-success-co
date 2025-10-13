@@ -12,7 +12,7 @@ This MCP server provides comprehensive access to Success.co's EOS (Entrepreneuri
 
 **MCP (Model Context Protocol)** is a framework that allows you to integrate custom tools into AI-assisted development environments—such as Cursor AI. MCP servers expose functionality (like data retrieval or code analysis) so that an LLM-based IDE can call these tools on demand. Learn more about MCP in the [Model Context Protocol Introduction](https://modelcontextprotocol.io/introduction).
 
-This project demonstrates an MCP server implemented in JavaScript using Node.js that provides comprehensive access to Success.co's EOS framework data. It includes tools for retrieving teams, users, todos, rocks, meetings, issues, headlines, visions, and Scorecard metrics. Most importantly, it includes advanced analytical tools that can answer complex EOS-related questions like "Which company Rocks are at risk of missing their due dates this quarter, and who owns them?", Scorecard questions like "Give me the last 12 weeks of Scorecard metrics for my team and flag any KPI below target", and Level 10 meeting questions like "What are the top 5 open Issues for this week's Level 10 meeting and their owners?"
+This project demonstrates an MCP server implemented in JavaScript using Node.js that provides comprehensive access to Success.co's EOS framework data. It includes tools for retrieving teams, users, todos, rocks, meetings, issues, headlines, visions, and Scorecard measurables. Most importantly, it includes advanced analytical tools that can answer complex EOS-related questions like "Which company Rocks are at risk of missing their due dates this quarter, and who owns them?", Scorecard questions like "Give me the last 12 weeks of Scorecard measurables for my team and flag any KPI below target", and Level 10 meeting questions like "What are the top 5 open Issues for this week's Level 10 meeting and their owners?"
 
 ## Quick dev setup and notes
 
@@ -64,7 +64,7 @@ This project demonstrates an MCP server implemented in JavaScript using Node.js 
 
 - **EOS Data Access:** Complete access to Success.co's EOS framework data including teams, users, todos, rocks, meetings, issues, headlines, visions, and meeting agendas
 - **Level 10 Meeting Analysis:** Specialized tools for analyzing Level 10 meetings, including issue tracking, facilitator/scribe information, and agenda sections
-- **Scorecard Metrics Analysis:** Comprehensive KPI analysis including target flagging, trend analysis, and performance tracking
+- **Scorecard measurables Analysis:** Comprehensive KPI analysis including target flagging, trend analysis, and performance tracking
 - **Advanced Analytics:** Sophisticated analysis tools for at-risk rocks, overdue items, team performance, progress tracking, and meeting insights
 - **GraphQL Integration:** Full integration with Success.co's GraphQL API
 - **API Key Management:** Secure storage and retrieval of Success.co API keys
@@ -352,9 +352,9 @@ Here are some example queries you can ask an AI assistant:
 "Show me team rock completion rates"
 ```
 
-## Scorecard Metrics Analysis Tools
+## Scorecard measurables Analysis Tools
 
-The MCP server now includes comprehensive Scorecard metrics analysis capabilities, allowing AI assistants to answer complex questions about KPI performance, targets, and trends.
+The MCP server now includes comprehensive Scorecard measurables analysis capabilities, allowing AI assistants to answer complex questions about KPI performance, targets, and trends.
 
 ### Available Scorecard Tools
 
@@ -364,10 +364,10 @@ This is the primary tool for Scorecard and KPI analysis. It automatically detect
 
 **Example Queries:**
 
-- "Give me the last 12 weeks of Scorecard metrics for my team and flag any KPI below target"
+- "Give me the last 12 weeks of Scorecard measurables for my team and flag any KPI below target"
 - "Which KPIs are below target?"
 - "Show me KPI trends over the last quarter"
-- "What's the performance of our Scorecard metrics?"
+- "What's the performance of our Scorecard measurables?"
 
 **Parameters:**
 
@@ -434,9 +434,9 @@ Here are some example queries you can ask an AI assistant:
 **General Scorecard Analysis:**
 
 ```
-"Give me the last 12 weeks of Scorecard metrics for my team"
+"Give me the last 12 weeks of Scorecard measurables for my team"
 "Show me all our KPIs and their current values"
-"What Scorecard metrics do we track?"
+"What Scorecard measurables do we track?"
 ```
 
 **Target Analysis:**
