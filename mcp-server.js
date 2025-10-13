@@ -35,10 +35,8 @@ import {
   getGraphQLDebugLog,
   getSuccessCoApiKey,
   callSuccessCoGraphQL,
-  getDataFields,
-  getDataValues,
+  getScorecardMeasurables,
   getTeamsOnDataFields,
-  getDataFieldStatuses,
   // DISABLED: analyzeScorecardMetrics,
   getMeetingInfos,
   getMeetingAgendas,
@@ -435,40 +433,29 @@ const toolDefinitions = [
     required: ["id"],
   },
   {
-    name: "getDataFields",
-    description: "List Success.co data fields (Scorecard KPIs)",
-    handler: async ({ first, offset, stateId, teamId, userId, type }) =>
-      await getDataFields({ first, offset, stateId, teamId, userId, type }),
-    schema: {
-      first: z.number().int().optional().describe("Optional page size"),
-      offset: z.number().int().optional().describe("Optional offset"),
-      stateId: z
-        .string()
-        .optional()
-        .describe("Data field state filter (defaults to 'ACTIVE')"),
-      teamId: z.string().optional().describe("Filter by team ID"),
-      userId: z.string().optional().describe("Filter by user ID"),
-      type: z.string().optional().describe("Filter by data field type"),
-    },
-    required: [],
-  },
-  {
-    name: "getDataValues",
-    description: "List Success.co data values (Scorecard measurables)",
+    name: "getScorecardMeasurables",
+    description:
+      "Get scorecard data (KPIs) with their values. Provides comprehensive scorecard analysis with data fields and their corresponding values.",
     handler: async ({
       first,
       offset,
       stateId,
+      teamId,
+      userId,
+      type,
       dataFieldId,
       startDate,
       endDate,
       timeframe,
       weeks,
     }) =>
-      await getDataValues({
+      await getScorecardMeasurables({
         first,
         offset,
         stateId,
+        teamId,
+        userId,
+        type,
         dataFieldId,
         startDate,
         endDate,
@@ -481,8 +468,14 @@ const toolDefinitions = [
       stateId: z
         .string()
         .optional()
-        .describe("Data value state filter (defaults to 'ACTIVE')"),
-      dataFieldId: z.string().optional().describe("Filter by data field ID"),
+        .describe("Data field state filter (defaults to 'ACTIVE')"),
+      teamId: z.string().optional().describe("Filter by team ID"),
+      userId: z.string().optional().describe("Filter by user ID"),
+      type: z.string().optional().describe("Filter by data field type"),
+      dataFieldId: z
+        .string()
+        .optional()
+        .describe("Filter by specific data field ID"),
       startDate: z
         .string()
         .optional()
@@ -524,21 +517,6 @@ const toolDefinitions = [
         .describe("Team-data field state filter (defaults to 'ACTIVE')"),
       teamId: z.string().optional().describe("Filter by team ID"),
       dataFieldId: z.string().optional().describe("Filter by data field ID"),
-    },
-    required: [],
-  },
-  {
-    name: "getDataFieldStatuses",
-    description: "List Success.co data field statuses",
-    handler: async ({ first, offset, stateId }) =>
-      await getDataFieldStatuses({ first, offset, stateId }),
-    schema: {
-      first: z.number().int().optional().describe("Optional page size"),
-      offset: z.number().int().optional().describe("Optional offset"),
-      stateId: z
-        .string()
-        .optional()
-        .describe("Data field status state filter (defaults to 'ACTIVE')"),
     },
     required: [],
   },

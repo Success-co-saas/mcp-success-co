@@ -3852,7 +3852,9 @@ export async function fetch(args) {
 
 // ---------- Data Fields tool (Scorecard KPIs) ---------------------------------
 
-export async function getDataFields(args) {
+// ---------- Scorecard Measurables tool (Combined Data Fields + Values) ----------
+
+export async function getScorecardMeasurables(args) {
   const {
     first = 50,
     offset = 0,
@@ -3860,111 +3862,6 @@ export async function getDataFields(args) {
     teamId,
     userId,
     type,
-  } = args;
-
-  if (!validateStateId(stateId)) {
-    return {
-      content: [
-        {
-          type: "text",
-          text: "Error: Invalid stateId. Must be 'ACTIVE' or 'INACTIVE'",
-        },
-      ],
-    };
-  }
-
-  const filterStr = [`stateId: {equalTo: "${stateId}"}`]
-    .filter(Boolean)
-    .join(", ");
-
-  const query = `
-    query {
-      dataFields(${first !== undefined ? `first: ${first}` : ""}${
-    offset !== undefined ? `, offset: ${offset}` : ""
-  }${filterStr ? `, filter: {${filterStr}}` : ""}) {
-        nodes {
-          id
-          name
-          desc
-          userId
-          type
-          unitType
-          unitComparison
-          goalTarget
-          goalTargetEnd
-          goalCurrency
-          showAverage
-          showTotal
-          autoFormat
-          autoRoundDecimals
-          dataFieldStatusId
-          statusUpdatedAt
-          createdAt
-          stateId
-          formula
-          order
-        }
-        totalCount
-      }
-    }
-  `;
-
-  const result = await callSuccessCoGraphQL(query);
-
-  if (!result.ok) {
-    return {
-      content: [
-        {
-          type: "text",
-          text: `Error fetching data fields: ${result.error}`,
-        },
-      ],
-    };
-  }
-
-  const dataFields = result.data?.data?.dataFields?.nodes || [];
-
-  // Apply additional filters if provided
-  let filteredDataFields = dataFields;
-  if (teamId) {
-    // Note: This would require a separate query to get teamsOnDataFields relationships
-    // For now, we'll return all data fields and let the client filter
-  }
-  if (userId) {
-    filteredDataFields = filteredDataFields.filter(
-      (field) => field.userId === userId
-    );
-  }
-  if (type) {
-    filteredDataFields = filteredDataFields.filter(
-      (field) => field.type === type
-    );
-  }
-
-  return {
-    content: [
-      {
-        type: "text",
-        text: JSON.stringify(
-          {
-            dataFields: filteredDataFields,
-            totalCount: result.data?.data?.dataFields?.totalCount || 0,
-          },
-          null,
-          2
-        ),
-      },
-    ],
-  };
-}
-
-// ---------- Data Values tool (Scorecard measurables) -----------------------------
-
-export async function getDataValues(args) {
-  const {
-    first = 50,
-    offset = 0,
-    stateId = "ACTIVE",
     dataFieldId,
     startDate,
     endDate,
@@ -3983,113 +3880,242 @@ export async function getDataValues(args) {
     };
   }
 
-  const filters = [`stateId: {equalTo: "${stateId}"}`];
+  try {
+    // First, get data fields (KPIs) directly with GraphQL query
+    const filterStr = [`stateId: {equalTo: "${stateId}"}`]
+      .filter(Boolean)
+      .join(", ");
 
-  // Calculate date range based on timeframe if not explicitly provided
-  let calculatedStartDate = startDate;
-  let calculatedEndDate = endDate;
-
-  if (!startDate && !endDate) {
-    const endDateObj = new Date();
-    const startDateObj = new Date();
-
-    switch (timeframe) {
-      case "days":
-        startDateObj.setDate(endDateObj.getDate() - weeks * 7);
-        break;
-      case "weeks":
-        startDateObj.setDate(endDateObj.getDate() - weeks * 7);
-        break;
-      case "months":
-        startDateObj.setMonth(endDateObj.getMonth() - weeks);
-        break;
-      case "quarters":
-        startDateObj.setMonth(endDateObj.getMonth() - weeks * 3);
-        break;
-      case "years":
-        startDateObj.setFullYear(endDateObj.getFullYear() - weeks / 52);
-        break;
-      default:
-        // Default to weeks
-        startDateObj.setDate(endDateObj.getDate() - weeks * 7);
-    }
-
-    calculatedStartDate = startDateObj.toISOString().split("T")[0];
-    calculatedEndDate = endDateObj.toISOString().split("T")[0];
-  }
-
-  // Build startDate filter with range if both dates provided
-  if (calculatedStartDate || calculatedEndDate) {
-    const startDateFilters = [];
-    if (calculatedStartDate) {
-      startDateFilters.push(`greaterThanOrEqualTo: "${calculatedStartDate}"`);
-    }
-    if (calculatedEndDate) {
-      startDateFilters.push(`lessThanOrEqualTo: "${calculatedEndDate}"`);
-    }
-    filters.push(`startDate: {${startDateFilters.join(", ")}}`);
-  }
-
-  if (dataFieldId) {
-    filters.push(`dataFieldId: {equalTo: "${dataFieldId}"}`);
-  }
-
-  const filterStr = filters.join(", ");
-
-  const query = `
-    query {
-      dataValues(${first !== undefined ? `first: ${first}` : ""}${
-    offset !== undefined ? `, offset: ${offset}` : ""
-  }${filterStr ? `, filter: {${filterStr}}` : ""}) {
-        nodes {
-          id
-          dataFieldId
-          startDate
-          value
-          createdAt
-          stateId
-          customGoalTarget
-          customGoalTargetEnd
-          note
+    const dataFieldsQuery = `
+      query {
+        dataFields(${first !== undefined ? `first: ${first}` : ""}${
+      offset !== undefined ? `, offset: ${offset}` : ""
+    }${filterStr ? `, filter: {${filterStr}}` : ""}) {
+          nodes {
+            id
+            name
+            desc
+            userId
+            type
+            unitType
+            unitComparison
+            goalTarget
+            goalTargetEnd
+            goalCurrency
+            showAverage
+            showTotal
+            autoFormat
+            autoRoundDecimals
+            dataFieldStatusId
+            statusUpdatedAt
+            createdAt
+            stateId
+            formula
+            order
+          }
+          totalCount
         }
-        totalCount
       }
+    `;
+
+    const dataFieldsResult = await callSuccessCoGraphQL(dataFieldsQuery);
+
+    if (!dataFieldsResult.ok) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error fetching data fields: ${dataFieldsResult.error}`,
+          },
+        ],
+      };
     }
-  `;
 
-  const result = await callSuccessCoGraphQL(query);
+    const dataFields = dataFieldsResult.data?.data?.dataFields?.nodes || [];
 
-  if (!result.ok) {
+    // Apply additional filters if provided
+    let filteredDataFields = dataFields;
+    if (userId) {
+      filteredDataFields = filteredDataFields.filter(
+        (field) => field.userId === userId
+      );
+    }
+    if (type) {
+      filteredDataFields = filteredDataFields.filter(
+        (field) => field.type === type
+      );
+    }
+
+    // If no data fields found, return empty result
+    if (filteredDataFields.length === 0) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(
+              {
+                scorecardMeasurables: [],
+                dataFields: [],
+                dataValues: [],
+                totalCount: 0,
+              },
+              null,
+              2
+            ),
+          },
+        ],
+      };
+    }
+
+    // Calculate date range for data values
+    let calculatedStartDate = startDate;
+    let calculatedEndDate = endDate;
+
+    if (!startDate && !endDate) {
+      const endDateObj = new Date();
+      const startDateObj = new Date();
+
+      switch (timeframe) {
+        case "days":
+          startDateObj.setDate(endDateObj.getDate() - weeks * 7);
+          break;
+        case "weeks":
+          startDateObj.setDate(endDateObj.getDate() - weeks * 7);
+          break;
+        case "months":
+          startDateObj.setMonth(endDateObj.getMonth() - weeks);
+          break;
+        case "quarters":
+          startDateObj.setMonth(endDateObj.getMonth() - weeks * 3);
+          break;
+        case "years":
+          startDateObj.setFullYear(endDateObj.getFullYear() - weeks / 52);
+          break;
+        default:
+          startDateObj.setDate(endDateObj.getDate() - weeks * 7);
+      }
+
+      calculatedStartDate = startDateObj.toISOString().split("T")[0];
+      calculatedEndDate = endDateObj.toISOString().split("T")[0];
+    }
+
+    // Get data values for all data fields directly with GraphQL query
+    const filters = [`stateId: {equalTo: "${stateId}"}`];
+
+    // Build startDate filter with range if both dates provided
+    if (calculatedStartDate || calculatedEndDate) {
+      const startDateFilters = [];
+      if (calculatedStartDate) {
+        startDateFilters.push(`greaterThanOrEqualTo: "${calculatedStartDate}"`);
+      }
+      if (calculatedEndDate) {
+        startDateFilters.push(`lessThanOrEqualTo: "${calculatedEndDate}"`);
+      }
+      filters.push(`startDate: {${startDateFilters.join(", ")}}`);
+    }
+
+    if (dataFieldId) {
+      filters.push(`dataFieldId: {equalTo: "${dataFieldId}"}`);
+    }
+
+    const dataValuesFilterStr = filters.join(", ");
+
+    const dataValuesQuery = `
+      query {
+        dataValues(first: 1000, offset: 0${
+          dataValuesFilterStr ? `, filter: {${dataValuesFilterStr}}` : ""
+        }) {
+          nodes {
+            id
+            dataFieldId
+            startDate
+            value
+            createdAt
+            stateId
+            customGoalTarget
+            customGoalTargetEnd
+            note
+          }
+          totalCount
+        }
+      }
+    `;
+
+    const dataValuesResult = await callSuccessCoGraphQL(dataValuesQuery);
+
+    if (!dataValuesResult.ok) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error fetching data values: ${dataValuesResult.error}`,
+          },
+        ],
+      };
+    }
+
+    const dataValues = dataValuesResult.data?.data?.dataValues?.nodes || [];
+
+    // Group data values by data field ID
+    const valuesByField = {};
+    dataValues.forEach((value) => {
+      if (!valuesByField[value.dataFieldId]) {
+        valuesByField[value.dataFieldId] = [];
+      }
+      valuesByField[value.dataFieldId].push(value);
+    });
+
+    // Create combined scorecard measurables
+    const scorecardMeasurables = filteredDataFields.map((field) => {
+      const fieldValues = valuesByField[field.id] || [];
+
+      // Sort values by startDate (most recent first)
+      fieldValues.sort((a, b) => new Date(b.startDate) - new Date(a.startDate));
+
+      return {
+        ...field,
+        values: fieldValues,
+        latestValue: fieldValues.length > 0 ? fieldValues[0] : null,
+        valueCount: fieldValues.length,
+      };
+    });
+
     return {
       content: [
         {
           type: "text",
-          text: `Error fetching data values: ${result.error}`,
+          text: JSON.stringify(
+            {
+              scorecardMeasurables,
+              dataFields: filteredDataFields,
+              dataValues,
+              totalCount: scorecardMeasurables.length,
+              dateRange: {
+                startDate: calculatedStartDate,
+                endDate: calculatedEndDate,
+                timeframe,
+                weeks,
+              },
+            },
+            null,
+            2
+          ),
+        },
+      ],
+    };
+  } catch (error) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error fetching scorecard measurables: ${error.message}`,
         },
       ],
     };
   }
-
-  let dataValues = result.data?.data?.dataValues?.nodes || [];
-
-  // Note: Date and dataFieldId filters are now applied in the GraphQL query above
-
-  return {
-    content: [
-      {
-        type: "text",
-        text: JSON.stringify(
-          {
-            dataValues,
-            totalCount: result.data?.data?.dataValues?.totalCount || 0,
-          },
-          null,
-          2
-        ),
-      },
-    ],
-  };
 }
+
+// ---------- Data Values tool (Scorecard measurables) -----------------------------
 
 // ---------- Teams on Data Fields tool (Scorecard team assignments) ------------
 
@@ -4179,74 +4205,6 @@ export async function getTeamsOnDataFields(args) {
 }
 
 // ---------- Data Field Statuses tool ------------------------------------------
-
-export async function getDataFieldStatuses(args) {
-  const { first = 50, offset = 0, stateId = "ACTIVE" } = args;
-
-  if (!validateStateId(stateId)) {
-    return {
-      content: [
-        {
-          type: "text",
-          text: "Error: Invalid stateId. Must be 'ACTIVE' or 'INACTIVE'",
-        },
-      ],
-    };
-  }
-
-  const filterStr = [`stateId: {equalTo: "${stateId}"}`]
-    .filter(Boolean)
-    .join(", ");
-
-  const query = `
-    query {
-      dataFieldStatuses(${first !== undefined ? `first: ${first}` : ""}${
-    offset !== undefined ? `, offset: ${offset}` : ""
-  }${filterStr ? `, filter: {${filterStr}}` : ""}) {
-        nodes {
-          id
-          name
-          color
-          order
-          createdAt
-          stateId
-        }
-        totalCount
-      }
-    }
-  `;
-
-  const result = await callSuccessCoGraphQL(query);
-
-  if (!result.ok) {
-    return {
-      content: [
-        {
-          type: "text",
-          text: `Error fetching data field statuses: ${result.error}`,
-        },
-      ],
-    };
-  }
-
-  const dataFieldStatuses = result.data?.data?.dataFieldStatuses?.nodes || [];
-
-  return {
-    content: [
-      {
-        type: "text",
-        text: JSON.stringify(
-          {
-            dataFieldStatuses,
-            totalCount: result.data?.data?.dataFieldStatuses?.totalCount || 0,
-          },
-          null,
-          2
-        ),
-      },
-    ],
-  };
-}
 
 // ---------- Scorecard measurables Analysis tool ------------------------------------
 
