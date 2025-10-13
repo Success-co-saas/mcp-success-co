@@ -5558,9 +5558,6 @@ export async function getAccountabilityChart({
 
     const primaryOrgChart = orgCharts[0]; // Get the first (and should be only) primary chart
 
-    // Debug: Log the primary org chart ID
-    console.log(`Primary org chart ID: ${primaryOrgChart.id}`);
-
     // Now get the org chart seats for this primary chart
     const orgChartSeatsQuery = `
       query {
@@ -5596,6 +5593,53 @@ export async function getAccountabilityChart({
     }
 
     const orgChartSeats = orgChartSeatsResult.data.data.orgChartSeats.nodes;
+
+    // Get all unique user IDs from seat holders
+    const allHolderIds = new Set();
+    orgChartSeats.forEach((seat) => {
+      if (seat.holders) {
+        // Split by comma and clean up whitespace
+        const holderIds = seat.holders
+          .split(",")
+          .map((id) => id.trim())
+          .filter((id) => id);
+        holderIds.forEach((id) => allHolderIds.add(id));
+      }
+    });
+
+    // Get user information for all holders
+    const usersMap = {};
+    if (allHolderIds.size > 0) {
+      const userIds = Array.from(allHolderIds);
+
+      // Query users in batches to avoid very long queries
+      const batchSize = 50;
+      for (let i = 0; i < userIds.length; i += batchSize) {
+        const batch = userIds.slice(i, i + batchSize);
+        const userIdsStr = batch.map((id) => `"${id}"`).join(", ");
+
+        const usersQuery = `
+          query {
+            users(filter: {id: {in: [${userIdsStr}]}}) {
+              nodes {
+                id
+                firstName
+                lastName
+                email
+                jobTitle
+              }
+            }
+          }
+        `;
+
+        const usersResult = await callSuccessCoGraphQL(usersQuery);
+        if (usersResult.ok && usersResult.data.data.users.nodes) {
+          usersResult.data.data.users.nodes.forEach((user) => {
+            usersMap[user.id] = user;
+          });
+        }
+      }
+    }
 
     let accountabilityChart = `# Accountability Chart\n\n`;
     accountabilityChart += `**Chart:** ${primaryOrgChart.name}\n`;
@@ -5670,7 +5714,32 @@ export async function getAccountabilityChart({
       accountabilityChart += `${indent}### ${seat.name}\n`;
 
       if (seat.holders) {
-        accountabilityChart += `${indent}**Seat Holders:** ${seat.holders}\n`;
+        // Split holders by comma and look up names
+        const holderIds = seat.holders
+          .split(",")
+          .map((id) => id.trim())
+          .filter((id) => id);
+        const holderNames = [];
+
+        holderIds.forEach((holderId) => {
+          const user = usersMap[holderId];
+          if (user) {
+            holderNames.push(
+              `${user.firstName} ${user.lastName} (ID: ${user.id})`
+            );
+          } else {
+            holderNames.push(`Unknown User (ID: ${holderId})`);
+          }
+        });
+
+        if (holderNames.length > 0) {
+          accountabilityChart += `${indent}**Seat Holders:**\n`;
+          holderNames.forEach((name) => {
+            accountabilityChart += `${indent}  • ${name}\n`;
+          });
+        } else {
+          accountabilityChart += `${indent}**Seat Holders:** *Vacant*\n`;
+        }
       } else {
         accountabilityChart += `${indent}**Seat Holders:** *Vacant*\n`;
       }
