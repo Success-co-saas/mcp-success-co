@@ -435,7 +435,7 @@ const toolDefinitions = [
   {
     name: "getScorecardMeasurables",
     description:
-      "Get scorecard data (KPIs) with their values. Provides comprehensive scorecard analysis with data fields and their corresponding values.",
+      "Get scorecard data (KPIs) with their values. Provides comprehensive scorecard analysis with data fields and their corresponding values. There are 4 different datasets available for different timeframes: daily, weekly, monthly, and quarterly data. Weekly data is the default timeframe, but you can request data from any of the 4 datasets as needed by specifying the timeframe parameter.",
     handler: async ({
       first,
       offset,
