@@ -23,9 +23,7 @@ import {
   getVisionCoreFocusTypes,
   getVisionThreeYearGoals,
   getVisionMarketStrategies,
-  getRockStatuses,
   getMilestones,
-  getMilestoneStatuses,
   getTeamsOnRocks,
   analyzeEOSData,
   search,
@@ -41,10 +39,6 @@ import {
   getMeetingInfos,
   getMeetingAgendas,
   getMeetingAgendaSections,
-  getMeetingInfoStatuses,
-  getMeetingAgendaStatuses,
-  getMeetingAgendaTypes,
-  getIssueStatuses,
   getLeadershipVTO,
   getAccountabilityChart,
 } from "./tools.js";
@@ -320,23 +314,8 @@ const toolDefinitions = [
     required: [],
   },
   {
-    name: "getRockStatuses",
-    description: "List Success.co rock statuses",
-    handler: async ({ first, offset, stateId }) =>
-      await getRockStatuses({ first, offset, stateId }),
-    schema: {
-      first: z.number().int().optional().describe("Optional page size"),
-      offset: z.number().int().optional().describe("Optional offset"),
-      stateId: z
-        .string()
-        .optional()
-        .describe("Rock status state filter (defaults to 'ACTIVE')"),
-    },
-    required: [],
-  },
-  {
     name: "getMilestones",
-    description: "List Success.co milestones",
+    description: "List Success.co milestones on rocks",
     handler: async ({ first, offset, stateId, rockId, userId, teamId }) =>
       await getMilestones({ first, offset, stateId, rockId, userId, teamId }),
     schema: {
@@ -349,17 +328,6 @@ const toolDefinitions = [
       rockId: z.string().optional().describe("Filter by rock ID"),
       userId: z.string().optional().describe("Filter by user ID"),
       teamId: z.string().optional().describe("Filter by team ID"),
-    },
-    required: [],
-  },
-  {
-    name: "getMilestoneStatuses",
-    description: "List Success.co milestone statuses",
-    handler: async ({ first, offset }) =>
-      await getMilestoneStatuses({ first, offset }),
-    schema: {
-      first: z.number().int().optional().describe("Optional page size"),
-      offset: z.number().int().optional().describe("Optional offset"),
     },
     required: [],
   },
@@ -612,66 +580,6 @@ const toolDefinitions = [
         .optional()
         .describe("Filter by meeting agenda ID"),
       type: z.string().optional().describe("Filter by section type"),
-    },
-    required: [],
-  },
-  {
-    name: "getMeetingInfoStatuses",
-    description: "List Success.co meeting info statuses",
-    handler: async ({ first, offset, stateId }) =>
-      await getMeetingInfoStatuses({ first, offset, stateId }),
-    schema: {
-      first: z.number().int().optional().describe("Optional page size"),
-      offset: z.number().int().optional().describe("Optional offset"),
-      stateId: z
-        .string()
-        .optional()
-        .describe("Meeting info status state filter (defaults to 'ACTIVE')"),
-    },
-    required: [],
-  },
-  {
-    name: "getMeetingAgendaStatuses",
-    description: "List Success.co meeting agenda statuses",
-    handler: async ({ first, offset, stateId }) =>
-      await getMeetingAgendaStatuses({ first, offset, stateId }),
-    schema: {
-      first: z.number().int().optional().describe("Optional page size"),
-      offset: z.number().int().optional().describe("Optional offset"),
-      stateId: z
-        .string()
-        .optional()
-        .describe("Meeting agenda status state filter (defaults to 'ACTIVE')"),
-    },
-    required: [],
-  },
-  {
-    name: "getMeetingAgendaTypes",
-    description: "List Success.co meeting agenda types",
-    handler: async ({ first, offset, stateId }) =>
-      await getMeetingAgendaTypes({ first, offset, stateId }),
-    schema: {
-      first: z.number().int().optional().describe("Optional page size"),
-      offset: z.number().int().optional().describe("Optional offset"),
-      stateId: z
-        .string()
-        .optional()
-        .describe("Meeting agenda type state filter (defaults to 'ACTIVE')"),
-    },
-    required: [],
-  },
-  {
-    name: "getIssueStatuses",
-    description: "List Success.co issue statuses",
-    handler: async ({ first, offset, stateId }) =>
-      await getIssueStatuses({ first, offset, stateId }),
-    schema: {
-      first: z.number().int().optional().describe("Optional page size"),
-      offset: z.number().int().optional().describe("Optional offset"),
-      stateId: z
-        .string()
-        .optional()
-        .describe("Issue status state filter (defaults to 'ACTIVE')"),
     },
     required: [],
   },
