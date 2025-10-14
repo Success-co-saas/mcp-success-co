@@ -445,10 +445,21 @@ export async function getUsers(args) {
  * @param {number} [args.offset] - Optional offset
  * @param {string} [args.stateId] - Todo state filter (defaults to 'ACTIVE')
  * @param {boolean} [args.fromMeetings] - If true, only return todos linked to meetings (Level 10 meetings)
+ * @param {string} [args.teamId] - Filter by team ID
+ * @param {string} [args.userId] - Filter by user ID
+ * @param {string} [args.status] - Filter by status: "TODO", "COMPLETE", or "OVERDUE"
  * @returns {Promise<{content: Array<{type: string, text: string}>}>}
  */
 export async function getTodos(args) {
-  const { first, offset, stateId = "ACTIVE", fromMeetings = false } = args;
+  const {
+    first,
+    offset,
+    stateId = "ACTIVE",
+    fromMeetings = false,
+    teamId,
+    userId,
+    status,
+  } = args;
   // Validate stateId
   const validation = validateStateId(stateId);
   if (!validation.isValid) {
@@ -457,11 +468,45 @@ export async function getTodos(args) {
     };
   }
 
+  // Validate status if provided
+  if (status && !["TODO", "COMPLETE", "OVERDUE"].includes(status)) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: 'Invalid status - must be "TODO", "COMPLETE", or "OVERDUE"',
+        },
+      ],
+    };
+  }
+
   const filterItems = [`stateId: {equalTo: "${stateId}"}`];
 
   // Add meetingId filter if fromMeetings is true
   if (fromMeetings) {
     filterItems.push(`meetingId: {isNull: false}`);
+  }
+
+  // Add teamId filter if provided
+  if (teamId) {
+    filterItems.push(`teamId: {equalTo: "${teamId}"}`);
+  }
+
+  // Add userId filter if provided
+  if (userId) {
+    filterItems.push(`userId: {equalTo: "${userId}"}`);
+  }
+
+  // Add status filter if provided
+  if (status === "TODO") {
+    filterItems.push(`todoStatusId: {equalTo: "TODO"}`);
+  } else if (status === "COMPLETE") {
+    filterItems.push(`todoStatusId: {equalTo: "COMPLETE"}`);
+  } else if (status === "OVERDUE") {
+    // OVERDUE = status is TODO and due date is in the past
+    const now = new Date().toISOString();
+    filterItems.push(`todoStatusId: {equalTo: "TODO"}`);
+    filterItems.push(`dueDate: {lessThan: "${now}"}`);
   }
 
   const filterStr = [

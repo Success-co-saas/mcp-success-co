@@ -142,9 +142,25 @@ const toolDefinitions = [
   {
     name: "getTodos",
     description:
-      "List Success.co todos. Use fromMeetings=true to get only todos from Level 10 meetings.",
-    handler: async ({ first, offset, stateId, fromMeetings }) =>
-      await getTodos({ first, offset, stateId, fromMeetings }),
+      "List Success.co todos. Use fromMeetings=true to get only todos from Level 10 meetings. Filter by teamId, userId, or status (TODO, COMPLETE, OVERDUE).",
+    handler: async ({
+      first,
+      offset,
+      stateId,
+      fromMeetings,
+      teamId,
+      userId,
+      status,
+    }) =>
+      await getTodos({
+        first,
+        offset,
+        stateId,
+        fromMeetings,
+        teamId,
+        userId,
+        status,
+      }),
     schema: {
       first: z.number().int().optional().describe("Optional page size"),
       offset: z.number().int().optional().describe("Optional offset"),
@@ -157,6 +173,14 @@ const toolDefinitions = [
         .optional()
         .describe(
           "If true, only return todos linked to meetings (Level 10 meetings)"
+        ),
+      teamId: z.string().optional().describe("Filter by team ID"),
+      userId: z.string().optional().describe("Filter by user ID"),
+      status: z
+        .enum(["TODO", "COMPLETE", "OVERDUE"])
+        .optional()
+        .describe(
+          'Filter by status: "TODO" for active todos, "COMPLETE" for completed todos, "OVERDUE" for todos past their due date'
         ),
     },
     required: [],
