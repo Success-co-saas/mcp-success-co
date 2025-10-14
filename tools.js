@@ -12,6 +12,23 @@ let isDevMode = false;
 let envConfig = {};
 
 /**
+ * Clear the GraphQL debug log file if it exists
+ * @param {boolean} devMode - Whether we're in development mode
+ */
+function clearDebugLog(devMode) {
+  if (!devMode) return;
+
+  try {
+    if (fs.existsSync(DEBUG_LOG_FILE)) {
+      fs.writeFileSync(DEBUG_LOG_FILE, "", "utf8");
+      console.error(`[DEBUG] Cleared GraphQL debug log: ${DEBUG_LOG_FILE}`);
+    }
+  } catch (error) {
+    console.error(`[DEBUG] Failed to clear debug log: ${error.message}`);
+  }
+}
+
+/**
  * Initialize tools with environment configuration
  * @param {Object} config - Environment configuration object
  * @param {string} config.NODE_ENV - The NODE_ENV value
@@ -25,6 +42,9 @@ export function init(config) {
   envConfig = config || {};
   isDevMode =
     envConfig.NODE_ENV === "development" || envConfig.DEBUG === "true";
+
+  // Clear debug log at startup if we're in debug mode
+  clearDebugLog(isDevMode);
 }
 
 /**
@@ -3865,7 +3885,6 @@ export async function getScorecardMeasurables(args) {
     dataFieldId,
     startDate,
     endDate,
-    timeframe = "weeks",
     periods = 13,
   } = args;
 
@@ -3881,10 +3900,72 @@ export async function getScorecardMeasurables(args) {
   }
 
   try {
-    // First, get data fields (KPIs) directly with GraphQL query
-    const filterStr = [`stateId: {equalTo: "${stateId}"}`]
-      .filter(Boolean)
-      .join(", ");
+    // If teamId is provided, first get the dataFieldIds for that team
+    let teamDataFieldIds = null;
+    if (teamId) {
+      const teamsOnDataFieldsQuery = `
+        query {
+          teamsOnDataFields(filter: {teamId: {equalTo: "${teamId}"}, stateId: {equalTo: "${stateId}"}}) {
+            nodes {
+              dataFieldId
+            }
+          }
+        }
+      `;
+
+      const teamsOnDataFieldsResult = await callSuccessCoGraphQL(
+        teamsOnDataFieldsQuery
+      );
+
+      if (!teamsOnDataFieldsResult.ok) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Error fetching teams on data fields: ${teamsOnDataFieldsResult.error}`,
+            },
+          ],
+        };
+      }
+
+      teamDataFieldIds =
+        teamsOnDataFieldsResult.data?.data?.teamsOnDataFields?.nodes?.map(
+          (rel) => rel.dataFieldId
+        ) || [];
+
+      // If teamId was provided but no dataFields found for that team, return empty result
+      if (teamDataFieldIds.length === 0) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(
+                {
+                  scorecardMeasurables: [],
+                  totalCount: 0,
+                  message: `No data fields found for team ${teamId}`,
+                },
+                null,
+                2
+              ),
+            },
+          ],
+        };
+      }
+    }
+
+    // Get data fields (KPIs) directly with GraphQL query
+    const filterParts = [`stateId: {equalTo: "${stateId}"}`];
+
+    // If we have team-specific dataFieldIds, filter by them
+    if (teamDataFieldIds && teamDataFieldIds.length > 0) {
+      const dataFieldIdFilters = teamDataFieldIds
+        .map((id) => `"${id}"`)
+        .join(", ");
+      filterParts.push(`id: {in: [${dataFieldIdFilters}]}`);
+    }
+
+    const filterStr = filterParts.join(", ");
 
     const dataFieldsQuery = `
       query {
@@ -3941,9 +4022,19 @@ export async function getScorecardMeasurables(args) {
       );
     }
     if (type) {
-      filteredDataFields = filteredDataFields.filter(
-        (field) => field.type === type
-      );
+      // Map the type parameter to the corresponding data field type
+      const typeMapping = {
+        weekly: "WEEKLY",
+        monthly: "MONTHLY",
+        quarterly: "QUARTERLY",
+        annually: "ANNUALLY",
+      };
+      const dataFieldType = typeMapping[type];
+      if (dataFieldType) {
+        filteredDataFields = filteredDataFields.filter(
+          (field) => field.type === dataFieldType
+        );
+      }
     }
 
     // If no data fields found, return empty result
@@ -3955,8 +4046,6 @@ export async function getScorecardMeasurables(args) {
             text: JSON.stringify(
               {
                 scorecardMeasurables: [],
-                dataFields: [],
-                dataValues: [],
                 totalCount: 0,
               },
               null,
@@ -3970,6 +4059,15 @@ export async function getScorecardMeasurables(args) {
     // Calculate date range for data values
     let calculatedStartDate = startDate;
     let calculatedEndDate = endDate;
+
+    // Map type parameter to timeframe for the entire function
+    const timeframeMapping = {
+      weekly: "weeks",
+      monthly: "months",
+      quarterly: "quarters",
+      annually: "years",
+    };
+    const timeframe = timeframeMapping[type] || "weeks";
 
     if (!startDate && !endDate) {
       const endDateObj = new Date();
@@ -3989,7 +4087,7 @@ export async function getScorecardMeasurables(args) {
           startDateObj.setMonth(endDateObj.getMonth() - periods * 3);
           break;
         case "years":
-          startDateObj.setFullYear(endDateObj.getFullYear() - periods / 52);
+          startDateObj.setFullYear(endDateObj.getFullYear() - periods);
           break;
         default:
           startDateObj.setDate(endDateObj.getDate() - periods * 7);
@@ -4167,6 +4265,7 @@ export async function getScorecardMeasurables(args) {
         values: aggregatedValues,
         latestValue: aggregatedValues.length > 0 ? aggregatedValues[0] : null,
         valueCount: aggregatedValues.length,
+        type,
         timeframe,
         aggregationApplied: timeframe !== "days" && timeframe !== "weeks",
       };
@@ -4179,15 +4278,7 @@ export async function getScorecardMeasurables(args) {
           text: JSON.stringify(
             {
               scorecardMeasurables,
-              dataFields: filteredDataFields,
-              dataValues,
               totalCount: scorecardMeasurables.length,
-              dateRange: {
-                startDate: calculatedStartDate,
-                endDate: calculatedEndDate,
-                timeframe,
-                periods,
-              },
             },
             null,
             2
