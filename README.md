@@ -60,6 +60,137 @@ This project demonstrates an MCP server implemented in JavaScript using Node.js 
 - **Node.js:** Version 20 or higher is required.
 - **Success.co API Key:** You'll need a valid Success.co API key to access the data.
 
+## API & Database Schemas
+
+The `schema/` directory contains comprehensive schema documentation that can be provided to AI assistants to help analyze the data structure and generate effective code:
+
+- **`schema/graphql_schema.json`** - Complete GraphQL API schema from Success.co
+- **`schema/database_schema.sql`** - Database schema definitions
+
+### Using Schemas for AI-Assisted Development
+
+These schema files are invaluable when working with AI assistants to:
+
+- Understand the complete data model and relationships
+- Generate accurate GraphQL queries
+- Validate query parameters and response structures
+- Develop new tools and features
+- Debug API integration issues
+
+Simply reference these files when asking AI to help with development tasks related to the Success.co API.
+
+### Generating the GraphQL Schema
+
+The GraphQL schema was generated using the following introspection query run in the GraphiQL tool at `http://localhost:4000/graphiql`:
+
+```graphql
+query IntrospectionQuery {
+  __schema {
+    queryType {
+      name
+    }
+    mutationType {
+      name
+    }
+    subscriptionType {
+      name
+    }
+    types {
+      ...FullType
+    }
+    directives {
+      name
+      description
+      locations
+      args {
+        ...InputValue
+      }
+    }
+  }
+}
+
+fragment FullType on __Type {
+  kind
+  name
+  description
+  fields(includeDeprecated: true) {
+    name
+    description
+    args {
+      ...InputValue
+    }
+    type {
+      ...TypeRef
+    }
+    isDeprecated
+    deprecationReason
+  }
+  inputFields {
+    ...InputValue
+  }
+  interfaces {
+    ...TypeRef
+  }
+  enumValues(includeDeprecated: true) {
+    name
+    description
+    isDeprecated
+    deprecationReason
+  }
+  possibleTypes {
+    ...TypeRef
+  }
+}
+
+fragment InputValue on __InputValue {
+  name
+  description
+  type {
+    ...TypeRef
+  }
+  defaultValue
+}
+
+fragment TypeRef on __Type {
+  kind
+  name
+  ofType {
+    kind
+    name
+    ofType {
+      kind
+      name
+      ofType {
+        kind
+        name
+        ofType {
+          kind
+          name
+          ofType {
+            kind
+            name
+            ofType {
+              kind
+              name
+              ofType {
+                kind
+                name
+                ofType {
+                  kind
+                  name
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+This introspection query returns the complete schema including all types, fields, mutations, and their documentation, which is then saved to `schema/graphql_schema.json` for reference.
+
 ## Features
 
 - **EOS Data Access:** Complete access to Success.co's EOS framework data including teams, users, todos, rocks, meetings, issues, headlines, visions, and meeting agendas

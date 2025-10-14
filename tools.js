@@ -85,9 +85,10 @@ function logGraphQLCall(url, query, response, status) {
 /**
  * Calls the Success.co GraphQL API
  * @param {string} query - The GraphQL query string
+ * @param {Object} [variables] - Optional variables for the GraphQL query
  * @returns {Promise<{ok: boolean, data?: any, error?: string}>}
  */
-export async function callSuccessCoGraphQL(query) {
+export async function callSuccessCoGraphQL(query, variables = null) {
   const apiKey = getSuccessCoApiKey();
   if (!apiKey) {
     return {
@@ -98,13 +99,15 @@ export async function callSuccessCoGraphQL(query) {
   }
 
   const url = getGraphQLEndpoint();
+  const body = variables ? { query, variables } : { query };
+
   const response = await globalThis.fetch(url, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ query }),
+    body: JSON.stringify(body),
   });
 
   if (!response.ok) {
@@ -120,6 +123,16 @@ export async function callSuccessCoGraphQL(query) {
 
   // Log successful request
   logGraphQLCall(url, query, data, response.status);
+
+  // Check for GraphQL errors in the response
+  if (data.errors && data.errors.length > 0) {
+    const errorMessages = data.errors.map((err) => err.message).join("; ");
+    return {
+      ok: false,
+      error: `GraphQL error: ${errorMessages}`,
+      data: data, // Include the data anyway in case partial results are useful
+    };
+  }
 
   return { ok: true, data };
 }
@@ -3801,10 +3814,7 @@ export async function createIssue(args) {
     },
   };
 
-  const result = await callSuccessCoGraphQL(
-    mutation,
-    JSON.stringify(variables)
-  );
+  const result = await callSuccessCoGraphQL(mutation, variables);
 
   if (!result.ok) {
     return {
@@ -3818,6 +3828,21 @@ export async function createIssue(args) {
   }
 
   const issue = result.data?.data?.createIssue?.issue;
+
+  if (!issue) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error: Issue creation failed. ${JSON.stringify(
+            result.data,
+            null,
+            2
+          )}`,
+        },
+      ],
+    };
+  }
 
   return {
     content: [
@@ -3926,10 +3951,7 @@ export async function createRock(args) {
     },
   };
 
-  const result = await callSuccessCoGraphQL(
-    mutation,
-    JSON.stringify(variables)
-  );
+  const result = await callSuccessCoGraphQL(mutation, variables);
 
   if (!result.ok) {
     return {
@@ -3943,6 +3965,21 @@ export async function createRock(args) {
   }
 
   const rock = result.data?.data?.createRock?.rock;
+
+  if (!rock) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error: Rock creation failed. ${JSON.stringify(
+            result.data,
+            null,
+            2
+          )}`,
+        },
+      ],
+    };
+  }
 
   return {
     content: [
@@ -4045,10 +4082,7 @@ export async function updateIssue(args) {
     },
   };
 
-  const result = await callSuccessCoGraphQL(
-    mutation,
-    JSON.stringify(variables)
-  );
+  const result = await callSuccessCoGraphQL(mutation, variables);
 
   if (!result.ok) {
     return {
@@ -4062,6 +4096,21 @@ export async function updateIssue(args) {
   }
 
   const issue = result.data?.data?.updateIssue?.issue;
+
+  if (!issue) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error: Issue update failed. ${JSON.stringify(
+            result.data,
+            null,
+            2
+          )}`,
+        },
+      ],
+    };
+  }
 
   return {
     content: [
@@ -4163,10 +4212,7 @@ export async function updateRock(args) {
     },
   };
 
-  const result = await callSuccessCoGraphQL(
-    mutation,
-    JSON.stringify(variables)
-  );
+  const result = await callSuccessCoGraphQL(mutation, variables);
 
   if (!result.ok) {
     return {
@@ -4180,6 +4226,21 @@ export async function updateRock(args) {
   }
 
   const rock = result.data?.data?.updateRock?.rock;
+
+  if (!rock) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error: Rock update failed. ${JSON.stringify(
+            result.data,
+            null,
+            2
+          )}`,
+        },
+      ],
+    };
+  }
 
   return {
     content: [
@@ -4275,10 +4336,7 @@ export async function updateTodo(args) {
     },
   };
 
-  const result = await callSuccessCoGraphQL(
-    mutation,
-    JSON.stringify(variables)
-  );
+  const result = await callSuccessCoGraphQL(mutation, variables);
 
   if (!result.ok) {
     return {
@@ -4292,6 +4350,21 @@ export async function updateTodo(args) {
   }
 
   const todo = result.data?.data?.updateTodo?.todo;
+
+  if (!todo) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error: Todo update failed. ${JSON.stringify(
+            result.data,
+            null,
+            2
+          )}`,
+        },
+      ],
+    };
+  }
 
   return {
     content: [
@@ -4402,10 +4475,7 @@ export async function updateHeadline(args) {
     },
   };
 
-  const result = await callSuccessCoGraphQL(
-    mutation,
-    JSON.stringify(variables)
-  );
+  const result = await callSuccessCoGraphQL(mutation, variables);
 
   if (!result.ok) {
     return {
@@ -4419,6 +4489,21 @@ export async function updateHeadline(args) {
   }
 
   const headline = result.data?.data?.updateHeadline?.headline;
+
+  if (!headline) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error: Headline update failed. ${JSON.stringify(
+            result.data,
+            null,
+            2
+          )}`,
+        },
+      ],
+    };
+  }
 
   return {
     content: [
@@ -4514,10 +4599,7 @@ export async function createHeadline(args) {
     },
   };
 
-  const result = await callSuccessCoGraphQL(
-    mutation,
-    JSON.stringify(variables)
-  );
+  const result = await callSuccessCoGraphQL(mutation, variables);
 
   if (!result.ok) {
     return {
@@ -4531,6 +4613,21 @@ export async function createHeadline(args) {
   }
 
   const headline = result.data?.data?.createHeadline?.headline;
+
+  if (!headline) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error: Headline creation failed. ${JSON.stringify(
+            result.data,
+            null,
+            2
+          )}`,
+        },
+      ],
+    };
+  }
 
   return {
     content: [
@@ -4636,10 +4733,7 @@ export async function updateMeeting(args) {
     },
   };
 
-  const result = await callSuccessCoGraphQL(
-    mutation,
-    JSON.stringify(variables)
-  );
+  const result = await callSuccessCoGraphQL(mutation, variables);
 
   if (!result.ok) {
     return {
@@ -4653,6 +4747,21 @@ export async function updateMeeting(args) {
   }
 
   const meeting = result.data?.data?.updateMeeting?.meeting;
+
+  if (!meeting) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error: Meeting update failed. ${JSON.stringify(
+            result.data,
+            null,
+            2
+          )}`,
+        },
+      ],
+    };
+  }
 
   return {
     content: [
@@ -4755,10 +4864,7 @@ export async function createMeeting(args) {
     },
   };
 
-  const result = await callSuccessCoGraphQL(
-    mutation,
-    JSON.stringify(variables)
-  );
+  const result = await callSuccessCoGraphQL(mutation, variables);
 
   if (!result.ok) {
     return {
@@ -4772,6 +4878,21 @@ export async function createMeeting(args) {
   }
 
   const meeting = result.data?.data?.createMeeting?.meeting;
+
+  if (!meeting) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error: Meeting creation failed. ${JSON.stringify(
+            result.data,
+            null,
+            2
+          )}`,
+        },
+      ],
+    };
+  }
 
   return {
     content: [
