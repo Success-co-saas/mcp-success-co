@@ -231,7 +231,6 @@ This is the primary tool for Scorecard and KPI analysis. It automatically detect
 
 - `getDataFields` - List all data fields (KPIs) with their configurations
 - `getDataValues` - List all data values (metric measurements) with filtering by date range
-- `getTeamsOnDataFields` - List team assignments to specific KPIs
 - `getDataFieldStatuses` - List available data field statuses
 
 ### Scorecard Analysis Capabilities
@@ -538,7 +537,6 @@ The project comprises the following key parts:
     - `getRockStatuses`: Fetches rock statuses from the Success.co GraphQL API
     - `getMilestones`: Fetches milestones from the Success.co GraphQL API
     - `getMilestoneStatuses`: Fetches milestone statuses from the Success.co GraphQL API
-    - `getTeamsOnRocks`: Fetches team-rock relationships from the Success.co GraphQL API
 
 
 - **Error Handling:**

@@ -18,13 +18,7 @@ import {
   getMeetings,
   getIssues,
   getHeadlines,
-  getVisions,
-  getVisionCoreValues,
-  getVisionCoreFocusTypes,
-  getVisionThreeYearGoals,
-  getVisionMarketStrategies,
   getMilestones,
-  getTeamsOnRocks,
   search,
   fetch,
   setSuccessCoApiKey,
@@ -32,11 +26,7 @@ import {
   getSuccessCoApiKey,
   callSuccessCoGraphQL,
   getScorecardMeasurables,
-  getTeamsOnDataFields,
-  // DISABLED: analyzeScorecardMetrics,
   getMeetingInfos,
-  getMeetingAgendas,
-  getMeetingAgendaSections,
   getLeadershipVTO,
   getAccountabilityChart,
 } from "./tools.js";
@@ -237,99 +227,6 @@ const toolDefinitions = [
     required: [],
   },
   {
-    name: "getVisions",
-    description: "List Success.co visions",
-    handler: async ({ first, offset, stateId, teamId, isLeadership }) =>
-      await getVisions({ first, offset, stateId, teamId, isLeadership }),
-    schema: {
-      first: z.number().int().optional().describe("Optional page size"),
-      offset: z.number().int().optional().describe("Optional offset"),
-      stateId: z
-        .string()
-        .optional()
-        .describe("Vision state filter (defaults to 'ACTIVE')"),
-      teamId: z.string().optional().describe("Filter by team ID"),
-      isLeadership: z
-        .boolean()
-        .optional()
-        .describe("Filter by leadership team"),
-    },
-    required: [],
-  },
-  {
-    name: "getVisionCoreValues",
-    description: "List Success.co vision core values",
-    handler: async ({ first, offset, stateId, visionId }) =>
-      await getVisionCoreValues({ first, offset, stateId, visionId }),
-    schema: {
-      first: z.number().int().optional().describe("Optional page size"),
-      offset: z.number().int().optional().describe("Optional offset"),
-      stateId: z
-        .string()
-        .optional()
-        .describe("Core value state filter (defaults to 'ACTIVE')"),
-      visionId: z.string().optional().describe("Filter by vision ID"),
-    },
-    required: [],
-  },
-  {
-    name: "getVisionCoreFocusTypes",
-    description: "List Success.co vision core focus types",
-    handler: async ({ first, offset, stateId, visionId, type }) =>
-      await getVisionCoreFocusTypes({ first, offset, stateId, visionId, type }),
-    schema: {
-      first: z.number().int().optional().describe("Optional page size"),
-      offset: z.number().int().optional().describe("Optional offset"),
-      stateId: z
-        .string()
-        .optional()
-        .describe("Core focus state filter (defaults to 'ACTIVE')"),
-      visionId: z.string().optional().describe("Filter by vision ID"),
-      type: z.string().optional().describe("Filter by type"),
-    },
-    required: [],
-  },
-  {
-    name: "getVisionThreeYearGoals",
-    description: "List Success.co vision three year goals",
-    handler: async ({ first, offset, stateId, visionId, type }) =>
-      await getVisionThreeYearGoals({ first, offset, stateId, visionId, type }),
-    schema: {
-      first: z.number().int().optional().describe("Optional page size"),
-      offset: z.number().int().optional().describe("Optional offset"),
-      stateId: z
-        .string()
-        .optional()
-        .describe("Goal state filter (defaults to 'ACTIVE')"),
-      visionId: z.string().optional().describe("Filter by vision ID"),
-      type: z.string().optional().describe("Filter by type"),
-    },
-    required: [],
-  },
-  {
-    name: "getVisionMarketStrategies",
-    description: "List Success.co vision market strategies",
-    handler: async ({ first, offset, stateId, visionId, isCustom }) =>
-      await getVisionMarketStrategies({
-        first,
-        offset,
-        stateId,
-        visionId,
-        isCustom,
-      }),
-    schema: {
-      first: z.number().int().optional().describe("Optional page size"),
-      offset: z.number().int().optional().describe("Optional offset"),
-      stateId: z
-        .string()
-        .optional()
-        .describe("Strategy state filter (defaults to 'ACTIVE')"),
-      visionId: z.string().optional().describe("Filter by vision ID"),
-      isCustom: z.boolean().optional().describe("Filter by custom status"),
-    },
-    required: [],
-  },
-  {
     name: "getMilestones",
     description: "List Success.co milestones on rocks",
     handler: async ({ first, offset, stateId, rockId, userId, teamId }) =>
@@ -343,23 +240,6 @@ const toolDefinitions = [
         .describe("Milestone state filter (defaults to 'ACTIVE')"),
       rockId: z.string().optional().describe("Filter by rock ID"),
       userId: z.string().optional().describe("Filter by user ID"),
-      teamId: z.string().optional().describe("Filter by team ID"),
-    },
-    required: [],
-  },
-  {
-    name: "getTeamsOnRocks",
-    description: "List Success.co teams on rocks relationships",
-    handler: async ({ first, offset, stateId, rockId, teamId }) =>
-      await getTeamsOnRocks({ first, offset, stateId, rockId, teamId }),
-    schema: {
-      first: z.number().int().optional().describe("Optional page size"),
-      offset: z.number().int().optional().describe("Optional offset"),
-      stateId: z
-        .string()
-        .optional()
-        .describe("Team-rock state filter (defaults to 'ACTIVE')"),
-      rockId: z.string().optional().describe("Filter by rock ID"),
       teamId: z.string().optional().describe("Filter by team ID"),
     },
     required: [],
@@ -457,30 +337,6 @@ const toolDefinitions = [
     required: [],
   },
   {
-    name: "getTeamsOnDataFields",
-    description:
-      "List Success.co teams on data fields relationships (Scorecard team assignments)",
-    handler: async ({ first, offset, stateId, teamId, dataFieldId }) =>
-      await getTeamsOnDataFields({
-        first,
-        offset,
-        stateId,
-        teamId,
-        dataFieldId,
-      }),
-    schema: {
-      first: z.number().int().optional().describe("Optional page size"),
-      offset: z.number().int().optional().describe("Optional offset"),
-      stateId: z
-        .string()
-        .optional()
-        .describe("Team-data field state filter (defaults to 'ACTIVE')"),
-      teamId: z.string().optional().describe("Filter by team ID"),
-      dataFieldId: z.string().optional().describe("Filter by data field ID"),
-    },
-    required: [],
-  },
-  {
     name: "getMeetingInfos",
     description: "List Success.co meeting infos",
     handler: async ({ first, offset, stateId, teamId, meetingInfoStatusId }) =>
@@ -503,70 +359,6 @@ const toolDefinitions = [
         .string()
         .optional()
         .describe("Filter by meeting info status ID"),
-    },
-    required: [],
-  },
-  {
-    name: "getMeetingAgendas",
-    description: "List Success.co meeting agendas",
-    handler: async ({
-      first,
-      offset,
-      stateId,
-      teamId,
-      meetingAgendaStatusId,
-      meetingAgendaTypeId,
-    }) =>
-      await getMeetingAgendas({
-        first,
-        offset,
-        stateId,
-        teamId,
-        meetingAgendaStatusId,
-        meetingAgendaTypeId,
-      }),
-    schema: {
-      first: z.number().int().optional().describe("Optional page size"),
-      offset: z.number().int().optional().describe("Optional offset"),
-      stateId: z
-        .string()
-        .optional()
-        .describe("Meeting agenda state filter (defaults to 'ACTIVE')"),
-      teamId: z.string().optional().describe("Filter by team ID"),
-      meetingAgendaStatusId: z
-        .string()
-        .optional()
-        .describe("Filter by meeting agenda status ID"),
-      meetingAgendaTypeId: z
-        .string()
-        .optional()
-        .describe("Filter by meeting agenda type ID"),
-    },
-    required: [],
-  },
-  {
-    name: "getMeetingAgendaSections",
-    description: "List Success.co meeting agenda sections",
-    handler: async ({ first, offset, stateId, meetingAgendaId, type }) =>
-      await getMeetingAgendaSections({
-        first,
-        offset,
-        stateId,
-        meetingAgendaId,
-        type,
-      }),
-    schema: {
-      first: z.number().int().optional().describe("Optional page size"),
-      offset: z.number().int().optional().describe("Optional offset"),
-      stateId: z
-        .string()
-        .optional()
-        .describe("Meeting agenda section state filter (defaults to 'ACTIVE')"),
-      meetingAgendaId: z
-        .string()
-        .optional()
-        .describe("Filter by meeting agenda ID"),
-      type: z.string().optional().describe("Filter by section type"),
     },
     required: [],
   },

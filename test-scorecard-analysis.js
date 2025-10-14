@@ -9,7 +9,6 @@ import {
   analyzeScorecardMetrics,
   getDataFields,
   getDataValues,
-  getTeamsOnDataFields,
   getDataFieldStatuses,
 } from "./tools.js";
 
@@ -100,25 +99,8 @@ async function testScorecardAnalysis() {
 
   console.log("\n" + "=".repeat(50) + "\n");
 
-  // Test 6: Teams on Data Fields relationships
-  console.log("6. Testing Teams on Data Fields relationships:");
-  try {
-    const teamsOnDataFieldsResult = await getTeamsOnDataFields({
-      first: 10,
-      stateId: "ACTIVE",
-    });
-    console.log(
-      "Teams on Data Fields result:",
-      JSON.stringify(teamsOnDataFieldsResult, null, 2)
-    );
-  } catch (error) {
-    console.error("Error testing teams on data fields:", error.message);
-  }
-
-  console.log("\n" + "=".repeat(50) + "\n");
-
-  // Test 7: Data Field Statuses
-  console.log("7. Testing Data Field Statuses:");
+  // Test 6: Data Field Statuses
+  console.log("6. Testing Data Field Statuses:");
   try {
     const dataFieldStatusesResult = await getDataFieldStatuses({
       first: 10,
@@ -134,8 +116,8 @@ async function testScorecardAnalysis() {
 
   console.log("\n" + "=".repeat(50) + "\n");
 
-  // Test 8: Team-specific Scorecard analysis
-  console.log("8. Testing team-specific Scorecard analysis:");
+  // Test 7: Team-specific Scorecard analysis
+  console.log("7. Testing team-specific Scorecard analysis:");
   try {
     const teamScorecardResult = await analyzeScorecardMetrics({
       query:
@@ -153,8 +135,8 @@ async function testScorecardAnalysis() {
 
   console.log("\n" + "=".repeat(50) + "\n");
 
-  // Test 9: General help
-  console.log("9. Testing general help:");
+  // Test 8: General help
+  console.log("8. Testing general help:");
   try {
     const helpResult = await analyzeScorecardMetrics({
       query: "What can you analyze about Scorecard measurables?",
