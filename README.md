@@ -518,6 +518,264 @@ Returns team membership with enriched user and team data.
    - Tool: `getRocks` grouped by team
    - Analysis: Calculate completion rate per team
 
+## Data Mutation Tools (Create & Update)
+
+The MCP server now includes comprehensive mutation capabilities to create and update data in Success.co. These tools enable AI assistants to not just read data, but also take action.
+
+**Available Operations:**
+
+- **Create**: Issue, Rock, Headline, Meeting
+- **Update**: Issue, Rock, Todo, Headline, Meeting
+
+All mutation operations follow a consistent pattern:
+
+1. **For Create**: Optionally find related IDs (teams, users) using `get*` tools, then call `create*`
+2. **For Update**: Search for the item using `get*` tools to find its ID, then call `update*` with that ID
+
+### Create Issue
+
+**Tool: `createIssue`**
+
+Create new issues to track problems that need to be discussed and resolved.
+
+**Parameters:**
+
+- `name` - Issue title (required)
+- `desc` - Issue description
+- `teamId` - Team to assign to (use `getTeams` to find ID)
+- `userId` - User to assign to
+- `issueStatusId` - Status (defaults to 'OPEN')
+- `priorityNo` - Priority 1-5 (defaults to 3)
+- `type` - 'LEADERSHIP', 'DEPARTMENTAL', or 'COMPANY'
+
+**Example Query:**
+
+**"Add a new issue for 'customer churn increase' to the leadership team"**
+
+- Step 1: `getTeams` to find leadership team (where `isLeadership=true`)
+- Step 2: `createIssue` with `name="customer churn increase"`, `teamId=<leadership ID>`, `type="LEADERSHIP"`
+
+### Create Rock
+
+**Tool: `createRock`**
+
+Create new Rocks (90-day priorities) for teams or individuals.
+
+**Parameters:**
+
+- `name` - Rock title (required)
+- `desc` - Rock description
+- `dueDate` - Due date YYYY-MM-DD (required)
+- `teamId` - Team to assign to
+- `userId` - User to assign to
+- `rockStatusId` - Status (defaults to 'ONTRACK')
+- `type` - 'COMPANY', 'LEADERSHIP', or 'DEPARTMENTAL'
+
+**Example Query:**
+
+**"Create a Rock for marketing to 'launch referral program' due next quarter"**
+
+- Step 1: `getTeams` to find marketing team ID
+- Step 2: Calculate date 90 days from today
+- Step 3: `createRock` with `name="launch referral program"`, `dueDate=<calculated>`, `teamId=<marketing ID>`
+
+### Update Issue
+
+**Tool: `updateIssue`**
+
+Update existing issues including changing status, priority, or reassigning.
+
+**Parameters:**
+
+- `issueId` - Issue ID (required, use `getIssues` to find)
+- `name` - Update issue name
+- `desc` - Update description
+- `issueStatusId` - Update status ('OPEN', 'CLOSED', etc.)
+- `teamId` - Reassign to different team
+- `userId` - Reassign to different user
+- `priorityNo` - Update priority (1-5)
+
+**Example Query:**
+
+**"Close the issue about 'pricing inconsistencies'"**
+
+- Step 1: `getIssues` with keyword "pricing inconsistencies"
+- Step 2: `updateIssue` with `issueId=<found ID>`, `issueStatusId="CLOSED"`
+
+### Update Rock
+
+**Tool: `updateRock`**
+
+Update existing Rocks including status, due date, or reassigning.
+
+**Parameters:**
+
+- `rockId` - Rock ID (required, use `getRocks` to find)
+- `name` - Update rock name
+- `desc` - Update description
+- `rockStatusId` - Update status ('ONTRACK', 'OFFTRACK', 'COMPLETE', 'INCOMPLETE')
+- `dueDate` - Update due date
+- `teamId` - Reassign to different team
+- `userId` - Reassign to different user
+
+**Example Query:**
+
+**"Mark the 'launch referral program' rock as complete"**
+
+- Step 1: `getRocks` with name matching "launch referral program"
+- Step 2: `updateRock` with `rockId=<found ID>`, `rockStatusId="COMPLETE"`
+
+### Update Todo
+
+**Tool: `updateTodo`**
+
+Update existing to-dos, including marking them as complete.
+
+**Parameters:**
+
+- `todoId` - Todo ID (required, use `getTodos` to find)
+- `todoStatusId` - New status ('TODO' or 'COMPLETE')
+- `name` - Update the name
+- `desc` - Update the description
+- `dueDate` - Update the due date
+
+**Example Query:**
+
+**"Mark the to-do 'follow up with vendor' as complete"**
+
+- Step 1: `getTodos` to search for todo with name containing "follow up with vendor"
+- Step 2: `updateTodo` with `todoId=<found ID>`, `todoStatusId="COMPLETE"`
+
+### Update Headline
+
+**Tool: `updateHeadline`**
+
+Update existing headlines including text, description, or status.
+
+**Parameters:**
+
+- `headlineId` - Headline ID (required, use `getHeadlines` to find)
+- `name` - Update headline text
+- `desc` - Update description
+- `headlineStatusId` - Update status
+- `teamId` - Update team association
+- `userId` - Update user association
+- `isCascadingMessage` - Update cascade flag
+
+**Example Query:**
+
+**"Edit the ABC Corp headline to add more details"**
+
+- Step 1: `getHeadlines` with keyword "ABC Corp"
+- Step 2: `updateHeadline` with `headlineId=<found ID>`, `desc="New details here"`
+
+### Update Meeting
+
+**Tool: `updateMeeting`**
+
+Update existing meetings including time, date, or status.
+
+**Parameters:**
+
+- `meetingId` - Meeting ID (required, use `getMeetings` to find)
+- `date` - Update meeting date (YYYY-MM-DD)
+- `startTime` - Update start time (HH:MM)
+- `endTime` - Update end time (HH:MM)
+- `meetingStatusId` - Update status ('SCHEDULED', 'COMPLETED', 'CANCELLED')
+- `averageRating` - Update rating
+
+**Example Query:**
+
+**"Reschedule next Monday's L10 to 2pm"**
+
+- Step 1: Calculate next Monday's date
+- Step 2: `getMeetings` with `dateAfter=<Monday>`, `dateBefore=<Monday>`
+- Step 3: `updateMeeting` with `meetingId=<found ID>`, `startTime="14:00"`
+
+### Create Headline
+
+**Tool: `createHeadline`**
+
+Create headlines to share good news and wins during meetings.
+
+**Parameters:**
+
+- `name` - Headline text (required)
+- `desc` - Additional details
+- `teamId` - Team to associate with
+- `userId` - User to associate with
+- `headlineStatusId` - Status (defaults to 'ACTIVE')
+- `isCascadingMessage` - Share across teams (defaults to false)
+
+**Example Query:**
+
+**"Add a headline: 'Won major client contract with ABC Corp'"**
+
+- Tool: `createHeadline` with `name="Won major client contract with ABC Corp"`
+- Optional: Add `desc` with contract details
+
+### Create Meeting
+
+**Tool: `createMeeting`**
+
+Schedule new meeting instances for existing meeting series.
+
+**Parameters:**
+
+- `date` - Meeting date YYYY-MM-DD (required)
+- `meetingInfoId` - Meeting series ID (required, use `getMeetingInfos`)
+- `startTime` - Start time HH:MM (defaults to '09:00')
+- `endTime` - End time HH:MM (defaults to '10:00')
+- `meetingStatusId` - Status (defaults to 'SCHEDULED')
+
+**Example Query:**
+
+**"Schedule a Level 10 meeting for the Integrator team next Monday"**
+
+- Step 1: Calculate next Monday's date
+- Step 2: `getTeams` to find Integrator team ID
+- Step 3: `getMeetingInfos` with `teamId=<Integrator ID>` to find Level 10 meeting series
+- Step 4: `createMeeting` with `date=<Monday date>`, `meetingInfoId=<Level 10 series ID>`
+
+### Mutation Query Patterns
+
+#### Pattern 1: Create with Team Assignment
+
+```text
+1. getTeams → find team ID
+2. create* → use teamId parameter
+```
+
+#### Pattern 2: Create with User Assignment
+
+```text
+1. getUsers → find user ID
+2. create* → use userId parameter
+```
+
+#### Pattern 3: Update Existing Item
+
+```text
+1. get* → search for item by name/criteria
+2. update* → use ID from search results
+```
+
+#### Pattern 4: Multi-step Creation
+
+```text
+1. Calculate dates/times (e.g., "next quarter" = today + 90 days)
+2. Find related IDs (teams, users, meeting series)
+3. create* → use calculated values
+```
+
+### Important Notes
+
+- All mutation tools require a valid Success.co API key
+- Team and user IDs should be obtained using `getTeams` and `getUsers`
+- Date calculations should be done by the AI (e.g., "next Monday", "next quarter")
+- Meeting series IDs come from `getMeetingInfos`, not `getMeetings`
+- Rock due dates should be calculated as ~90 days (one quarter) from today
+
 ## Cross-functional Queries
 
 These complex queries combine multiple tools to provide comprehensive insights:

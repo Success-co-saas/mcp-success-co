@@ -33,6 +33,15 @@ import {
   getPeopleAnalyzerSessions,
   getOrgCheckups,
   getUsersOnTeams,
+  createIssue,
+  createRock,
+  updateTodo,
+  createHeadline,
+  createMeeting,
+  updateIssue,
+  updateRock,
+  updateHeadline,
+  updateMeeting,
 } from "./tools.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -743,6 +752,454 @@ const toolDefinitions = [
         .describe("State filter (defaults to 'ACTIVE')"),
     },
     required: [],
+  },
+  {
+    name: "createIssue",
+    description:
+      "Create a new issue in Success.co. Perfect for queries like 'Add a new issue for customer churn increase to the leadership team'. Use getTeams first to find the team ID if assigning to a specific team (e.g., leadership team where isLeadership=true).",
+    handler: async ({
+      name,
+      desc,
+      teamId,
+      userId,
+      issueStatusId,
+      priorityNo,
+      type,
+    }) =>
+      await createIssue({
+        name,
+        desc,
+        teamId,
+        userId,
+        issueStatusId,
+        priorityNo,
+        type,
+      }),
+    schema: {
+      name: z.string().describe("Issue name/title (required)"),
+      desc: z
+        .string()
+        .optional()
+        .describe("Issue description or additional details"),
+      teamId: z
+        .string()
+        .optional()
+        .describe(
+          "Team ID to assign the issue to (use getTeams to find the team ID)"
+        ),
+      userId: z
+        .string()
+        .optional()
+        .describe(
+          "User ID to assign the issue to (use getUsers to find the user ID)"
+        ),
+      issueStatusId: z
+        .string()
+        .optional()
+        .describe("Issue status (defaults to 'OPEN')"),
+      priorityNo: z
+        .number()
+        .int()
+        .optional()
+        .describe(
+          "Priority number 1-5, where 5 is highest priority (defaults to 3)"
+        ),
+      type: z
+        .string()
+        .optional()
+        .describe(
+          "Issue type: 'LEADERSHIP', 'DEPARTMENTAL', or 'COMPANY' (defaults to 'LEADERSHIP')"
+        ),
+    },
+    required: ["name"],
+  },
+  {
+    name: "createRock",
+    description:
+      "Create a new Rock (90-day priority) in Success.co. Perfect for queries like 'Create a Rock for marketing to launch referral program due next quarter'. Use getTeams to find the team ID and calculate the due date for 'next quarter'.",
+    handler: async ({
+      name,
+      desc,
+      dueDate,
+      teamId,
+      userId,
+      rockStatusId,
+      type,
+    }) =>
+      await createRock({
+        name,
+        desc,
+        dueDate,
+        teamId,
+        userId,
+        rockStatusId,
+        type,
+      }),
+    schema: {
+      name: z.string().describe("Rock name/title (required)"),
+      desc: z.string().optional().describe("Rock description or details"),
+      dueDate: z
+        .string()
+        .describe(
+          "Due date in YYYY-MM-DD format (required). For 'next quarter', calculate 90 days from today."
+        ),
+      teamId: z
+        .string()
+        .optional()
+        .describe(
+          "Team ID to assign the rock to (use getTeams to find the team ID)"
+        ),
+      userId: z
+        .string()
+        .optional()
+        .describe(
+          "User ID to assign the rock to (use getUsers to find the user ID)"
+        ),
+      rockStatusId: z
+        .string()
+        .optional()
+        .describe(
+          "Rock status: 'ONTRACK', 'OFFTRACK', 'COMPLETE', or 'INCOMPLETE' (defaults to 'ONTRACK')"
+        ),
+      type: z
+        .string()
+        .optional()
+        .describe(
+          "Rock type: 'COMPANY', 'LEADERSHIP', or 'DEPARTMENTAL' (defaults to 'COMPANY')"
+        ),
+    },
+    required: ["name", "dueDate"],
+  },
+  {
+    name: "updateTodo",
+    description:
+      "Update an existing to-do in Success.co. Perfect for queries like 'Mark the to-do follow up with vendor as complete'. Use getTodos first to find the specific to-do ID by searching for the to-do name.",
+    handler: async ({ todoId, todoStatusId, name, desc, dueDate }) =>
+      await updateTodo({ todoId, todoStatusId, name, desc, dueDate }),
+    schema: {
+      todoId: z
+        .string()
+        .describe(
+          "Todo ID (required). Use getTodos with keyword search to find the ID."
+        ),
+      todoStatusId: z
+        .string()
+        .optional()
+        .describe("New status: 'TODO' for open, 'COMPLETE' for completed"),
+      name: z.string().optional().describe("Update the to-do name"),
+      desc: z.string().optional().describe("Update the to-do description"),
+      dueDate: z
+        .string()
+        .optional()
+        .describe("Update the due date (YYYY-MM-DD format)"),
+    },
+    required: ["todoId"],
+  },
+  {
+    name: "createHeadline",
+    description:
+      "Create a new headline in Success.co. Perfect for queries like 'Add a headline: Won major client contract with ABC Corp'. Headlines are good news or updates shared during meetings.",
+    handler: async ({
+      name,
+      desc,
+      teamId,
+      userId,
+      headlineStatusId,
+      isCascadingMessage,
+    }) =>
+      await createHeadline({
+        name,
+        desc,
+        teamId,
+        userId,
+        headlineStatusId,
+        isCascadingMessage,
+      }),
+    schema: {
+      name: z
+        .string()
+        .describe(
+          "Headline text (required). Keep it concise and positive - this is good news!"
+        ),
+      desc: z
+        .string()
+        .optional()
+        .describe("Additional details or description for the headline"),
+      teamId: z
+        .string()
+        .optional()
+        .describe(
+          "Team ID to associate with (use getTeams to find the team ID)"
+        ),
+      userId: z
+        .string()
+        .optional()
+        .describe(
+          "User ID to associate with (use getUsers to find the user ID)"
+        ),
+      headlineStatusId: z
+        .string()
+        .optional()
+        .describe("Headline status (defaults to 'ACTIVE')"),
+      isCascadingMessage: z
+        .boolean()
+        .optional()
+        .describe(
+          "Whether this is a cascading message to be shared across teams (defaults to false)"
+        ),
+    },
+    required: ["name"],
+  },
+  {
+    name: "createMeeting",
+    description:
+      "Create a new meeting instance in Success.co. Perfect for queries like 'Schedule a Level 10 meeting for the Integrator team next Monday'. Use getMeetingInfos to find the meeting series ID (meetingInfoId) for the team first.",
+    handler: async ({
+      date,
+      meetingInfoId,
+      startTime,
+      endTime,
+      meetingStatusId,
+    }) =>
+      await createMeeting({
+        date,
+        meetingInfoId,
+        startTime,
+        endTime,
+        meetingStatusId,
+      }),
+    schema: {
+      date: z
+        .string()
+        .describe(
+          "Meeting date in YYYY-MM-DD format (required). For 'next Monday', calculate the date."
+        ),
+      meetingInfoId: z
+        .string()
+        .describe(
+          "Meeting series ID (required). Use getMeetingInfos to find the meeting series for the team (e.g., Level 10 series)."
+        ),
+      startTime: z
+        .string()
+        .optional()
+        .describe(
+          "Meeting start time in HH:MM format, 24-hour clock (defaults to '09:00')"
+        ),
+      endTime: z
+        .string()
+        .optional()
+        .describe(
+          "Meeting end time in HH:MM format, 24-hour clock (defaults to '10:00')"
+        ),
+      meetingStatusId: z
+        .string()
+        .optional()
+        .describe("Meeting status (defaults to 'SCHEDULED')"),
+    },
+    required: ["date", "meetingInfoId"],
+  },
+  {
+    name: "updateIssue",
+    description:
+      "Update an existing issue in Success.co. Perfect for queries like 'Close the issue about pricing inconsistencies' or 'Change the priority of the customer churn issue to 5'. Use getIssues first to find the issue ID.",
+    handler: async ({
+      issueId,
+      name,
+      desc,
+      issueStatusId,
+      teamId,
+      userId,
+      priorityNo,
+    }) =>
+      await updateIssue({
+        issueId,
+        name,
+        desc,
+        issueStatusId,
+        teamId,
+        userId,
+        priorityNo,
+      }),
+    schema: {
+      issueId: z
+        .string()
+        .describe(
+          "Issue ID (required). Use getIssues to search for the issue by name or criteria."
+        ),
+      name: z.string().optional().describe("Update the issue name/title"),
+      desc: z.string().optional().describe("Update the issue description"),
+      issueStatusId: z
+        .string()
+        .optional()
+        .describe("Update status: 'OPEN', 'CLOSED', or other valid status IDs"),
+      teamId: z
+        .string()
+        .optional()
+        .describe("Reassign to a different team (use getTeams to find ID)"),
+      userId: z
+        .string()
+        .optional()
+        .describe("Reassign to a different user (use getUsers to find ID)"),
+      priorityNo: z
+        .number()
+        .int()
+        .optional()
+        .describe("Update priority (1-5, where 5 is highest)"),
+    },
+    required: ["issueId"],
+  },
+  {
+    name: "updateRock",
+    description:
+      "Update an existing Rock in Success.co. Perfect for queries like 'Mark the referral program rock as complete' or 'Change the due date for the marketing rock to next month'. Use getRocks first to find the rock ID.",
+    handler: async ({
+      rockId,
+      name,
+      desc,
+      rockStatusId,
+      dueDate,
+      teamId,
+      userId,
+    }) =>
+      await updateRock({
+        rockId,
+        name,
+        desc,
+        rockStatusId,
+        dueDate,
+        teamId,
+        userId,
+      }),
+    schema: {
+      rockId: z
+        .string()
+        .describe(
+          "Rock ID (required). Use getRocks to search for the rock by name or criteria."
+        ),
+      name: z.string().optional().describe("Update the rock name/title"),
+      desc: z.string().optional().describe("Update the rock description"),
+      rockStatusId: z
+        .string()
+        .optional()
+        .describe(
+          "Update status: 'ONTRACK', 'OFFTRACK', 'COMPLETE', or 'INCOMPLETE'"
+        ),
+      dueDate: z
+        .string()
+        .optional()
+        .describe("Update due date (YYYY-MM-DD format)"),
+      teamId: z
+        .string()
+        .optional()
+        .describe("Reassign to a different team (use getTeams to find ID)"),
+      userId: z
+        .string()
+        .optional()
+        .describe("Reassign to a different user (use getUsers to find ID)"),
+    },
+    required: ["rockId"],
+  },
+  {
+    name: "updateHeadline",
+    description:
+      "Update an existing headline in Success.co. Perfect for queries like 'Edit the ABC Corp headline to add more details' or 'Change the headline status'. Use getHeadlines first to find the headline ID.",
+    handler: async ({
+      headlineId,
+      name,
+      desc,
+      headlineStatusId,
+      teamId,
+      userId,
+      isCascadingMessage,
+    }) =>
+      await updateHeadline({
+        headlineId,
+        name,
+        desc,
+        headlineStatusId,
+        teamId,
+        userId,
+        isCascadingMessage,
+      }),
+    schema: {
+      headlineId: z
+        .string()
+        .describe(
+          "Headline ID (required). Use getHeadlines with keyword search to find the ID."
+        ),
+      name: z.string().optional().describe("Update the headline text"),
+      desc: z.string().optional().describe("Update the headline description"),
+      headlineStatusId: z
+        .string()
+        .optional()
+        .describe("Update the headline status"),
+      teamId: z
+        .string()
+        .optional()
+        .describe("Update team association (use getTeams to find ID)"),
+      userId: z
+        .string()
+        .optional()
+        .describe("Update user association (use getUsers to find ID)"),
+      isCascadingMessage: z
+        .boolean()
+        .optional()
+        .describe("Update whether this cascades to all teams"),
+    },
+    required: ["headlineId"],
+  },
+  {
+    name: "updateMeeting",
+    description:
+      "Update an existing meeting in Success.co. Perfect for queries like 'Reschedule next Monday's L10 to 2pm' or 'Cancel tomorrow's meeting'. Use getMeetings or getMeetingDetails first to find the meeting ID.",
+    handler: async ({
+      meetingId,
+      date,
+      startTime,
+      endTime,
+      meetingStatusId,
+      averageRating,
+    }) =>
+      await updateMeeting({
+        meetingId,
+        date,
+        startTime,
+        endTime,
+        meetingStatusId,
+        averageRating,
+      }),
+    schema: {
+      meetingId: z
+        .string()
+        .describe(
+          "Meeting ID (required). Use getMeetings to find the specific meeting instance."
+        ),
+      date: z
+        .string()
+        .optional()
+        .describe("Update meeting date (YYYY-MM-DD format)"),
+      startTime: z
+        .string()
+        .optional()
+        .describe(
+          "Update start time (HH:MM format, 24-hour clock, e.g., '14:00' for 2pm)"
+        ),
+      endTime: z
+        .string()
+        .optional()
+        .describe("Update end time (HH:MM format, 24-hour clock)"),
+      meetingStatusId: z
+        .string()
+        .optional()
+        .describe(
+          "Update meeting status (e.g., 'SCHEDULED', 'COMPLETED', 'CANCELLED')"
+        ),
+      averageRating: z
+        .number()
+        .optional()
+        .describe("Update the average meeting rating"),
+    },
+    required: ["meetingId"],
   },
 ];
 

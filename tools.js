@@ -3720,6 +3720,1078 @@ export async function getMeetingDetails(args) {
 }
 
 /**
+ * Create a new issue
+ * @param {Object} args - Arguments object
+ * @param {string} args.name - Issue name/title (required)
+ * @param {string} [args.desc] - Issue description
+ * @param {string} [args.teamId] - Team ID to assign the issue to
+ * @param {string} [args.userId] - User ID to assign the issue to
+ * @param {string} [args.issueStatusId] - Issue status (defaults to 'OPEN')
+ * @param {number} [args.priorityNo] - Priority number (1-5, higher = more important)
+ * @param {string} [args.type] - Issue type (e.g., 'LEADERSHIP', 'DEPARTMENTAL')
+ * @returns {Promise<{content: Array<{type: string, text: string}>}>}
+ */
+export async function createIssue(args) {
+  const {
+    name,
+    desc = "",
+    teamId,
+    userId,
+    issueStatusId = "OPEN",
+    priorityNo = 3,
+    type = "LEADERSHIP",
+  } = args;
+
+  if (!name || name.trim() === "") {
+    return {
+      content: [
+        {
+          type: "text",
+          text: "Error: Issue name is required",
+        },
+      ],
+    };
+  }
+
+  // Get company ID from current user/context (this would need to be set)
+  // For now, we'll need to get it from the API key context
+  const apiKey = getSuccessCoApiKey();
+  if (!apiKey) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: "Error: Success.co API key not set. Use setSuccessCoApiKey first.",
+        },
+      ],
+    };
+  }
+
+  const mutation = `
+    mutation CreateIssue($input: CreateIssueInput!) {
+      createIssue(input: $input) {
+        issue {
+          id
+          name
+          desc
+          issueStatusId
+          teamId
+          userId
+          type
+          priorityNo
+          createdAt
+          stateId
+        }
+      }
+    }
+  `;
+
+  const variables = {
+    input: {
+      issue: {
+        name,
+        desc,
+        issueStatusId,
+        priorityNo,
+        type,
+        ...(teamId && { teamId }),
+        ...(userId && { userId }),
+        stateId: "ACTIVE",
+      },
+    },
+  };
+
+  const result = await callSuccessCoGraphQL(
+    mutation,
+    JSON.stringify(variables)
+  );
+
+  if (!result.ok) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error creating issue: ${result.error}`,
+        },
+      ],
+    };
+  }
+
+  const issue = result.data?.data?.createIssue?.issue;
+
+  return {
+    content: [
+      {
+        type: "text",
+        text: JSON.stringify(
+          {
+            success: true,
+            message: "Issue created successfully",
+            issue: issue,
+          },
+          null,
+          2
+        ),
+      },
+    ],
+  };
+}
+
+/**
+ * Create a new rock
+ * @param {Object} args - Arguments object
+ * @param {string} args.name - Rock name/title (required)
+ * @param {string} [args.desc] - Rock description
+ * @param {string} args.dueDate - Due date (YYYY-MM-DD format, required)
+ * @param {string} [args.teamId] - Team ID to assign the rock to
+ * @param {string} [args.userId] - User ID to assign the rock to
+ * @param {string} [args.rockStatusId] - Rock status (defaults to 'ONTRACK')
+ * @param {string} [args.type] - Rock type (e.g., 'COMPANY', 'LEADERSHIP', 'DEPARTMENTAL')
+ * @returns {Promise<{content: Array<{type: string, text: string}>}>}
+ */
+export async function createRock(args) {
+  const {
+    name,
+    desc = "",
+    dueDate,
+    teamId,
+    userId,
+    rockStatusId = "ONTRACK",
+    type = "COMPANY",
+  } = args;
+
+  if (!name || name.trim() === "") {
+    return {
+      content: [
+        {
+          type: "text",
+          text: "Error: Rock name is required",
+        },
+      ],
+    };
+  }
+
+  if (!dueDate) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: "Error: Due date is required (format: YYYY-MM-DD)",
+        },
+      ],
+    };
+  }
+
+  const apiKey = getSuccessCoApiKey();
+  if (!apiKey) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: "Error: Success.co API key not set. Use setSuccessCoApiKey first.",
+        },
+      ],
+    };
+  }
+
+  const mutation = `
+    mutation CreateRock($input: CreateRockInput!) {
+      createRock(input: $input) {
+        rock {
+          id
+          name
+          desc
+          rockStatusId
+          dueDate
+          type
+          createdAt
+          stateId
+        }
+      }
+    }
+  `;
+
+  const variables = {
+    input: {
+      rock: {
+        name,
+        desc,
+        dueDate,
+        rockStatusId,
+        type,
+        ...(teamId && { teamId }),
+        ...(userId && { userId }),
+        stateId: "ACTIVE",
+      },
+    },
+  };
+
+  const result = await callSuccessCoGraphQL(
+    mutation,
+    JSON.stringify(variables)
+  );
+
+  if (!result.ok) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error creating rock: ${result.error}`,
+        },
+      ],
+    };
+  }
+
+  const rock = result.data?.data?.createRock?.rock;
+
+  return {
+    content: [
+      {
+        type: "text",
+        text: JSON.stringify(
+          {
+            success: true,
+            message: "Rock created successfully",
+            rock: rock,
+          },
+          null,
+          2
+        ),
+      },
+    ],
+  };
+}
+
+/**
+ * Update an existing issue
+ * @param {Object} args - Arguments object
+ * @param {string} args.issueId - Issue ID (required)
+ * @param {string} [args.name] - Update issue name
+ * @param {string} [args.desc] - Update issue description
+ * @param {string} [args.issueStatusId] - Update status (e.g., 'OPEN', 'CLOSED')
+ * @param {string} [args.teamId] - Update team assignment
+ * @param {string} [args.userId] - Update user assignment
+ * @param {number} [args.priorityNo] - Update priority (1-5)
+ * @returns {Promise<{content: Array<{type: string, text: string}>}>}
+ */
+export async function updateIssue(args) {
+  const { issueId, name, desc, issueStatusId, teamId, userId, priorityNo } =
+    args;
+
+  if (!issueId) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: "Error: Issue ID is required",
+        },
+      ],
+    };
+  }
+
+  const apiKey = getSuccessCoApiKey();
+  if (!apiKey) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: "Error: Success.co API key not set. Use setSuccessCoApiKey first.",
+        },
+      ],
+    };
+  }
+
+  const mutation = `
+    mutation UpdateIssue($input: UpdateIssueInput!) {
+      updateIssue(input: $input) {
+        issue {
+          id
+          name
+          desc
+          issueStatusId
+          teamId
+          userId
+          priorityNo
+          statusUpdatedAt
+          stateId
+        }
+      }
+    }
+  `;
+
+  const updates = {};
+  if (name) updates.name = name;
+  if (desc !== undefined) updates.desc = desc;
+  if (issueStatusId) updates.issueStatusId = issueStatusId;
+  if (teamId) updates.teamId = teamId;
+  if (userId) updates.userId = userId;
+  if (priorityNo !== undefined) updates.priorityNo = priorityNo;
+
+  if (Object.keys(updates).length === 0) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: "Error: No updates specified. Provide at least one field to update.",
+        },
+      ],
+    };
+  }
+
+  const variables = {
+    input: {
+      id: issueId,
+      issuePatch: updates,
+    },
+  };
+
+  const result = await callSuccessCoGraphQL(
+    mutation,
+    JSON.stringify(variables)
+  );
+
+  if (!result.ok) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error updating issue: ${result.error}`,
+        },
+      ],
+    };
+  }
+
+  const issue = result.data?.data?.updateIssue?.issue;
+
+  return {
+    content: [
+      {
+        type: "text",
+        text: JSON.stringify(
+          {
+            success: true,
+            message: "Issue updated successfully",
+            issue: issue,
+          },
+          null,
+          2
+        ),
+      },
+    ],
+  };
+}
+
+/**
+ * Update an existing rock
+ * @param {Object} args - Arguments object
+ * @param {string} args.rockId - Rock ID (required)
+ * @param {string} [args.name] - Update rock name
+ * @param {string} [args.desc] - Update rock description
+ * @param {string} [args.rockStatusId] - Update status ('ONTRACK', 'OFFTRACK', 'COMPLETE', 'INCOMPLETE')
+ * @param {string} [args.dueDate] - Update due date
+ * @param {string} [args.teamId] - Update team assignment
+ * @param {string} [args.userId] - Update user assignment
+ * @returns {Promise<{content: Array<{type: string, text: string}>}>}
+ */
+export async function updateRock(args) {
+  const { rockId, name, desc, rockStatusId, dueDate, teamId, userId } = args;
+
+  if (!rockId) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: "Error: Rock ID is required",
+        },
+      ],
+    };
+  }
+
+  const apiKey = getSuccessCoApiKey();
+  if (!apiKey) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: "Error: Success.co API key not set. Use setSuccessCoApiKey first.",
+        },
+      ],
+    };
+  }
+
+  const mutation = `
+    mutation UpdateRock($input: UpdateRockInput!) {
+      updateRock(input: $input) {
+        rock {
+          id
+          name
+          desc
+          rockStatusId
+          dueDate
+          teamId
+          userId
+          statusUpdatedAt
+          stateId
+        }
+      }
+    }
+  `;
+
+  const updates = {};
+  if (name) updates.name = name;
+  if (desc !== undefined) updates.desc = desc;
+  if (rockStatusId) updates.rockStatusId = rockStatusId;
+  if (dueDate) updates.dueDate = dueDate;
+  if (teamId) updates.teamId = teamId;
+  if (userId) updates.userId = userId;
+
+  if (Object.keys(updates).length === 0) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: "Error: No updates specified. Provide at least one field to update.",
+        },
+      ],
+    };
+  }
+
+  const variables = {
+    input: {
+      id: rockId,
+      rockPatch: updates,
+    },
+  };
+
+  const result = await callSuccessCoGraphQL(
+    mutation,
+    JSON.stringify(variables)
+  );
+
+  if (!result.ok) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error updating rock: ${result.error}`,
+        },
+      ],
+    };
+  }
+
+  const rock = result.data?.data?.updateRock?.rock;
+
+  return {
+    content: [
+      {
+        type: "text",
+        text: JSON.stringify(
+          {
+            success: true,
+            message: "Rock updated successfully",
+            rock: rock,
+          },
+          null,
+          2
+        ),
+      },
+    ],
+  };
+}
+
+/**
+ * Update a todo (e.g., mark as complete)
+ * @param {Object} args - Arguments object
+ * @param {string} args.todoId - Todo ID (required)
+ * @param {string} [args.todoStatusId] - New status ('TODO', 'COMPLETE')
+ * @param {string} [args.name] - Update todo name
+ * @param {string} [args.desc] - Update todo description
+ * @param {string} [args.dueDate] - Update due date
+ * @returns {Promise<{content: Array<{type: string, text: string}>}>}
+ */
+export async function updateTodo(args) {
+  const { todoId, todoStatusId, name, desc, dueDate } = args;
+
+  if (!todoId) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: "Error: Todo ID is required",
+        },
+      ],
+    };
+  }
+
+  const apiKey = getSuccessCoApiKey();
+  if (!apiKey) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: "Error: Success.co API key not set. Use setSuccessCoApiKey first.",
+        },
+      ],
+    };
+  }
+
+  const mutation = `
+    mutation UpdateTodo($input: UpdateTodoInput!) {
+      updateTodo(input: $input) {
+        todo {
+          id
+          name
+          desc
+          todoStatusId
+          dueDate
+          statusUpdatedAt
+          stateId
+        }
+      }
+    }
+  `;
+
+  const updates = {};
+  if (todoStatusId) updates.todoStatusId = todoStatusId;
+  if (name) updates.name = name;
+  if (desc !== undefined) updates.desc = desc;
+  if (dueDate) updates.dueDate = dueDate;
+
+  if (Object.keys(updates).length === 0) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: "Error: No updates specified. Provide at least one field to update (todoStatusId, name, desc, or dueDate)",
+        },
+      ],
+    };
+  }
+
+  const variables = {
+    input: {
+      id: todoId,
+      todoPatch: updates,
+    },
+  };
+
+  const result = await callSuccessCoGraphQL(
+    mutation,
+    JSON.stringify(variables)
+  );
+
+  if (!result.ok) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error updating todo: ${result.error}`,
+        },
+      ],
+    };
+  }
+
+  const todo = result.data?.data?.updateTodo?.todo;
+
+  return {
+    content: [
+      {
+        type: "text",
+        text: JSON.stringify(
+          {
+            success: true,
+            message: "Todo updated successfully",
+            todo: todo,
+          },
+          null,
+          2
+        ),
+      },
+    ],
+  };
+}
+
+/**
+ * Update an existing headline
+ * @param {Object} args - Arguments object
+ * @param {string} args.headlineId - Headline ID (required)
+ * @param {string} [args.name] - Update headline text
+ * @param {string} [args.desc] - Update headline description
+ * @param {string} [args.headlineStatusId] - Update status
+ * @param {string} [args.teamId] - Update team association
+ * @param {string} [args.userId] - Update user association
+ * @param {boolean} [args.isCascadingMessage] - Update cascading message flag
+ * @returns {Promise<{content: Array<{type: string, text: string}>}>}
+ */
+export async function updateHeadline(args) {
+  const {
+    headlineId,
+    name,
+    desc,
+    headlineStatusId,
+    teamId,
+    userId,
+    isCascadingMessage,
+  } = args;
+
+  if (!headlineId) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: "Error: Headline ID is required",
+        },
+      ],
+    };
+  }
+
+  const apiKey = getSuccessCoApiKey();
+  if (!apiKey) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: "Error: Success.co API key not set. Use setSuccessCoApiKey first.",
+        },
+      ],
+    };
+  }
+
+  const mutation = `
+    mutation UpdateHeadline($input: UpdateHeadlineInput!) {
+      updateHeadline(input: $input) {
+        headline {
+          id
+          name
+          desc
+          headlineStatusId
+          teamId
+          userId
+          isCascadingMessage
+          statusUpdatedAt
+          stateId
+        }
+      }
+    }
+  `;
+
+  const updates = {};
+  if (name) updates.name = name;
+  if (desc !== undefined) updates.desc = desc;
+  if (headlineStatusId) updates.headlineStatusId = headlineStatusId;
+  if (teamId) updates.teamId = teamId;
+  if (userId) updates.userId = userId;
+  if (isCascadingMessage !== undefined)
+    updates.isCascadingMessage = isCascadingMessage;
+
+  if (Object.keys(updates).length === 0) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: "Error: No updates specified. Provide at least one field to update.",
+        },
+      ],
+    };
+  }
+
+  const variables = {
+    input: {
+      id: headlineId,
+      headlinePatch: updates,
+    },
+  };
+
+  const result = await callSuccessCoGraphQL(
+    mutation,
+    JSON.stringify(variables)
+  );
+
+  if (!result.ok) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error updating headline: ${result.error}`,
+        },
+      ],
+    };
+  }
+
+  const headline = result.data?.data?.updateHeadline?.headline;
+
+  return {
+    content: [
+      {
+        type: "text",
+        text: JSON.stringify(
+          {
+            success: true,
+            message: "Headline updated successfully",
+            headline: headline,
+          },
+          null,
+          2
+        ),
+      },
+    ],
+  };
+}
+
+/**
+ * Create a new headline
+ * @param {Object} args - Arguments object
+ * @param {string} args.name - Headline text (required)
+ * @param {string} [args.desc] - Headline description/details
+ * @param {string} [args.teamId] - Team ID to associate with
+ * @param {string} [args.userId] - User ID to associate with
+ * @param {string} [args.headlineStatusId] - Headline status (defaults to 'ACTIVE')
+ * @param {boolean} [args.isCascadingMessage] - Whether this is a cascading message (defaults to false)
+ * @returns {Promise<{content: Array<{type: string, text: string}>}>}
+ */
+export async function createHeadline(args) {
+  const {
+    name,
+    desc = "",
+    teamId,
+    userId,
+    headlineStatusId = "ACTIVE",
+    isCascadingMessage = false,
+  } = args;
+
+  if (!name || name.trim() === "") {
+    return {
+      content: [
+        {
+          type: "text",
+          text: "Error: Headline text is required",
+        },
+      ],
+    };
+  }
+
+  const apiKey = getSuccessCoApiKey();
+  if (!apiKey) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: "Error: Success.co API key not set. Use setSuccessCoApiKey first.",
+        },
+      ],
+    };
+  }
+
+  const mutation = `
+    mutation CreateHeadline($input: CreateHeadlineInput!) {
+      createHeadline(input: $input) {
+        headline {
+          id
+          name
+          desc
+          headlineStatusId
+          teamId
+          userId
+          isCascadingMessage
+          createdAt
+          stateId
+        }
+      }
+    }
+  `;
+
+  const variables = {
+    input: {
+      headline: {
+        name,
+        desc,
+        headlineStatusId,
+        isCascadingMessage,
+        ...(teamId && { teamId }),
+        ...(userId && { userId }),
+        stateId: "ACTIVE",
+      },
+    },
+  };
+
+  const result = await callSuccessCoGraphQL(
+    mutation,
+    JSON.stringify(variables)
+  );
+
+  if (!result.ok) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error creating headline: ${result.error}`,
+        },
+      ],
+    };
+  }
+
+  const headline = result.data?.data?.createHeadline?.headline;
+
+  return {
+    content: [
+      {
+        type: "text",
+        text: JSON.stringify(
+          {
+            success: true,
+            message: "Headline created successfully",
+            headline: headline,
+          },
+          null,
+          2
+        ),
+      },
+    ],
+  };
+}
+
+/**
+ * Update an existing meeting
+ * @param {Object} args - Arguments object
+ * @param {string} args.meetingId - Meeting ID (required)
+ * @param {string} [args.date] - Update meeting date (YYYY-MM-DD format)
+ * @param {string} [args.startTime] - Update start time (HH:MM format)
+ * @param {string} [args.endTime] - Update end time (HH:MM format)
+ * @param {string} [args.meetingStatusId] - Update meeting status
+ * @param {number} [args.averageRating] - Update average rating
+ * @returns {Promise<{content: Array<{type: string, text: string}>}>}
+ */
+export async function updateMeeting(args) {
+  const {
+    meetingId,
+    date,
+    startTime,
+    endTime,
+    meetingStatusId,
+    averageRating,
+  } = args;
+
+  if (!meetingId) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: "Error: Meeting ID is required",
+        },
+      ],
+    };
+  }
+
+  const apiKey = getSuccessCoApiKey();
+  if (!apiKey) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: "Error: Success.co API key not set. Use setSuccessCoApiKey first.",
+        },
+      ],
+    };
+  }
+
+  const mutation = `
+    mutation UpdateMeeting($input: UpdateMeetingInput!) {
+      updateMeeting(input: $input) {
+        meeting {
+          id
+          date
+          startTime
+          endTime
+          meetingStatusId
+          averageRating
+          meetingInfoId
+          stateId
+        }
+      }
+    }
+  `;
+
+  const updates = {};
+  if (date) updates.date = date;
+  if (startTime) updates.startTime = startTime;
+  if (endTime) updates.endTime = endTime;
+  if (meetingStatusId) updates.meetingStatusId = meetingStatusId;
+  if (averageRating !== undefined) updates.averageRating = averageRating;
+
+  if (Object.keys(updates).length === 0) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: "Error: No updates specified. Provide at least one field to update.",
+        },
+      ],
+    };
+  }
+
+  const variables = {
+    input: {
+      id: meetingId,
+      meetingPatch: updates,
+    },
+  };
+
+  const result = await callSuccessCoGraphQL(
+    mutation,
+    JSON.stringify(variables)
+  );
+
+  if (!result.ok) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error updating meeting: ${result.error}`,
+        },
+      ],
+    };
+  }
+
+  const meeting = result.data?.data?.updateMeeting?.meeting;
+
+  return {
+    content: [
+      {
+        type: "text",
+        text: JSON.stringify(
+          {
+            success: true,
+            message: "Meeting updated successfully",
+            meeting: meeting,
+          },
+          null,
+          2
+        ),
+      },
+    ],
+  };
+}
+
+/**
+ * Create a new meeting
+ * @param {Object} args - Arguments object
+ * @param {string} args.date - Meeting date (YYYY-MM-DD format, required)
+ * @param {string} args.meetingInfoId - Meeting info/series ID (required)
+ * @param {string} [args.startTime] - Start time (HH:MM format)
+ * @param {string} [args.endTime] - End time (HH:MM format)
+ * @param {string} [args.meetingStatusId] - Meeting status (defaults to 'SCHEDULED')
+ * @returns {Promise<{content: Array<{type: string, text: string}>}>}
+ */
+export async function createMeeting(args) {
+  const {
+    date,
+    meetingInfoId,
+    startTime = "09:00",
+    endTime = "10:00",
+    meetingStatusId = "SCHEDULED",
+  } = args;
+
+  if (!date) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: "Error: Meeting date is required (format: YYYY-MM-DD)",
+        },
+      ],
+    };
+  }
+
+  if (!meetingInfoId) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: "Error: Meeting info ID is required. Use getMeetingInfos to find the meeting series for your team.",
+        },
+      ],
+    };
+  }
+
+  const apiKey = getSuccessCoApiKey();
+  if (!apiKey) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: "Error: Success.co API key not set. Use setSuccessCoApiKey first.",
+        },
+      ],
+    };
+  }
+
+  const mutation = `
+    mutation CreateMeeting($input: CreateMeetingInput!) {
+      createMeeting(input: $input) {
+        meeting {
+          id
+          date
+          startTime
+          endTime
+          meetingStatusId
+          meetingInfoId
+          createdAt
+          stateId
+        }
+      }
+    }
+  `;
+
+  const variables = {
+    input: {
+      meeting: {
+        date,
+        meetingInfoId,
+        startTime,
+        endTime,
+        meetingStatusId,
+        stateId: "ACTIVE",
+      },
+    },
+  };
+
+  const result = await callSuccessCoGraphQL(
+    mutation,
+    JSON.stringify(variables)
+  );
+
+  if (!result.ok) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error creating meeting: ${result.error}`,
+        },
+      ],
+    };
+  }
+
+  const meeting = result.data?.data?.createMeeting?.meeting;
+
+  return {
+    content: [
+      {
+        type: "text",
+        text: JSON.stringify(
+          {
+            success: true,
+            message: "Meeting created successfully",
+            meeting: meeting,
+          },
+          null,
+          2
+        ),
+      },
+    ],
+  };
+}
+
+/**
  * Get the accountability chart (organizational structure) for the company
  * This tool fetches the complete organizational hierarchy including all users,
  * their roles, teams, and reporting relationships to answer questions like
