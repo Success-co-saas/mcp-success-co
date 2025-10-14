@@ -3957,12 +3957,21 @@ export async function getScorecardMeasurables(args) {
     // Get data fields (KPIs) directly with GraphQL query
     const filterParts = [`stateId: {equalTo: "${stateId}"}`];
 
+    // If specific dataFieldId is provided, filter by it
+    if (dataFieldId) {
+      filterParts.push(`id: {equalTo: "${dataFieldId}"}`);
+    }
     // If we have team-specific dataFieldIds, filter by them
-    if (teamDataFieldIds && teamDataFieldIds.length > 0) {
+    else if (teamDataFieldIds && teamDataFieldIds.length > 0) {
       const dataFieldIdFilters = teamDataFieldIds
         .map((id) => `"${id}"`)
         .join(", ");
       filterParts.push(`id: {in: [${dataFieldIdFilters}]}`);
+    }
+
+    // If userId is provided, filter by it at the GraphQL level
+    if (userId) {
+      filterParts.push(`userId: {equalTo: "${userId}"}`);
     }
 
     const filterStr = filterParts.join(", ");
@@ -4016,11 +4025,6 @@ export async function getScorecardMeasurables(args) {
 
     // Apply additional filters if provided
     let filteredDataFields = dataFields;
-    if (userId) {
-      filteredDataFields = filteredDataFields.filter(
-        (field) => field.userId === userId
-      );
-    }
     if (type) {
       // Map the type parameter to the corresponding data field type
       const typeMapping = {
@@ -4163,111 +4167,25 @@ export async function getScorecardMeasurables(args) {
       valuesByField[value.dataFieldId].push(value);
     });
 
-    // Helper function to aggregate values by timeframe
-    function aggregateValuesByTimeframe(values, timeframe) {
-      if (timeframe === "days" || timeframe === "weeks") {
-        // For days and weeks, return values as-is (no aggregation needed)
-        return values.sort(
-          (a, b) => new Date(b.startDate) - new Date(a.startDate)
-        );
-      }
-
-      // Group values by time period
-      const groupedValues = {};
-
-      values.forEach((value) => {
-        const date = new Date(value.startDate);
-        let periodKey;
-
-        switch (timeframe) {
-          case "months":
-            periodKey = `${date.getFullYear()}-${String(
-              date.getMonth() + 1
-            ).padStart(2, "0")}`;
-            break;
-          case "quarters":
-            const quarter = Math.floor(date.getMonth() / 3) + 1;
-            periodKey = `${date.getFullYear()}-Q${quarter}`;
-            break;
-          case "years":
-            periodKey = `${date.getFullYear()}`;
-            break;
-          default:
-            periodKey = value.startDate;
-        }
-
-        if (!groupedValues[periodKey]) {
-          groupedValues[periodKey] = [];
-        }
-        groupedValues[periodKey].push(value);
-      });
-
-      // Aggregate values within each period
-      const aggregatedValues = Object.keys(groupedValues).map((periodKey) => {
-        const periodValues = groupedValues[periodKey];
-
-        // Calculate aggregated metrics
-        const numericValues = periodValues
-          .map((v) => parseFloat(v.value))
-          .filter((v) => !isNaN(v));
-
-        const aggregatedValue = {
-          id: `${periodValues[0].dataFieldId}-${periodKey}`,
-          dataFieldId: periodValues[0].dataFieldId,
-          startDate: periodValues[0].startDate, // Use first date in period
-          value:
-            numericValues.length > 0
-              ? (
-                  numericValues.reduce((sum, val) => sum + val, 0) /
-                  numericValues.length
-                ).toFixed(2)
-              : periodValues[0].value,
-          createdAt: periodValues[0].createdAt,
-          stateId: periodValues[0].stateId,
-          customGoalTarget: periodValues[0].customGoalTarget,
-          customGoalTargetEnd: periodValues[0].customGoalTargetEnd,
-          note: `Aggregated from ${periodValues.length} values in ${periodKey}`,
-          periodKey,
-          periodCount: periodValues.length,
-          rawValues: periodValues,
-        };
-
-        return aggregatedValue;
-      });
-
-      // Sort by period (most recent first)
-      return aggregatedValues.sort((a, b) => {
-        if (timeframe === "quarters") {
-          const [yearA, quarterA] = a.periodKey.split("-Q");
-          const [yearB, quarterB] = b.periodKey.split("-Q");
-          return yearB !== yearA ? yearB - yearA : quarterB - quarterA;
-        } else if (timeframe === "months") {
-          return b.periodKey.localeCompare(a.periodKey);
-        } else if (timeframe === "years") {
-          return b.periodKey - a.periodKey;
-        }
-        return new Date(b.startDate) - new Date(a.startDate);
-      });
+    // Helper function to sort values by date (most recent first)
+    function sortValuesByDate(values) {
+      return values.sort(
+        (a, b) => new Date(b.startDate) - new Date(a.startDate)
+      );
     }
 
     // Create combined scorecard measurables
     const scorecardMeasurables = filteredDataFields.map((field) => {
       const fieldValues = valuesByField[field.id] || [];
 
-      // Aggregate values based on timeframe
-      const aggregatedValues = aggregateValuesByTimeframe(
-        fieldValues,
-        timeframe
-      );
+      // Sort values by date (most recent first)
+      const sortedValues = sortValuesByDate(fieldValues);
 
       return {
         ...field,
-        values: aggregatedValues,
-        latestValue: aggregatedValues.length > 0 ? aggregatedValues[0] : null,
-        valueCount: aggregatedValues.length,
+        values: sortedValues,
         type,
         timeframe,
-        aggregationApplied: timeframe !== "days" && timeframe !== "weeks",
       };
     });
 
