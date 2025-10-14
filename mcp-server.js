@@ -25,12 +25,10 @@ import {
   getVisionMarketStrategies,
   getMilestones,
   getTeamsOnRocks,
-  analyzeEOSData,
   search,
   fetch,
   setSuccessCoApiKey,
   getSuccessCoApiKeyTool,
-  getGraphQLDebugLog,
   getSuccessCoApiKey,
   callSuccessCoGraphQL,
   getScorecardMeasurables,
@@ -94,19 +92,6 @@ const toolDefinitions = [
     description: "Get the Success.co API key (env or stored file)",
     handler: async () => await getSuccessCoApiKeyTool({}),
     schema: {},
-    required: [],
-  },
-  {
-    name: "getGraphQLDebugLog",
-    description:
-      "Get GraphQL debug log status and recent entries (dev mode only)",
-    handler: async (args) => await getGraphQLDebugLog(args),
-    schema: {
-      lines: z
-        .number()
-        .optional()
-        .describe("Number of recent lines to show (default: 50)"),
-    },
     required: [],
   },
   {
@@ -378,35 +363,6 @@ const toolDefinitions = [
       teamId: z.string().optional().describe("Filter by team ID"),
     },
     required: [],
-  },
-  {
-    name: "analyzeEOSData",
-    description:
-      "Analyze EOS/Traction framework data to answer complex business questions. Automatically detects query intent and provides comprehensive analysis of rocks, teams, and performance metrics. Use this for questions about project status, deadlines, team performance, and business operations.",
-    handler: async ({ query, teamId, userId, timeframe }) =>
-      await analyzeEOSData({ query, teamId, userId, timeframe }),
-    schema: {
-      query: z
-        .string()
-        .describe(
-          "The analytical question to answer (e.g., 'Which rocks are at risk?', 'Show overdue items', 'How is team performance?')"
-        ),
-      teamId: z
-        .string()
-        .optional()
-        .describe("Optional team filter - filter analysis to specific team"),
-      userId: z
-        .string()
-        .optional()
-        .describe("Optional user filter - filter analysis to specific user"),
-      timeframe: z
-        .string()
-        .optional()
-        .describe(
-          "Optional timeframe filter - 'quarter', 'month', 'week', or 'year'"
-        ),
-    },
-    required: ["query"],
   },
   {
     name: "search",
