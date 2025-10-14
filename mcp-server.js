@@ -849,7 +849,7 @@ const toolDefinitions = [
         .string()
         .optional()
         .describe(
-          "Issue type: 'LEADERSHIP', 'DEPARTMENTAL', or 'COMPANY' (defaults to 'LEADERSHIP')"
+          "Issue type: 'short-term' or 'long-term' (defaults to 'short-term')"
         ),
     },
     required: ["name", "teamId"],

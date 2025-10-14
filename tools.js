@@ -3985,7 +3985,7 @@ export async function getMeetingDetails(args) {
  * @param {string} [args.userId] - User ID to assign the issue to (defaults to current user from API key)
  * @param {string} [args.issueStatusId] - Issue status (defaults to 'TODO')
  * @param {number} [args.priorityNo] - Priority number (1-5, higher = more important)
- * @param {string} [args.type] - Issue type (e.g., 'LEADERSHIP', 'DEPARTMENTAL')
+ * @param {string} [args.type] - Issue type: 'short-term' or 'long-term' (defaults to 'short-term')
  * @returns {Promise<{content: Array<{type: string, text: string}>}>}
  */
 export async function createIssue(args) {
@@ -3996,7 +3996,7 @@ export async function createIssue(args) {
     userId: providedUserId,
     issueStatusId = "TODO",
     priorityNo = 3,
-    type = "LEADERSHIP",
+    type = "short-term",
   } = args;
 
   if (!name || name.trim() === "") {

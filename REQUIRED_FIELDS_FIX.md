@@ -49,6 +49,10 @@ GraphQL error: Field "userId" of required type "UUID!" was not provided.
 
 **Bonus Fix**: Changed default `issueStatusId` from "OPEN" to "TODO" to match database schema.
 
+### 4. Fixed Issue Type
+
+**Bonus Fix**: Changed `type` values from "LEADERSHIP"/"DEPARTMENTAL"/"COMPANY" to the correct values "short-term" and "long-term" (defaults to "short-term").
+
 ## Technical Changes
 
 ### File: `tools.js`

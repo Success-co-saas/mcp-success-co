@@ -60,9 +60,9 @@ async function testCreateIssue() {
       name: "Test Issue - API Key Context",
       desc: "Testing automatic userId from API key",
       teamId: firstTeam.id,
-      // issueStatusId will use default
+      // issueStatusId will use default 'TODO'
+      // type will use default 'short-term'
       priorityNo: 3,
-      type: "LEADERSHIP",
     });
 
     const responseText = result.content[0].text;
