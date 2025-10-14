@@ -141,9 +141,10 @@ const toolDefinitions = [
   },
   {
     name: "getTodos",
-    description: "List Success.co todos",
-    handler: async ({ first, offset, stateId }) =>
-      await getTodos({ first, offset, stateId }),
+    description:
+      "List Success.co todos. Use fromMeetings=true to get only todos from Level 10 meetings.",
+    handler: async ({ first, offset, stateId, fromMeetings }) =>
+      await getTodos({ first, offset, stateId, fromMeetings }),
     schema: {
       first: z.number().int().optional().describe("Optional page size"),
       offset: z.number().int().optional().describe("Optional offset"),
@@ -151,6 +152,12 @@ const toolDefinitions = [
         .string()
         .optional()
         .describe("Todo state filter (defaults to 'ACTIVE')"),
+      fromMeetings: z
+        .boolean()
+        .optional()
+        .describe(
+          "If true, only return todos linked to meetings (Level 10 meetings)"
+        ),
     },
     required: [],
   },

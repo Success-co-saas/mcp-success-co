@@ -444,10 +444,11 @@ export async function getUsers(args) {
  * @param {number} [args.first] - Optional page size
  * @param {number} [args.offset] - Optional offset
  * @param {string} [args.stateId] - Todo state filter (defaults to 'ACTIVE')
+ * @param {boolean} [args.fromMeetings] - If true, only return todos linked to meetings (Level 10 meetings)
  * @returns {Promise<{content: Array<{type: string, text: string}>}>}
  */
 export async function getTodos(args) {
-  const { first, offset, stateId = "ACTIVE" } = args;
+  const { first, offset, stateId = "ACTIVE", fromMeetings = false } = args;
   // Validate stateId
   const validation = validateStateId(stateId);
   if (!validation.isValid) {
@@ -455,8 +456,16 @@ export async function getTodos(args) {
       content: [{ type: "text", text: validation.error }],
     };
   }
+
+  const filterItems = [`stateId: {equalTo: "${stateId}"}`];
+
+  // Add meetingId filter if fromMeetings is true
+  if (fromMeetings) {
+    filterItems.push(`meetingId: {isNull: false}`);
+  }
+
   const filterStr = [
-    `stateId: {equalTo: "${stateId}"}`,
+    filterItems.length > 0 ? `filter: {${filterItems.join(", ")}}` : "",
     first !== undefined ? `first: ${first}` : "",
     offset !== undefined ? `offset: ${offset}` : "",
   ]
@@ -465,7 +474,7 @@ export async function getTodos(args) {
 
   const query = `
     query {
-      todos(${filterStr ? `filter: {${filterStr}}` : ""}) {
+      todos(${filterStr}) {
         nodes {
           id
           todoStatusId
