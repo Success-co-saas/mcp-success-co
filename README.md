@@ -363,6 +363,218 @@ Here's how to answer each type of query:
    - Params: `dateAfter=<week start>`, `dateBefore=<week end>`
    - Analysis: Extract `todos` array from each meeting
 
+## Headlines Analysis
+
+The MCP server now includes enhanced headline filtering for sentiment analysis, topic tracking, and time-based queries.
+
+### Enhanced Headlines Tool
+
+**New Parameters:**
+
+- `createdAfter` / `createdBefore` - Filter by creation date
+- `keyword` - Filter by keyword in name or description (case-insensitive)
+- `teamId`, `userId` - Filter by team or user
+- `fromMeetings` - Only headlines from meetings
+
+**Example Queries:**
+
+1. **"Show me all people headlines from this week"**
+
+   - Tool: `getHeadlines`
+   - Params: `createdAfter=<week start>`, `createdBefore=<week end>`
+
+2. **"List company headlines related to hiring"**
+
+   - Tool: `getHeadlines`
+   - Params: `keyword="hiring"`
+
+3. **"Summarize positive headlines from the past month"**
+
+   - Tool: `getHeadlines`
+   - Params: `keyword="positive"`, `createdAfter=<month start>`
+
+4. **"What headlines are related to client feedback?"**
+
+   - Tool: `getHeadlines`
+   - Params: `keyword="client feedback"` or `keyword="customer"`
+
+## People Analyzer
+
+The MCP server includes comprehensive People Analyzer tools for tracking GWC (Gets it, Wants it, Capacity) scores and Right Person/Right Seat evaluations.
+
+### People Analyzer Tool
+
+**Tool: `getPeopleAnalyzerSessions`**
+
+Returns sessions with user scores including:
+
+- **getsIt** - Understanding of the role (1-5 scale)
+- **wantsIt** - Desire to do the role (1-5 scale)
+- **capacityToDoIt** - Ability to perform the role (1-5 scale)
+- **rightPerson** - Cultural fit with core values (1-5 scale)
+- **rightSeat** - Fit for the specific role (1-5 scale)
+
+**Parameters:**
+
+- `teamId` - Filter by team (e.g., leadership team)
+- `sessionId` - Specific session
+- `createdAfter` / `createdBefore` - Date range filtering
+
+**Example Queries:**
+
+1. **"Show me the people analyzer results for the leadership team"**
+
+   - Tool: `getPeopleAnalyzerSessions`
+   - Params: `teamId=<leadership team ID>`
+
+2. **"Who's rated below a 3 on 'Gets it'?"**
+
+   - Tool: `getPeopleAnalyzerSessions`
+   - Analysis: Filter results where `getsIt < 3`
+
+3. **"Who doesn't meet our core values consistently?"**
+
+   - Tool: `getPeopleAnalyzerSessions`
+   - Analysis: Filter results where `rightPerson < 3`
+
+4. **"Summarize people analyzer trends for the last quarter"**
+
+   - Tool: `getPeopleAnalyzerSessions`
+   - Params: `createdAfter=<quarter start>`, `createdBefore=<quarter end>`
+
+## Organization Checkup
+
+The MCP server includes Organization Checkup tools for tracking organizational health scores and identifying improvement areas.
+
+### Organization Checkup Tool
+
+**Tool: `getOrgCheckups`**
+
+Returns checkup sessions with:
+
+- Overall score
+- Individual question answers (20 questions, Yes/No format)
+- Question numbers for identifying specific areas
+
+**Parameters:**
+
+- `checkupId` - Specific checkup session
+- `createdAfter` / `createdBefore` - Date range for comparisons
+
+**Example Queries:**
+
+1. **"What's our current organization checkup score?"**
+
+   - Tool: `getOrgCheckups`
+   - Params: `first=1` (get most recent)
+
+2. **"Which statements scored lowest?"**
+
+   - Tool: `getOrgCheckups`
+   - Analysis: Count "No" answers by question number
+
+3. **"Compare this quarter's checkup to last quarter's"**
+
+   - Tool: `getOrgCheckups` (two calls)
+   - Params: Different date ranges for each quarter
+
+4. **"Summarize improvement areas for the next EOS quarter"**
+
+   - Tool: `getOrgCheckups`
+   - Analysis: Identify questions with "No" answers
+
+## Teams and People Management
+
+### Team Membership Tool
+
+**Tool: `getUsersOnTeams`**
+
+Returns team membership with enriched user and team data.
+
+**Parameters:**
+
+- `teamId` - Filter by specific team
+- `userId` - Filter by specific user
+
+**Example Queries:**
+
+1. **"Who's on the Operations team?"**
+
+   - Tool: `getUsersOnTeams`
+   - Params: `teamId=<Operations team ID>`
+
+2. **"List all people with open Rocks"**
+
+   - Tool 1: `getRocks` with `rockStatusId="ONTRACK"` or `"OFFTRACK"`
+   - Tool 2: `getUsers` filtered by user IDs from rocks
+
+3. **"Who owns the KPI for customer satisfaction?"**
+
+   - Tool: `getScorecardMeasurables`
+   - Analysis: Find data field with name matching "customer satisfaction", get `userId`
+
+4. **"Which team has the lowest Rock completion rate?"**
+
+   - Tool: `getRocks` grouped by team
+   - Analysis: Calculate completion rate per team
+
+## Cross-functional Queries
+
+These complex queries combine multiple tools to provide comprehensive insights:
+
+### 1. **"What's the overall health of our company this quarter?"**
+
+Combine:
+
+- `getOrgCheckups` - Recent checkup score
+- `getScorecardMeasurables` - KPI performance
+- `getRocks` - Rock completion rates
+- `getIssues` - Open issues count
+
+### 2. **"Summarize our EOS performance dashboard for the executive summary"**
+
+Combine:
+
+- `getLeadershipVTO` - Vision/goals alignment
+- `getScorecardMeasurables` - Key metrics
+- `getRocks` - Priorities status
+- `getMeetingDetails` - Recent L10 insights
+
+### 3. **"Which areas of the business show the lowest accountability?"**
+
+Combine:
+
+- `getRocks` - Overdue or incomplete rocks by owner
+- `getTodos` - Overdue todos by owner
+- `getIssues` - Long-standing open issues
+- `getPeopleAnalyzerSessions` - GWC scores
+
+### 4. **"Generate a leadership meeting agenda using current Rocks, Issues, and Scorecard data"**
+
+Combine:
+
+- `getRocks` - At-risk rocks for discussion
+- `getIssues` - Top priority open issues
+- `getScorecardMeasurables` - KPIs below target
+- `getMeetingDetails` - Previous action items
+
+### 5. **"Create a weekly EOS summary email with metrics, Rocks, and highlights"**
+
+Combine:
+
+- `getScorecardMeasurables` - Weekly KPIs
+- `getRocks` - Rock progress updates
+- `getHeadlines` - Weekly headlines
+- `getTodos` - Completed vs open todos
+
+### 6. **"What's trending down in our scorecard that might affect our V/TO goals?"**
+
+Combine:
+
+- `getScorecardMeasurables` - Analyze trends
+- `getLeadershipVTO` - Current goals
+- Analysis: Match declining KPIs to goal areas
+
 ## Scorecard measurables Analysis Tools
 
 The MCP server now includes comprehensive Scorecard measurables analysis capabilities, allowing AI assistants to answer complex questions about KPI performance, targets, and trends.

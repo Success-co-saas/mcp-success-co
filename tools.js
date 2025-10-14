@@ -871,10 +871,26 @@ export async function getIssues(args) {
  * @param {number} [args.first] - Optional page size
  * @param {number} [args.offset] - Optional offset
  * @param {string} [args.stateId] - Headline state filter (defaults to 'ACTIVE')
+ * @param {string} [args.teamId] - Filter by team ID
+ * @param {string} [args.userId] - Filter by user ID
+ * @param {boolean} [args.fromMeetings] - If true, only return headlines from meetings
+ * @param {string} [args.createdAfter] - Filter headlines created after this date (ISO 8601 format)
+ * @param {string} [args.createdBefore] - Filter headlines created before this date (ISO 8601 format)
+ * @param {string} [args.keyword] - Filter by keyword in name or description (case-insensitive)
  * @returns {Promise<{content: Array<{type: string, text: string}>}>}
  */
 export async function getHeadlines(args) {
-  const { first, offset, stateId = "ACTIVE" } = args;
+  const {
+    first,
+    offset,
+    stateId = "ACTIVE",
+    teamId,
+    userId,
+    fromMeetings = false,
+    createdAfter,
+    createdBefore,
+    keyword,
+  } = args;
   // Validate stateId
   const validation = validateStateId(stateId);
   if (!validation.isValid) {
@@ -882,17 +898,44 @@ export async function getHeadlines(args) {
       content: [{ type: "text", text: validation.error }],
     };
   }
+
+  const filterItems = [`stateId: {equalTo: "${stateId}"}`];
+
+  // Add teamId filter if provided
+  if (teamId) {
+    filterItems.push(`teamId: {equalTo: "${teamId}"}`);
+  }
+
+  // Add userId filter if provided
+  if (userId) {
+    filterItems.push(`userId: {equalTo: "${userId}"}`);
+  }
+
+  // Add meetingId filter if fromMeetings is true
+  if (fromMeetings) {
+    filterItems.push(`meetingId: {isNull: false}`);
+  }
+
+  // Add date filters
+  if (createdAfter) {
+    filterItems.push(`createdAt: {greaterThanOrEqualTo: "${createdAfter}"}`);
+  }
+  if (createdBefore) {
+    filterItems.push(`createdAt: {lessThanOrEqualTo: "${createdBefore}"}`);
+  }
+
+  // Note: keyword filtering will be done post-query as GraphQL doesn't support LIKE/ILIKE easily
   const filterStr = [
-    `stateId: {equalTo: "${stateId}"}`,
-    first !== undefined ? `first: ${first}` : "",
-    offset !== undefined ? `offset: ${offset}` : "",
+    filterItems.length > 0 ? `filter: {${filterItems.join(", ")}}` : "",
+    first !== undefined && !keyword ? `first: ${first}` : "",
+    offset !== undefined && !keyword ? `offset: ${offset}` : "",
   ]
     .filter(Boolean)
     .join(", ");
 
   const query = `
     query {
-      headlines(${filterStr ? `filter: {${filterStr}}` : ""}) {
+      headlines(${filterStr}) {
         nodes {
           id
           name
@@ -917,14 +960,30 @@ export async function getHeadlines(args) {
     return { content: [{ type: "text", text: result.error }] };
   }
 
-  const data = result.data;
+  let headlines = result.data.data.headlines.nodes;
+
+  // Apply keyword filtering if provided
+  if (keyword) {
+    const lowerKeyword = keyword.toLowerCase();
+    headlines = headlines.filter(
+      (h) =>
+        (h.name && h.name.toLowerCase().includes(lowerKeyword)) ||
+        (h.desc && h.desc.toLowerCase().includes(lowerKeyword))
+    );
+
+    // Apply pagination after filtering if keyword is used
+    const start = offset || 0;
+    const end = first ? start + first : headlines.length;
+    headlines = headlines.slice(start, end);
+  }
+
   return {
     content: [
       {
         type: "text",
         text: JSON.stringify({
-          totalCount: data.data.headlines.totalCount,
-          results: data.data.headlines.nodes.map((headline) => ({
+          totalCount: headlines.length,
+          results: headlines.map((headline) => ({
             id: headline.id,
             name: headline.name,
             description: headline.desc || "",
@@ -3002,6 +3061,397 @@ export async function getLeadershipVTO(args) {
       ],
     };
   }
+}
+
+/**
+ * Get People Analyzer sessions and results
+ * @param {Object} args - Arguments object
+ * @param {number} [args.first] - Optional page size
+ * @param {number} [args.offset] - Optional offset
+ * @param {string} [args.stateId] - State filter (defaults to 'ACTIVE')
+ * @param {string} [args.teamId] - Filter by team ID
+ * @param {string} [args.sessionId] - Filter by specific session ID
+ * @param {string} [args.createdAfter] - Filter sessions created after this date
+ * @param {string} [args.createdBefore] - Filter sessions created before this date
+ * @returns {Promise<{content: Array<{type: string, text: string}>}>}
+ */
+export async function getPeopleAnalyzerSessions(args) {
+  const {
+    first = 50,
+    offset = 0,
+    stateId = "ACTIVE",
+    teamId,
+    sessionId,
+    createdAfter,
+    createdBefore,
+  } = args;
+
+  const validation = validateStateId(stateId);
+  if (!validation.isValid) {
+    return {
+      content: [{ type: "text", text: validation.error }],
+    };
+  }
+
+  const filterItems = [`stateId: {equalTo: "${stateId}"}`];
+
+  if (teamId) {
+    filterItems.push(`teamId: {equalTo: "${teamId}"}`);
+  }
+  if (sessionId) {
+    filterItems.push(`id: {equalTo: "${sessionId}"}`);
+  }
+  if (createdAfter) {
+    filterItems.push(`createdAt: {greaterThanOrEqualTo: "${createdAfter}"}`);
+  }
+  if (createdBefore) {
+    filterItems.push(`createdAt: {lessThanOrEqualTo: "${createdBefore}"}`);
+  }
+
+  const filterStr = [
+    filterItems.length > 0 ? `filter: {${filterItems.join(", ")}}` : "",
+    `first: ${first}`,
+    `offset: ${offset}`,
+  ]
+    .filter(Boolean)
+    .join(", ");
+
+  const query = `
+    query {
+      peopleAnalyzerSessions(${filterStr}) {
+        nodes {
+          id
+          name
+          teamId
+          peopleAnalyzerSessionStatusId
+          createdAt
+          updatedAt
+          stateId
+          companyId
+        }
+        totalCount
+      }
+    }
+  `;
+
+  const result = await callSuccessCoGraphQL(query);
+  if (!result.ok) {
+    return { content: [{ type: "text", text: result.error }] };
+  }
+
+  const sessions = result.data.data.peopleAnalyzerSessions.nodes;
+
+  // For each session, get the user scores
+  const sessionsWithScores = await Promise.all(
+    sessions.map(async (session) => {
+      const scoresQuery = `
+        query {
+          peopleAnalyzerSessionUsersScores(filter: {peopleAnalyzerSessionId: {equalTo: "${session.id}"}}) {
+            nodes {
+              id
+              peopleAnalyzerSessionUserId
+              peopleAnalyzerSessionId
+              rightPerson
+              rightSeat
+              getsIt
+              wantsIt
+              capacityToDoIt
+              createdAt
+              updatedAt
+            }
+          }
+          peopleAnalyzerSessionUsers(filter: {peopleAnalyzerSessionId: {equalTo: "${session.id}"}}) {
+            nodes {
+              id
+              peopleAnalyzerSessionId
+              userId
+              createdAt
+            }
+          }
+        }
+      `;
+
+      const scoresResult = await callSuccessCoGraphQL(scoresQuery);
+      if (!scoresResult.ok) {
+        return { ...session, users: [], scores: [] };
+      }
+
+      return {
+        ...session,
+        users: scoresResult.data.data.peopleAnalyzerSessionUsers.nodes,
+        scores: scoresResult.data.data.peopleAnalyzerSessionUsersScores.nodes,
+      };
+    })
+  );
+
+  return {
+    content: [
+      {
+        type: "text",
+        text: JSON.stringify(
+          {
+            totalCount: result.data.data.peopleAnalyzerSessions.totalCount,
+            sessions: sessionsWithScores,
+          },
+          null,
+          2
+        ),
+      },
+    ],
+  };
+}
+
+/**
+ * Get Organization Checkup sessions and scores
+ * @param {Object} args - Arguments object
+ * @param {number} [args.first] - Optional page size
+ * @param {number} [args.offset] - Optional offset
+ * @param {string} [args.stateId] - State filter (defaults to 'ACTIVE')
+ * @param {string} [args.checkupId] - Filter by specific checkup ID
+ * @param {string} [args.createdAfter] - Filter checkups created after this date
+ * @param {string} [args.createdBefore] - Filter checkups created before this date
+ * @returns {Promise<{content: Array<{type: string, text: string}>}>}
+ */
+export async function getOrgCheckups(args) {
+  const {
+    first = 50,
+    offset = 0,
+    stateId = "ACTIVE",
+    checkupId,
+    createdAfter,
+    createdBefore,
+  } = args;
+
+  const validation = validateStateId(stateId);
+  if (!validation.isValid) {
+    return {
+      content: [{ type: "text", text: validation.error }],
+    };
+  }
+
+  const filterItems = [`stateId: {equalTo: "${stateId}"}`];
+
+  if (checkupId) {
+    filterItems.push(`id: {equalTo: "${checkupId}"}`);
+  }
+  if (createdAfter) {
+    filterItems.push(`createdAt: {greaterThanOrEqualTo: "${createdAfter}"}`);
+  }
+  if (createdBefore) {
+    filterItems.push(`createdAt: {lessThanOrEqualTo: "${createdBefore}"}`);
+  }
+
+  const filterStr = [
+    filterItems.length > 0 ? `filter: {${filterItems.join(", ")}}` : "",
+    `first: ${first}`,
+    `offset: ${offset}`,
+  ]
+    .filter(Boolean)
+    .join(", ");
+
+  const query = `
+    query {
+      orgCheckups(${filterStr}) {
+        nodes {
+          id
+          name
+          orgCheckupStatusId
+          score
+          createdAt
+          updatedAt
+          stateId
+          companyId
+        }
+        totalCount
+      }
+    }
+  `;
+
+  const result = await callSuccessCoGraphQL(query);
+  if (!result.ok) {
+    return { content: [{ type: "text", text: result.error }] };
+  }
+
+  const checkups = result.data.data.orgCheckups.nodes;
+
+  // For each checkup, get the answers/scores
+  const checkupsWithAnswers = await Promise.all(
+    checkups.map(async (checkup) => {
+      const answersQuery = `
+        query {
+          orgCheckupAnswers(filter: {orgCheckupId: {equalTo: "${checkup.id}"}}) {
+            nodes {
+              id
+              orgCheckupId
+              questionNumber
+              answer
+              createdAt
+              updatedAt
+            }
+          }
+        }
+      `;
+
+      const answersResult = await callSuccessCoGraphQL(answersQuery);
+      if (!answersResult.ok) {
+        return { ...checkup, answers: [] };
+      }
+
+      return {
+        ...checkup,
+        answers: answersResult.data.data.orgCheckupAnswers.nodes,
+      };
+    })
+  );
+
+  return {
+    content: [
+      {
+        type: "text",
+        text: JSON.stringify(
+          {
+            totalCount: result.data.data.orgCheckups.totalCount,
+            checkups: checkupsWithAnswers,
+          },
+          null,
+          2
+        ),
+      },
+    ],
+  };
+}
+
+/**
+ * Get users on teams (team membership)
+ * @param {Object} args - Arguments object
+ * @param {string} [args.teamId] - Filter by team ID
+ * @param {string} [args.userId] - Filter by user ID
+ * @param {string} [args.stateId] - State filter (defaults to 'ACTIVE')
+ * @returns {Promise<{content: Array<{type: string, text: string}>}>}
+ */
+export async function getUsersOnTeams(args) {
+  const { teamId, userId, stateId = "ACTIVE" } = args;
+
+  const validation = validateStateId(stateId);
+  if (!validation.isValid) {
+    return {
+      content: [{ type: "text", text: validation.error }],
+    };
+  }
+
+  const filterItems = [`stateId: {equalTo: "${stateId}"}`];
+
+  if (teamId) {
+    filterItems.push(`teamId: {equalTo: "${teamId}"}`);
+  }
+  if (userId) {
+    filterItems.push(`userId: {equalTo: "${userId}"}`);
+  }
+
+  const filterStr = filterItems.join(", ");
+
+  const query = `
+    query {
+      usersOnTeams(filter: {${filterStr}}) {
+        nodes {
+          id
+          userId
+          teamId
+          createdAt
+          stateId
+          companyId
+        }
+        totalCount
+      }
+    }
+  `;
+
+  const result = await callSuccessCoGraphQL(query);
+  if (!result.ok) {
+    return { content: [{ type: "text", text: result.error }] };
+  }
+
+  const usersOnTeams = result.data.data.usersOnTeams.nodes;
+
+  // Get user and team details in parallel
+  const userIds = [...new Set(usersOnTeams.map((ut) => ut.userId))];
+  const teamIds = [...new Set(usersOnTeams.map((ut) => ut.teamId))];
+
+  const [usersResult, teamsResult] = await Promise.all([
+    userIds.length > 0
+      ? callSuccessCoGraphQL(`
+      query {
+        users(filter: {id: {in: [${userIds
+          .map((id) => `"${id}"`)
+          .join(", ")}]}}) {
+          nodes {
+            id
+            firstName
+            lastName
+            email
+            jobTitle
+          }
+        }
+      }
+    `)
+      : { ok: true, data: { data: { users: { nodes: [] } } } },
+    teamIds.length > 0
+      ? callSuccessCoGraphQL(`
+      query {
+        teams(filter: {id: {in: [${teamIds
+          .map((id) => `"${id}"`)
+          .join(", ")}]}}) {
+          nodes {
+            id
+            name
+            desc
+            isLeadership
+          }
+        }
+      }
+    `)
+      : { ok: true, data: { data: { teams: { nodes: [] } } } },
+  ]);
+
+  const usersMap = {};
+  const teamsMap = {};
+
+  if (usersResult.ok) {
+    usersResult.data.data.users.nodes.forEach((user) => {
+      usersMap[user.id] = user;
+    });
+  }
+
+  if (teamsResult.ok) {
+    teamsResult.data.data.teams.nodes.forEach((team) => {
+      teamsMap[team.id] = team;
+    });
+  }
+
+  const enrichedData = usersOnTeams.map((ut) => ({
+    id: ut.id,
+    userId: ut.userId,
+    teamId: ut.teamId,
+    user: usersMap[ut.userId] || null,
+    team: teamsMap[ut.teamId] || null,
+    createdAt: ut.createdAt,
+  }));
+
+  return {
+    content: [
+      {
+        type: "text",
+        text: JSON.stringify(
+          {
+            totalCount: result.data.data.usersOnTeams.totalCount,
+            memberships: enrichedData,
+          },
+          null,
+          2
+        ),
+      },
+    ],
+  };
 }
 
 /**

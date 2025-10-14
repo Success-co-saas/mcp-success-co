@@ -30,6 +30,9 @@ import {
   getLeadershipVTO,
   getAccountabilityChart,
   getMeetingDetails,
+  getPeopleAnalyzerSessions,
+  getOrgCheckups,
+  getUsersOnTeams,
 } from "./tools.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -330,9 +333,30 @@ const toolDefinitions = [
   },
   {
     name: "getHeadlines",
-    description: "List Success.co headlines",
-    handler: async ({ first, offset, stateId }) =>
-      await getHeadlines({ first, offset, stateId }),
+    description:
+      "List Success.co headlines with filtering by date, keyword, team, user, and meeting linkage. Perfect for queries like 'Show me all people headlines from this week' or 'List company headlines related to hiring'.",
+    handler: async ({
+      first,
+      offset,
+      stateId,
+      teamId,
+      userId,
+      fromMeetings,
+      createdAfter,
+      createdBefore,
+      keyword,
+    }) =>
+      await getHeadlines({
+        first,
+        offset,
+        stateId,
+        teamId,
+        userId,
+        fromMeetings,
+        createdAfter,
+        createdBefore,
+        keyword,
+      }),
     schema: {
       first: z.number().int().optional().describe("Optional page size"),
       offset: z.number().int().optional().describe("Optional offset"),
@@ -340,6 +364,30 @@ const toolDefinitions = [
         .string()
         .optional()
         .describe("Headline state filter (defaults to 'ACTIVE')"),
+      teamId: z.string().optional().describe("Filter by team ID"),
+      userId: z.string().optional().describe("Filter by user ID"),
+      fromMeetings: z
+        .boolean()
+        .optional()
+        .describe("If true, only return headlines from meetings"),
+      createdAfter: z
+        .string()
+        .optional()
+        .describe(
+          "Filter headlines created after this date (ISO 8601 format, e.g., 2024-01-01T00:00:00Z)"
+        ),
+      createdBefore: z
+        .string()
+        .optional()
+        .describe(
+          "Filter headlines created before this date (ISO 8601 format, e.g., 2024-12-31T23:59:59Z)"
+        ),
+      keyword: z
+        .string()
+        .optional()
+        .describe(
+          "Filter by keyword in headline name or description (case-insensitive, e.g., 'hiring', 'client feedback', 'positive')"
+        ),
     },
     required: [],
   },
@@ -558,6 +606,136 @@ const toolDefinitions = [
         .int()
         .optional()
         .describe("Number of meetings to return (defaults to 10)"),
+      stateId: z
+        .string()
+        .optional()
+        .describe("State filter (defaults to 'ACTIVE')"),
+    },
+    required: [],
+  },
+  {
+    name: "getPeopleAnalyzerSessions",
+    description:
+      "Get People Analyzer sessions with user scores including 'Gets it', 'Wants it', 'Capacity to do it', 'Right person', and 'Right seat' ratings. Perfect for queries like 'Show me the people analyzer results for the leadership team', 'Who's rated below a 3 on Gets it?', or 'Summarize people analyzer trends for the last quarter'.",
+    handler: async ({
+      first,
+      offset,
+      stateId,
+      teamId,
+      sessionId,
+      createdAfter,
+      createdBefore,
+    }) =>
+      await getPeopleAnalyzerSessions({
+        first,
+        offset,
+        stateId,
+        teamId,
+        sessionId,
+        createdAfter,
+        createdBefore,
+      }),
+    schema: {
+      first: z
+        .number()
+        .int()
+        .optional()
+        .describe("Optional page size (defaults to 50)"),
+      offset: z.number().int().optional().describe("Optional offset"),
+      stateId: z
+        .string()
+        .optional()
+        .describe("State filter (defaults to 'ACTIVE')"),
+      teamId: z
+        .string()
+        .optional()
+        .describe("Filter by team ID (e.g., leadership team)"),
+      sessionId: z
+        .string()
+        .optional()
+        .describe("Filter by specific session ID"),
+      createdAfter: z
+        .string()
+        .optional()
+        .describe(
+          "Filter sessions created after this date (ISO 8601 format, e.g., 2024-01-01T00:00:00Z)"
+        ),
+      createdBefore: z
+        .string()
+        .optional()
+        .describe(
+          "Filter sessions created before this date (ISO 8601 format, e.g., 2024-12-31T23:59:59Z)"
+        ),
+    },
+    required: [],
+  },
+  {
+    name: "getOrgCheckups",
+    description:
+      "Get Organization Checkup sessions with question scores. Perfect for queries like 'What's our current organization checkup score?', 'Which statements scored lowest?', or 'Compare this quarter's checkup to last quarter's'. Returns checkup sessions with all question answers and scores.",
+    handler: async ({
+      first,
+      offset,
+      stateId,
+      checkupId,
+      createdAfter,
+      createdBefore,
+    }) =>
+      await getOrgCheckups({
+        first,
+        offset,
+        stateId,
+        checkupId,
+        createdAfter,
+        createdBefore,
+      }),
+    schema: {
+      first: z
+        .number()
+        .int()
+        .optional()
+        .describe("Optional page size (defaults to 50)"),
+      offset: z.number().int().optional().describe("Optional offset"),
+      stateId: z
+        .string()
+        .optional()
+        .describe("State filter (defaults to 'ACTIVE')"),
+      checkupId: z
+        .string()
+        .optional()
+        .describe("Filter by specific checkup ID"),
+      createdAfter: z
+        .string()
+        .optional()
+        .describe(
+          "Filter checkups created after this date (ISO 8601 format, e.g., 2024-01-01T00:00:00Z) - useful for quarterly comparisons"
+        ),
+      createdBefore: z
+        .string()
+        .optional()
+        .describe(
+          "Filter checkups created before this date (ISO 8601 format, e.g., 2024-12-31T23:59:59Z)"
+        ),
+    },
+    required: [],
+  },
+  {
+    name: "getUsersOnTeams",
+    description:
+      "Get team membership information showing which users are on which teams. Perfect for queries like 'Who's on the Operations team?', 'Which teams is this user a member of?', or analyzing team composition and structure.",
+    handler: async ({ teamId, userId, stateId }) =>
+      await getUsersOnTeams({ teamId, userId, stateId }),
+    schema: {
+      teamId: z
+        .string()
+        .optional()
+        .describe(
+          "Filter by team ID to see all members of a specific team (e.g., Operations, Sales)"
+        ),
+      userId: z
+        .string()
+        .optional()
+        .describe("Filter by user ID to see which teams a user belongs to"),
       stateId: z
         .string()
         .optional()
