@@ -435,7 +435,7 @@ const toolDefinitions = [
   {
     name: "getScorecardMeasurables",
     description:
-      "Get scorecard data (KPIs) with their values. Provides comprehensive scorecard analysis with data fields and their corresponding values. There are 4 different datasets available for different timeframes: daily, weekly, monthly, and quarterly data. Weekly data is the default timeframe, but you can request data from any of the 4 datasets as needed by specifying the timeframe parameter.",
+      "Get scorecard data (KPIs) with their values. Provides comprehensive scorecard analysis with data fields and their corresponding values. Supports flexible date filtering: use startDate/endDate for precise ranges, or use periods/timeframe for relative periods (e.g., 'last 13 weeks', 'last 6 months'). Defaults to last 13 weeks of data when no date parameters are provided.",
     handler: async ({
       first,
       offset,
@@ -447,7 +447,7 @@ const toolDefinitions = [
       startDate,
       endDate,
       timeframe,
-      weeks,
+      periods,
     }) =>
       await getScorecardMeasurables({
         first,
@@ -460,7 +460,7 @@ const toolDefinitions = [
         startDate,
         endDate,
         timeframe,
-        weeks,
+        periods,
       }),
     schema: {
       first: z.number().int().optional().describe("Optional page size"),
@@ -479,20 +479,28 @@ const toolDefinitions = [
       startDate: z
         .string()
         .optional()
-        .describe("Filter by start date (YYYY-MM-DD)"),
+        .describe(
+          "Start date for data filtering (YYYY-MM-DD format). When provided with endDate, overrides periods-based calculation."
+        ),
       endDate: z
         .string()
         .optional()
-        .describe("Filter by end date (YYYY-MM-DD)"),
+        .describe(
+          "End date for data filtering (YYYY-MM-DD format). When provided with startDate, overrides periods-based calculation."
+        ),
       timeframe: z
         .enum(["days", "weeks", "months", "quarters", "years"])
         .optional()
-        .describe("Timeframe for data analysis (defaults to 'weeks')"),
-      weeks: z
+        .describe(
+          "Time period type for analysis (defaults to 'weeks'). Used with periods parameter when startDate/endDate are not provided."
+        ),
+      periods: z
         .number()
         .int()
         .optional()
-        .describe("Number of weeks/periods to analyze (defaults to 12)"),
+        .describe(
+          "Number of periods to analyze (defaults to 13). Only used when startDate and endDate are not provided. The actual time span depends on the timeframe parameter (e.g., periods=13 with timeframe='months' = 13 months of data)."
+        ),
     },
     required: [],
   },

@@ -3866,7 +3866,7 @@ export async function getScorecardMeasurables(args) {
     startDate,
     endDate,
     timeframe = "weeks",
-    weeks = 12,
+    periods = 13,
   } = args;
 
   if (!validateStateId(stateId)) {
@@ -3977,22 +3977,22 @@ export async function getScorecardMeasurables(args) {
 
       switch (timeframe) {
         case "days":
-          startDateObj.setDate(endDateObj.getDate() - weeks * 7);
+          startDateObj.setDate(endDateObj.getDate() - periods * 7);
           break;
         case "weeks":
-          startDateObj.setDate(endDateObj.getDate() - weeks * 7);
+          startDateObj.setDate(endDateObj.getDate() - periods * 7);
           break;
         case "months":
-          startDateObj.setMonth(endDateObj.getMonth() - weeks);
+          startDateObj.setMonth(endDateObj.getMonth() - periods);
           break;
         case "quarters":
-          startDateObj.setMonth(endDateObj.getMonth() - weeks * 3);
+          startDateObj.setMonth(endDateObj.getMonth() - periods * 3);
           break;
         case "years":
-          startDateObj.setFullYear(endDateObj.getFullYear() - weeks / 52);
+          startDateObj.setFullYear(endDateObj.getFullYear() - periods / 52);
           break;
         default:
-          startDateObj.setDate(endDateObj.getDate() - weeks * 7);
+          startDateObj.setDate(endDateObj.getDate() - periods * 7);
       }
 
       calculatedStartDate = startDateObj.toISOString().split("T")[0];
@@ -4065,18 +4065,110 @@ export async function getScorecardMeasurables(args) {
       valuesByField[value.dataFieldId].push(value);
     });
 
+    // Helper function to aggregate values by timeframe
+    function aggregateValuesByTimeframe(values, timeframe) {
+      if (timeframe === "days" || timeframe === "weeks") {
+        // For days and weeks, return values as-is (no aggregation needed)
+        return values.sort(
+          (a, b) => new Date(b.startDate) - new Date(a.startDate)
+        );
+      }
+
+      // Group values by time period
+      const groupedValues = {};
+
+      values.forEach((value) => {
+        const date = new Date(value.startDate);
+        let periodKey;
+
+        switch (timeframe) {
+          case "months":
+            periodKey = `${date.getFullYear()}-${String(
+              date.getMonth() + 1
+            ).padStart(2, "0")}`;
+            break;
+          case "quarters":
+            const quarter = Math.floor(date.getMonth() / 3) + 1;
+            periodKey = `${date.getFullYear()}-Q${quarter}`;
+            break;
+          case "years":
+            periodKey = `${date.getFullYear()}`;
+            break;
+          default:
+            periodKey = value.startDate;
+        }
+
+        if (!groupedValues[periodKey]) {
+          groupedValues[periodKey] = [];
+        }
+        groupedValues[periodKey].push(value);
+      });
+
+      // Aggregate values within each period
+      const aggregatedValues = Object.keys(groupedValues).map((periodKey) => {
+        const periodValues = groupedValues[periodKey];
+
+        // Calculate aggregated metrics
+        const numericValues = periodValues
+          .map((v) => parseFloat(v.value))
+          .filter((v) => !isNaN(v));
+
+        const aggregatedValue = {
+          id: `${periodValues[0].dataFieldId}-${periodKey}`,
+          dataFieldId: periodValues[0].dataFieldId,
+          startDate: periodValues[0].startDate, // Use first date in period
+          value:
+            numericValues.length > 0
+              ? (
+                  numericValues.reduce((sum, val) => sum + val, 0) /
+                  numericValues.length
+                ).toFixed(2)
+              : periodValues[0].value,
+          createdAt: periodValues[0].createdAt,
+          stateId: periodValues[0].stateId,
+          customGoalTarget: periodValues[0].customGoalTarget,
+          customGoalTargetEnd: periodValues[0].customGoalTargetEnd,
+          note: `Aggregated from ${periodValues.length} values in ${periodKey}`,
+          periodKey,
+          periodCount: periodValues.length,
+          rawValues: periodValues,
+        };
+
+        return aggregatedValue;
+      });
+
+      // Sort by period (most recent first)
+      return aggregatedValues.sort((a, b) => {
+        if (timeframe === "quarters") {
+          const [yearA, quarterA] = a.periodKey.split("-Q");
+          const [yearB, quarterB] = b.periodKey.split("-Q");
+          return yearB !== yearA ? yearB - yearA : quarterB - quarterA;
+        } else if (timeframe === "months") {
+          return b.periodKey.localeCompare(a.periodKey);
+        } else if (timeframe === "years") {
+          return b.periodKey - a.periodKey;
+        }
+        return new Date(b.startDate) - new Date(a.startDate);
+      });
+    }
+
     // Create combined scorecard measurables
     const scorecardMeasurables = filteredDataFields.map((field) => {
       const fieldValues = valuesByField[field.id] || [];
 
-      // Sort values by startDate (most recent first)
-      fieldValues.sort((a, b) => new Date(b.startDate) - new Date(a.startDate));
+      // Aggregate values based on timeframe
+      const aggregatedValues = aggregateValuesByTimeframe(
+        fieldValues,
+        timeframe
+      );
 
       return {
         ...field,
-        values: fieldValues,
-        latestValue: fieldValues.length > 0 ? fieldValues[0] : null,
-        valueCount: fieldValues.length,
+        values: aggregatedValues,
+        latestValue: aggregatedValues.length > 0 ? aggregatedValues[0] : null,
+        valueCount: aggregatedValues.length,
+        timeframe,
+        aggregationApplied: timeframe !== "days" && timeframe !== "weeks",
       };
     });
 
@@ -4094,7 +4186,7 @@ export async function getScorecardMeasurables(args) {
                 startDate: calculatedStartDate,
                 endDate: calculatedEndDate,
                 timeframe,
-                weeks,
+                periods,
               },
             },
             null,
