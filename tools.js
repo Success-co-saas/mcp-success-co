@@ -233,6 +233,7 @@ export async function getSuccessCoApiKeyTool(args) {
  * @param {number} [args.offset] - Optional offset
  * @param {string} [args.stateId] - Team state filter (defaults to 'ACTIVE')
  * @returns {Promise<{content: Array<{type: string, text: string}>}>}
+ * @description Returns teams with isLeadership flag to identify the leadership team
  */
 export async function getTeams(args) {
   const { first, offset, stateId = "ACTIVE" } = args;
@@ -288,6 +289,7 @@ export async function getTeams(args) {
             description: team.desc || "",
             color: team.color,
             status: team.stateId,
+            isLeadership: team.isLeadership,
           })),
         }),
       },
@@ -3459,9 +3461,12 @@ export async function getUsersOnTeams(args) {
  * This tool is useful for queries like "What were the headlines from our last leadership L10?"
  * or "Summarize last week's meetings"
  *
+ * IMPORTANT: For leadership meetings, first use getTeams to find the team with isLeadership=true,
+ * then pass that team's ID to the teamId parameter.
+ *
  * @param {Object} args - Arguments object
  * @param {string} [args.meetingId] - Specific meeting ID to fetch details for
- * @param {string} [args.teamId] - Filter meetings by team (via meetingInfo)
+ * @param {string} [args.teamId] - Filter meetings by team (via meetingInfo) - REQUIRED for leadership meetings
  * @param {string} [args.dateAfter] - Filter meetings occurring on or after this date (YYYY-MM-DD)
  * @param {string} [args.dateBefore] - Filter meetings occurring on or before this date (YYYY-MM-DD)
  * @param {number} [args.first] - Optional page size (defaults to 10)

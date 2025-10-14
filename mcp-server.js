@@ -90,7 +90,8 @@ const toolDefinitions = [
   },
   {
     name: "getTeams",
-    description: "List Success.co teams",
+    description:
+      "List Success.co teams. Each team includes an 'isLeadership' flag indicating if it's the leadership team. Use this to find the leadership team ID before querying for leadership-specific data.",
     handler: async ({ first, offset, stateId }) =>
       await getTeams({ first, offset, stateId }),
     schema: {
@@ -561,7 +562,7 @@ const toolDefinitions = [
   {
     name: "getMeetingDetails",
     description:
-      "Get comprehensive meeting details including all related items (headlines, todos, issues, ratings). Perfect for queries like 'What were the headlines from our last leadership L10?', 'Summarize last week's meetings', or 'List all to-dos created in this week's meetings'. Returns meetings with their associated headlines, todos, and issues in a single call.",
+      "Get comprehensive meeting details including all related items (headlines, todos, issues, ratings). Perfect for queries like 'What were the headlines from our last leadership L10?', 'Summarize last week's meetings', or 'List all to-dos created in this week's meetings'. Returns meetings with their associated headlines, todos, and issues in a single call. IMPORTANT: For leadership meetings, first use getTeams to find the team with isLeadership=true, then pass that team's ID to the teamId parameter.",
     handler: async ({
       meetingId,
       teamId,
@@ -587,7 +588,7 @@ const toolDefinitions = [
         .string()
         .optional()
         .describe(
-          "Filter meetings by team (via meetingInfo). Useful for getting leadership team meetings."
+          "Filter meetings by team ID (via meetingInfo). REQUIRED for leadership meetings - use getTeams first to find the leadership team ID (where isLeadership=true)."
         ),
       dateAfter: z
         .string()
