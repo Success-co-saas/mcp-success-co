@@ -332,6 +332,30 @@ The server maintains backwards compatibility with the deprecated HTTP+SSE transp
    **Option 2: Use the MCP tool to set it**
    Once the server is running, you can use the `setSuccessCoApiKey` tool to store your API key securely.
 
+4. **Configure Database Connection (Required for Mutations)**
+
+   For creating and updating data (issues, rocks, todos, headlines, meetings), you need to configure database access. This allows the server to automatically determine the company ID from your API key.
+
+   Create a `.env` file in the project root with your database connection details:
+
+   **Option 1: Using DATABASE_URL**
+
+   ```bash
+   DATABASE_URL=postgresql://user:password@host:port/database
+   ```
+
+   **Option 2: Using individual parameters**
+
+   ```bash
+   DB_HOST=localhost
+   DB_PORT=5432
+   DB_NAME=successco
+   DB_USER=postgres
+   DB_PASSWORD=your-password
+   ```
+
+   **Note:** Without database configuration, you can still use all read-only tools (get/search operations), but create/update operations will fail with "Could not determine company ID" error.
+
 ## Level 10 Meeting & EOS Data Analysis
 
 The MCP server includes powerful capabilities for analyzing Level 10 meetings, todos, issues, and EOS operational data with enhanced date filtering and comprehensive meeting summaries.
@@ -1114,163 +1138,6 @@ This will:
 
 Open the MCP Server Inspector on the browser:
 http://localhost:6274/
-
-## Setting Environment Variables for Testing
-
-To test the API key tools with different keys, you can set environment variables before running the inspector:
-
-**Linux/macOS (Bash/Zsh):**
-
-```bash
-# Temporary (current session only)
-export API_KEY="your-test-key"
-export SUCCESS_CO_API_KEY="your-success-co-api-key"
-npm run inspector
-
-# Or set for single command
-API_KEY="your-test-key" SUCCESS_CO_API_KEY="your-success-co-api-key" npm run inspector
-```
-
-**Windows (Command Prompt):**
-
-```cmd
-# Set for current session
-set API_KEY=your-test-key
-set SUCCESS_CO_API_KEY=your-success-co-api-key
-npm run inspector
-```
-
-**Windows (PowerShell):**
-
-```powershell
-# Set for current session
-$env:API_KEY="your-test-key"
-$env:SUCCESS_CO_API_KEY="your-success-co-api-key"
-npm run inspector
-
-# Or set for single command
-$env:API_KEY="your-test-key"; $env:SUCCESS_CO_API_KEY="your-success-co-api-key"; npm run inspector
-```
-
-## Integrating with Cursor AI
-
-To integrate this MCP server with Cursor IDE, you need to add the configuration through Cursor's settings interface:
-
-1. Open Cursor IDE
-2. Go to **Settings** → **Tools & Integrations**
-3. Click on **Add Custom MCP Server**
-4. Add the configuration below
-
-**Important:** If you already have other MCP servers configured, don't overwrite the entire configuration. Instead, add the `"MCP Server Boilerplate"` object to the existing `"mcpServers"` object.
-
-**Sample Configuration File:** This project includes a sample configuration file at [`./cursor/mcp.json`](./cursor/mcp.json) that you can reference or copy from.
-
-### Configuration Structure
-
-Below is the configuration you need to add:
-
-**Linux/macOS example:**
-
-```json
-{
-  "MCP Server Boilerplate": {
-    "command": "node",
-    "args": ["/home/john/mcp-server-node/mcp-server.js"],
-    "env": {
-      "API_KEY": "abc-1234567890",
-      "SUCCESS_CO_API_KEY": "your-success-co-api-key"
-    }
-  }
-}
-```
-
-**Windows example:**
-
-```json
-{
-  "MCP Server Boilerplate": {
-    "command": "node",
-    "args": ["C:\\Users\\john\\mcp-server-node\\mcp-server.js"],
-    "env": {
-      "API_KEY": "abc-1234567890",
-      "SUCCESS_CO_API_KEY": "your-success-co-api-key"
-    }
-  }
-}
-```
-
-**If you have existing MCP servers configured, your full configuration might look like this:**
-
-```json
-{
-  "mcpServers": {
-    "existing-server": {
-      "command": "python",
-      "args": ["/path/to/existing/server.py"]
-    },
-    "MCP Server Boilerplate": {
-      "command": "node",
-      "args": ["/home/john/mcp-server-node/mcp-server.js"],
-      "env": {
-        "API_KEY": "abc-1234567890",
-        "SUCCESS_CO_API_KEY": "your-success-co-api-key"
-      }
-    }
-  }
-}
-```
-
-### Configuration Parameters
-
-- **MCP Server Boilerplate:**  
-  This is the key for your server configuration. You can name it as you like.
-
-- **command:**  
-  The Node.js executable to run your server. You can use either:
-
-  - `"node"` (if Node.js is in your PATH)
-  - The full path to your Node.js executable (if needed)
-
-  **Finding your Node.js path:**
-
-  **Linux/macOS:**
-
-  ```bash
-  which node
-  # Example output: /home/john/.nvm/versions/node/v20.13.1/bin/node
-  ```
-
-  **Windows (Command Prompt):**
-
-  ```cmd
-  where node
-  # Example output: C:\Program Files\nodejs\node.exe
-  ```
-
-  **Windows (PowerShell):**
-
-  ```powershell
-  Get-Command node
-  # Example output: C:\Program Files\nodejs\node.exe
-  ```
-
-- **args:**  
-  An array containing the absolute path to your MCP server file.
-
-  **Linux/macOS examples:**
-
-  ```json
-  ["/home/john/mcp-server-node/mcp-server.js"]
-  ```
-
-  **Windows examples:**
-
-  ```json
-  ["C:\\Users\\john\\mcp-server-node\\mcp-server.js"]
-  ```
-
-- **env:** (Optional)  
-  Defines environment variables for your MCP server process. In this example, the `API_KEY` is set to `"abc-1234567890"` and `SUCCESS_CO_API_KEY` is set to `"your-success-co-api-key"`. Adjust these values as needed for your environment.
 
 ## Code Overview
 

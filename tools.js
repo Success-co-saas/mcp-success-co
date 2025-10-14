@@ -5,11 +5,16 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { validateStateId } from "./helpers.js";
+import postgres from "postgres";
 
 // Logging - Debug
 const DEBUG_LOG_FILE = "/tmp/mcp-success-co-graphql-debug.log";
 let isDevMode = false;
 let envConfig = {};
+
+// Database connection
+let sql = null;
+let companyIdCache = new Map(); // Cache API key -> company ID mappings
 
 /**
  * Clear the GraphQL debug log file if it exists
@@ -29,6 +34,234 @@ function clearDebugLog(devMode) {
 }
 
 /**
+ * Initialize database connection
+ */
+function initDatabaseConnection() {
+  if (sql) return sql;
+
+  try {
+    // Check for DATABASE_URL first
+    if (envConfig.DATABASE_URL) {
+      sql = postgres(envConfig.DATABASE_URL, {
+        max: 10,
+        idle_timeout: 20,
+        connect_timeout: 10,
+      });
+    } else if (
+      envConfig.DB_HOST &&
+      envConfig.DB_NAME &&
+      envConfig.DB_USER &&
+      envConfig.DB_PASSWORD
+    ) {
+      // Use individual connection parameters
+      sql = postgres({
+        host: envConfig.DB_HOST,
+        port: parseInt(envConfig.DB_PORT || "5432", 10),
+        database: envConfig.DB_NAME,
+        username: envConfig.DB_USER,
+        password: envConfig.DB_PASSWORD,
+        max: 10,
+        idle_timeout: 20,
+        connect_timeout: 10,
+      });
+    }
+
+    if (sql && isDevMode) {
+      console.error("[DEBUG] Database connection initialized");
+    }
+  } catch (error) {
+    console.error(`[ERROR] Failed to initialize database: ${error.message}`);
+    sql = null;
+  }
+
+  return sql;
+}
+
+/**
+ * Get database connection
+ * @returns {Object|null} - Postgres connection or null
+ */
+function getDatabase() {
+  if (!sql) {
+    initDatabaseConnection();
+  }
+  return sql;
+}
+
+/**
+ * Get company ID for the current API key
+ * @param {string} apiKey - The API key to lookup (with or without suc_api_ prefix)
+ * @returns {Promise<string|null>} - Company ID or null
+ */
+async function getCompanyIdForApiKey(apiKey) {
+  if (!apiKey) {
+    return null;
+  }
+
+  // Check cache first (using original key with prefix)
+  if (companyIdCache.has(apiKey)) {
+    const cached = companyIdCache.get(apiKey);
+    // Handle both old string format and new object format
+    return typeof cached === "string" ? cached : cached.companyId;
+  }
+
+  const db = getDatabase();
+  if (!db) {
+    if (isDevMode) {
+      console.error(
+        "[DEBUG] Database not configured - cannot lookup company ID"
+      );
+    }
+    return null;
+  }
+
+  try {
+    // Strip the "suc_api_" prefix if present
+    // The database stores keys without this prefix
+    const keyWithoutPrefix = apiKey.startsWith("suc_api_")
+      ? apiKey.substring(8) // Remove "suc_api_" (8 characters)
+      : apiKey;
+
+    if (isDevMode) {
+      console.error(
+        `[DEBUG] Looking up company ID for key: ${keyWithoutPrefix.substring(
+          0,
+          8
+        )}...`
+      );
+    }
+
+    // Query the user_api_keys table and join with users to get company_id and user_id
+    // The column is named "key" not "api_key" in the database
+    const result = await db`
+      SELECT u.company_id, u.id as user_id
+      FROM user_api_keys k
+      JOIN users u ON k.user_id = u.id
+      WHERE k.key = ${keyWithoutPrefix}
+      LIMIT 1
+    `;
+
+    if (result.length > 0 && result[0].company_id) {
+      const context = {
+        companyId: result[0].company_id,
+        userId: result[0].user_id,
+      };
+      // Cache the result (using original key with prefix)
+      companyIdCache.set(apiKey, context);
+
+      if (isDevMode) {
+        console.error(
+          `[DEBUG] Found context - Company: ${context.companyId}, User: ${context.userId}`
+        );
+      }
+
+      return context.companyId;
+    }
+
+    if (isDevMode) {
+      console.error("[DEBUG] No company ID found for API key");
+    }
+    return null;
+  } catch (error) {
+    console.error(`[ERROR] Failed to lookup company ID: ${error.message}`);
+    return null;
+  }
+}
+
+/**
+ * Get context (company ID and user ID) for the current API key
+ * @param {string} apiKey - The API key to lookup
+ * @returns {Promise<{companyId: string, userId: string}|null>} - Context or null
+ */
+async function getContextForApiKey(apiKey) {
+  if (!apiKey) {
+    return null;
+  }
+
+  // Check cache first
+  if (companyIdCache.has(apiKey)) {
+    const cached = companyIdCache.get(apiKey);
+    // If cached value is object with both fields, return it
+    if (typeof cached === "object" && cached.companyId && cached.userId) {
+      return cached;
+    }
+  }
+
+  // If not cached or incomplete, fetch it
+  const companyId = await getCompanyIdForApiKey(apiKey);
+  if (!companyId) {
+    return null;
+  }
+
+  // The getCompanyIdForApiKey should have cached the full context
+  const cached = companyIdCache.get(apiKey);
+  if (typeof cached === "object" && cached.companyId && cached.userId) {
+    return cached;
+  }
+
+  return null;
+}
+
+/**
+ * Test database connection
+ * @returns {Promise<{ok: boolean, error?: string}>}
+ */
+export async function testDatabaseConnection() {
+  const db = getDatabase();
+  if (!db) {
+    return {
+      ok: false,
+      error:
+        "Database not configured. Set DATABASE_URL or DB_HOST/DB_NAME/DB_USER/DB_PASSWORD in .env file.",
+    };
+  }
+
+  try {
+    // Test basic connection
+    const result = await db`SELECT 1 as test`;
+    if (!result || result.length === 0) {
+      return {
+        ok: false,
+        error: "Database connection test failed: No response from database",
+      };
+    }
+
+    // Test the user_api_keys and users tables
+    const tableCheck = await db`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_name = 'user_api_keys'
+      ) as has_api_keys,
+      EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_name = 'users'
+      ) as has_users
+    `;
+
+    if (!tableCheck[0].has_api_keys || !tableCheck[0].has_users) {
+      return {
+        ok: false,
+        error:
+          "Required database tables not found (user_api_keys, users). Check database schema.",
+      };
+    }
+
+    // Test if we can query the tables
+    const apiKeysCount = await db`SELECT COUNT(*) as count FROM user_api_keys`;
+
+    return {
+      ok: true,
+      message: `Database connection successful. Found ${apiKeysCount[0].count} API keys.`,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      error: `Database connection failed: ${error.message}`,
+    };
+  }
+}
+
+/**
  * Initialize tools with environment configuration
  * @param {Object} config - Environment configuration object
  * @param {string} config.NODE_ENV - The NODE_ENV value
@@ -37,6 +270,12 @@ function clearDebugLog(devMode) {
  * @param {string} config.GRAPHQL_ENDPOINT_LOCAL - The GRAPHQL_ENDPOINT_LOCAL value
  * @param {string} config.GRAPHQL_ENDPOINT_ONLINE - The GRAPHQL_ENDPOINT_ONLINE value
  * @param {string} config.SUCCESS_CO_API_KEY - The SUCCESS_CO_API_KEY value
+ * @param {string} config.DATABASE_URL - The DATABASE_URL value
+ * @param {string} config.DB_HOST - The DB_HOST value
+ * @param {string} config.DB_PORT - The DB_PORT value
+ * @param {string} config.DB_NAME - The DB_NAME value
+ * @param {string} config.DB_USER - The DB_USER value
+ * @param {string} config.DB_PASSWORD - The DB_PASSWORD value
  */
 export function init(config) {
   envConfig = config || {};
@@ -45,6 +284,11 @@ export function init(config) {
 
   // Clear debug log at startup if we're in debug mode
   clearDebugLog(isDevMode);
+
+  // Initialize database connection if config is available
+  if (envConfig.DATABASE_URL || envConfig.DB_HOST) {
+    initDatabaseConnection();
+  }
 }
 
 /**
@@ -3736,10 +3980,10 @@ export async function getMeetingDetails(args) {
  * Create a new issue
  * @param {Object} args - Arguments object
  * @param {string} args.name - Issue name/title (required)
+ * @param {string} args.teamId - Team ID to assign the issue to (required)
  * @param {string} [args.desc] - Issue description
- * @param {string} [args.teamId] - Team ID to assign the issue to
- * @param {string} [args.userId] - User ID to assign the issue to
- * @param {string} [args.issueStatusId] - Issue status (defaults to 'OPEN')
+ * @param {string} [args.userId] - User ID to assign the issue to (defaults to current user from API key)
+ * @param {string} [args.issueStatusId] - Issue status (defaults to 'TODO')
  * @param {number} [args.priorityNo] - Priority number (1-5, higher = more important)
  * @param {string} [args.type] - Issue type (e.g., 'LEADERSHIP', 'DEPARTMENTAL')
  * @returns {Promise<{content: Array<{type: string, text: string}>}>}
@@ -3747,10 +3991,10 @@ export async function getMeetingDetails(args) {
 export async function createIssue(args) {
   const {
     name,
-    desc = "",
     teamId,
-    userId,
-    issueStatusId = "OPEN",
+    desc = "",
+    userId: providedUserId,
+    issueStatusId = "TODO",
     priorityNo = 3,
     type = "LEADERSHIP",
   } = args;
@@ -3766,8 +4010,17 @@ export async function createIssue(args) {
     };
   }
 
-  // Get company ID from current user/context (this would need to be set)
-  // For now, we'll need to get it from the API key context
+  if (!teamId) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: "Error: Team ID is required. Use getTeams to find the appropriate team ID.",
+        },
+      ],
+    };
+  }
+
   const apiKey = getSuccessCoApiKey();
   if (!apiKey) {
     return {
@@ -3779,6 +4032,22 @@ export async function createIssue(args) {
       ],
     };
   }
+
+  // Get context (company ID and user ID) from the API key
+  const context = await getContextForApiKey(apiKey);
+  if (!context) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: "Error: Could not determine context from API key. Please ensure database connection is configured.",
+        },
+      ],
+    };
+  }
+
+  const companyId = context.companyId;
+  const userId = providedUserId || context.userId; // Use provided userId or default to current user
 
   const mutation = `
     mutation CreateIssue($input: CreateIssueInput!) {
@@ -3794,6 +4063,7 @@ export async function createIssue(args) {
           priorityNo
           createdAt
           stateId
+          companyId
         }
       }
     }
@@ -3807,8 +4077,9 @@ export async function createIssue(args) {
         issueStatusId,
         priorityNo,
         type,
-        ...(teamId && { teamId }),
-        ...(userId && { userId }),
+        teamId,
+        userId,
+        companyId,
         stateId: "ACTIVE",
       },
     },
@@ -3919,6 +4190,19 @@ export async function createRock(args) {
     };
   }
 
+  // Get company ID from the API key
+  const companyId = await getCompanyIdForApiKey(apiKey);
+  if (!companyId) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: "Error: Could not determine company ID. Please ensure database connection is configured.",
+        },
+      ],
+    };
+  }
+
   const mutation = `
     mutation CreateRock($input: CreateRockInput!) {
       createRock(input: $input) {
@@ -3931,6 +4215,7 @@ export async function createRock(args) {
           type
           createdAt
           stateId
+          companyId
         }
       }
     }
@@ -3944,6 +4229,7 @@ export async function createRock(args) {
         dueDate,
         rockStatusId,
         type,
+        companyId,
         ...(teamId && { teamId }),
         ...(userId && { userId }),
         stateId: "ACTIVE",
@@ -4567,6 +4853,19 @@ export async function createHeadline(args) {
     };
   }
 
+  // Get company ID from the API key
+  const companyId = await getCompanyIdForApiKey(apiKey);
+  if (!companyId) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: "Error: Could not determine company ID. Please ensure database connection is configured.",
+        },
+      ],
+    };
+  }
+
   const mutation = `
     mutation CreateHeadline($input: CreateHeadlineInput!) {
       createHeadline(input: $input) {
@@ -4580,6 +4879,7 @@ export async function createHeadline(args) {
           isCascadingMessage
           createdAt
           stateId
+          companyId
         }
       }
     }
@@ -4592,6 +4892,7 @@ export async function createHeadline(args) {
         desc,
         headlineStatusId,
         isCascadingMessage,
+        companyId,
         ...(teamId && { teamId }),
         ...(userId && { userId }),
         stateId: "ACTIVE",
@@ -4834,6 +5135,19 @@ export async function createMeeting(args) {
     };
   }
 
+  // Get company ID from the API key
+  const companyId = await getCompanyIdForApiKey(apiKey);
+  if (!companyId) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: "Error: Could not determine company ID. Please ensure database connection is configured.",
+        },
+      ],
+    };
+  }
+
   const mutation = `
     mutation CreateMeeting($input: CreateMeetingInput!) {
       createMeeting(input: $input) {
@@ -4846,6 +5160,7 @@ export async function createMeeting(args) {
           meetingInfoId
           createdAt
           stateId
+          companyId
         }
       }
     }
@@ -4859,6 +5174,7 @@ export async function createMeeting(args) {
         startTime,
         endTime,
         meetingStatusId,
+        companyId,
         stateId: "ACTIVE",
       },
     },

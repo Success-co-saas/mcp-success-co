@@ -11,6 +11,7 @@ import dotenv from "dotenv";
 
 import {
   init,
+  testDatabaseConnection,
   getTeams,
   getUsers,
   getTodos,
@@ -65,6 +66,12 @@ init({
   GRAPHQL_ENDPOINT_LOCAL: process.env.GRAPHQL_ENDPOINT_LOCAL,
   GRAPHQL_ENDPOINT_ONLINE: process.env.GRAPHQL_ENDPOINT_ONLINE,
   SUCCESS_CO_API_KEY: process.env.SUCCESS_CO_API_KEY,
+  DATABASE_URL: process.env.DATABASE_URL,
+  DB_HOST: process.env.DB_HOST,
+  DB_PORT: process.env.DB_PORT,
+  DB_NAME: process.env.DB_NAME,
+  DB_USER: process.env.DB_USER,
+  DB_PASSWORD: process.env.DB_PASSWORD,
 });
 const API_KEY_FILE = path.join(__dirname, ".api_key");
 
@@ -72,6 +79,39 @@ const API_KEY_FILE = path.join(__dirname, ".api_key");
 const isDev =
   process.env.NODE_ENV === "development" ||
   process.env.NODE_ENV !== "production";
+
+// Test database connection at startup
+(async () => {
+  console.error("[STARTUP] Testing database connection...");
+  const dbTest = await testDatabaseConnection();
+
+  if (!dbTest.ok) {
+    console.error("\n❌ DATABASE CONNECTION FAILED!");
+    console.error(`Error: ${dbTest.error}`);
+    console.error(
+      "\nDatabase connection is required for mutation operations (create/update)."
+    );
+    console.error(
+      "Please ensure your .env file contains correct database credentials:"
+    );
+    console.error(
+      "  - DATABASE_URL=postgresql://user:password@host:port/database"
+    );
+    console.error("  OR");
+    console.error("  - DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD");
+    console.error("\nFor help, see DATABASE_SETUP.md");
+    console.error("\nExiting...\n");
+    process.exit(1);
+  }
+
+  console.error(`✅ ${dbTest.message}`);
+  console.error("[STARTUP] Database connection verified.\n");
+})().catch((error) => {
+  console.error("\n❌ STARTUP ERROR!");
+  console.error(`Error: ${error.message}`);
+  console.error("\nExiting...\n");
+  process.exit(1);
+});
 
 // --- Success.co API key management ------------------------------------------
 
@@ -756,7 +796,7 @@ const toolDefinitions = [
   {
     name: "createIssue",
     description:
-      "Create a new issue in Success.co. Perfect for queries like 'Add a new issue for customer churn increase to the leadership team'. Use getTeams first to find the team ID if assigning to a specific team (e.g., leadership team where isLeadership=true).",
+      "Create a new issue in Success.co. Perfect for queries like 'Add a new issue for customer churn increase to the leadership team'. Use getTeams first to find the team ID (REQUIRED) - for leadership team, filter by isLeadership=true.",
     handler: async ({
       name,
       desc,
@@ -783,20 +823,21 @@ const toolDefinitions = [
         .describe("Issue description or additional details"),
       teamId: z
         .string()
-        .optional()
         .describe(
-          "Team ID to assign the issue to (use getTeams to find the team ID)"
+          "Team ID to assign the issue to (REQUIRED - use getTeams to find the team ID)"
         ),
       userId: z
         .string()
         .optional()
         .describe(
-          "User ID to assign the issue to (use getUsers to find the user ID)"
+          "User ID to assign the issue to (optional - defaults to current user from API key)"
         ),
       issueStatusId: z
         .string()
         .optional()
-        .describe("Issue status (defaults to 'OPEN')"),
+        .describe(
+          "Issue status (defaults to 'TODO' - valid statuses are in issue_statuses table)"
+        ),
       priorityNo: z
         .number()
         .int()
@@ -811,7 +852,7 @@ const toolDefinitions = [
           "Issue type: 'LEADERSHIP', 'DEPARTMENTAL', or 'COMPANY' (defaults to 'LEADERSHIP')"
         ),
     },
-    required: ["name"],
+    required: ["name", "teamId"],
   },
   {
     name: "createRock",
