@@ -4196,7 +4196,6 @@ export async function getScorecardMeasurables(args) {
           text: JSON.stringify(
             {
               scorecardMeasurables,
-              totalCount: scorecardMeasurables.length,
             },
             null,
             2
