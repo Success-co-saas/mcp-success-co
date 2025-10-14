@@ -201,6 +201,167 @@ The server maintains backwards compatibility with the deprecated HTTP+SSE transp
    **Option 2: Use the MCP tool to set it**
    Once the server is running, you can use the `setSuccessCoApiKey` tool to store your API key securely.
 
+## Level 10 Meeting & EOS Data Analysis
+
+The MCP server includes powerful capabilities for analyzing Level 10 meetings, todos, issues, and EOS operational data with enhanced date filtering and comprehensive meeting summaries.
+
+### Enhanced Date Filtering
+
+All major tools now support sophisticated date filtering to answer time-based queries:
+
+#### To-do Queries with Date Filtering
+
+**New Parameters:**
+
+- `createdAfter` / `createdBefore` - Filter by creation date
+- `completedAfter` / `completedBefore` - Filter by completion date
+
+**Example Queries:**
+
+- "List all of my open to-dos from our Level 10 meetings"
+  - Use: `getTodos` with `fromMeetings=true`, `status="TODO"`, `userId`
+- "Which to-dos are overdue?"
+  - Use: `getTodos` with `status="OVERDUE"`
+- "How many to-dos were completed last week?"
+  - Use: `getTodos` with `status="COMPLETE"`, `completedAfter="2024-01-08"`, `completedBefore="2024-01-14"`
+- "Create a summary of completed vs open to-dos for the leadership team"
+  - Use: Multiple `getTodos` calls with `teamId` and different `status` values
+
+#### Issue Queries with Date Filtering
+
+**New Parameters:**
+
+- `createdAfter` / `createdBefore` - Filter by creation date
+- `statusUpdatedBefore` - Find "stuck" issues
+- `status` - Filter by issue status (e.g., "OPEN", "CLOSED")
+- `teamId`, `userId` - Filter by team or user
+- `fromMeetings` - Only issues from meetings
+
+**Example Queries:**
+
+- "Show me all open issues from this week's meetings"
+  - Use: `getIssues` with `status="OPEN"`, `fromMeetings=true`, `createdAfter`
+- "Which issues have been stuck open for more than 2 weeks?"
+  - Use: `getIssues` with `status="OPEN"`, `statusUpdatedBefore` (2 weeks ago)
+- "What are the top 3 recurring issues across all departments?"
+  - Use: `getIssues` to fetch all issues, then analyze by name patterns
+- "Summarize issues by team or topic"
+  - Use: `getIssues` grouped by `teamId`
+
+#### Meeting Queries with Comprehensive Details
+
+**New Tool: `getMeetingDetails`**
+
+This powerful tool fetches meetings with all related items (headlines, todos, issues, ratings) in a single call.
+
+**Parameters:**
+
+- `meetingId` - Specific meeting to fetch
+- `teamId` - Filter by team (e.g., leadership team)
+- `dateAfter` / `dateBefore` - Date range filtering
+- `first` - Number of meetings to return (default 10)
+
+**Example Queries:**
+
+- "What were the headlines from our last leadership L10?"
+  - Use: `getMeetingDetails` with `teamId` (leadership), `first=1`, sorted by date
+- "Summarize last week's departmental meetings"
+  - Use: `getMeetingDetails` with `dateAfter` and `dateBefore` for last week
+- "How did each team score their last Level 10 meeting?"
+  - Use: `getMeetingDetails` grouped by team, check `averageRating`
+- "What's the average meeting score for Q4?"
+  - Use: `getMeetings` with date range, calculate average of `averageRating`
+- "List all to-dos created in this week's meetings"
+  - Use: `getMeetingDetails` with date range, extract todos from results
+
+### Meeting Data Structure
+
+Each meeting detail includes:
+
+- **Meeting Info**: Date, time, rating, status
+- **Headlines**: All headlines shared in the meeting
+- **To-dos**: All to-dos created in the meeting
+- **Issues**: All issues discussed in the meeting
+- **Summary**: Counts of each item type
+
+### Query Mapping Guide
+
+Here's how to answer each type of query:
+
+#### To-do Queries
+
+1. **"List all of my open to-dos from our Level 10 meetings"**
+
+   - Tool: `getTodos`
+   - Params: `fromMeetings=true`, `status="TODO"`, `userId=<user's ID>`
+
+2. **"Which to-dos are overdue?"**
+
+   - Tool: `getTodos`
+   - Params: `status="OVERDUE"`
+
+3. **"How many to-dos were completed last week?"**
+
+   - Tool: `getTodos`
+   - Params: `status="COMPLETE"`, `completedAfter=<last week start>`, `completedBefore=<last week end>`
+
+4. **"Create a summary of completed vs open to-dos for the leadership team"**
+
+   - Tools: Multiple `getTodos` calls
+   - Params: `teamId=<leadership team ID>`, vary `status` between calls
+
+5. **"Which team has the highest completion rate for to-dos?"**
+   - Tool: `getTodos` (multiple calls per team)
+   - Analysis: Compare completed vs total todos for each team
+
+#### Issue Queries
+
+1. **"Show me all open issues from this week's meetings"**
+
+   - Tool: `getIssues`
+   - Params: `status="OPEN"`, `fromMeetings=true`, `createdAfter=<week start>`
+
+2. **"Which issues have been stuck open for more than 2 weeks?"**
+
+   - Tool: `getIssues`
+   - Params: `status="OPEN"`, `statusUpdatedBefore=<2 weeks ago>`
+
+3. **"Summarize issues by team or topic"**
+
+   - Tool: `getIssues`
+   - Analysis: Group results by `teamId` or analyze `name` field
+
+4. **"What are the top 3 recurring issues across all departments?"**
+   - Tool: `getIssues`
+   - Analysis: Find patterns in issue names/descriptions
+
+#### Meeting / Level 10 Queries
+
+1. **"What were the headlines from our last leadership L10?"**
+
+   - Tool: `getMeetingDetails`
+   - Params: `teamId=<leadership team ID>`, `first=1`, sorted by date DESC
+
+2. **"Summarize last week's departmental meetings"**
+
+   - Tool: `getMeetingDetails`
+   - Params: `dateAfter=<last week start>`, `dateBefore=<last week end>`
+
+3. **"How did each team score their last Level 10 meeting?"**
+
+   - Tool: `getMeetingDetails` or `getMeetings`
+   - Analysis: Group by team, check `averageRating` field
+
+4. **"What's the average meeting score for Q4?"**
+
+   - Tool: `getMeetings`
+   - Params: `dateAfter=<Q4 start>`, `dateBefore=<Q4 end>`
+   - Analysis: Calculate average of `averageRating`
+
+5. **"List all to-dos created in this week's meetings"**
+   - Tool: `getMeetingDetails`
+   - Params: `dateAfter=<week start>`, `dateBefore=<week end>`
+   - Analysis: Extract `todos` array from each meeting
 
 ## Scorecard measurables Analysis Tools
 
@@ -538,7 +699,6 @@ The project comprises the following key parts:
     - `getMilestones`: Fetches milestones from the Success.co GraphQL API
     - `getMilestoneStatuses`: Fetches milestone statuses from the Success.co GraphQL API
 
-
 - **Error Handling:**
   Comprehensive error handling for API failures, invalid parameters, and data validation issues.
 
@@ -551,24 +711,29 @@ With the MCP server integrated into Cursor IDE and with Agent mode enabled, you 
 
 Which issues are assigned to the leadership team for Level 10?
 Find Level 10 meeting agendas and their sections
+
 ```
 
 **Meeting Analysis:**
 
 ```
+
 Show me all meetings scheduled for this week and their facilitators
 What meeting agendas do we have and who are the facilitators?
 Which meetings have the highest ratings?
 Show me meeting performance metrics for this quarter
+
 ```
 
 **Issue Analysis:**
 
 ```
+
 What are the highest priority issues that need attention?
 Show me all open issues grouped by team
 Which issues have been open the longest?
 Find issues assigned to specific users
+
 ```
 
 ### Data Retrieval Tool Usage
@@ -578,89 +743,111 @@ You can retrieve specific data types using natural language:
 **Teams:**
 
 ```
+
 get teams from Success.co
 list all teams
 show me the first 10 teams
+
 ```
 
 **Users:**
 
 ```
+
 get users from Success.co
 list all users
 show me users in the marketing team
+
 ```
 
 **Rocks:**
 
 ```
+
 get rocks from Success.co
 list all rocks
 show me rocks for this quarter
+
 ```
 
 **Todos:**
 
 ```
+
 get todos from Success.co
 list all todos
 show me todos assigned to John
+
 ```
 
 **Meetings:**
 
 ```
+
 get meetings from Success.co
 list all meetings
 show me meetings for this month
+
 ```
 
 **Meeting Infos:**
 
 ```
+
 get meeting infos from Success.co
 list all meeting infos
 show me meeting infos for the leadership team
+
 ```
 
 **Meeting Agendas:**
 
 ```
+
 get meeting agendas from Success.co
 list all meeting agendas
 show me Level 10 meeting agendas
+
 ```
 
 **Meeting Agenda Sections:**
 
 ```
+
 get meeting agenda sections from Success.co
 list agenda sections for a specific meeting
 show me Level 10 agenda sections
+
 ```
 
 **Issues:**
 
 ```
+
 get issues from Success.co
 list all issues
 show me high priority issues
+
 ```
 
 **Headlines:**
 
 ```
+
 get headlines from Success.co
 list all headlines
 show me recent headlines
+
 ```
 
 **Visions:**
 
 ```
+
 get visions from Success.co
 list all visions
 show me leadership team visions
+
 ```
 
 ### Search Tool Usage
@@ -668,6 +855,7 @@ show me leadership team visions
 The search tool provides intelligent search across all EOS data types:
 
 ```
+
 search for teams
 search for users
 search for todos
@@ -676,6 +864,7 @@ search for meetings
 search for issues
 search for headlines
 search for visions
+
 ```
 
 ### API Key Management
@@ -683,13 +872,17 @@ search for visions
 **Setting the API Key:**
 
 ```
+
 set my Success.co API key to "your-api-key-here"
+
 ```
 
 **Getting the API Key:**
 
 ```
+
 what is my Success.co API key?
+
 ```
 
 ### Advanced Queries
@@ -697,11 +890,13 @@ what is my Success.co API key?
 You can combine multiple concepts in your queries:
 
 ```
+
 Show me all rocks that are overdue and who owns them
 Which teams have the most incomplete rocks?
 Find rocks due in the next 30 days and their owners
 Show me the progress of all rocks for the marketing team
 Which users have the most overdue todos?
+
 ```
 
 The AI agent will automatically infer the appropriate tools to use based on your request and may combine multiple tools to provide comprehensive answers.
@@ -712,3 +907,4 @@ The AI agent will automatically infer the appropriate tools to use based on your
 - [Use Your Own MCP on Cursor in 5 Minutes](https://dev.to/andyrewlee/use-your-own-mcp-on-cursor-in-5-minutes-1ag4)
 - [Model Context Protocol Introduction](https://modelcontextprotocol.io/introduction)
 - [Success.co API Documentation](https://coda.io/@successco/success-co-api)
+```

@@ -383,6 +383,10 @@ export async function getUsers(args) {
  * @param {string} [args.teamId] - Filter by team ID
  * @param {string} [args.userId] - Filter by user ID
  * @param {string} [args.status] - Filter by status: "TODO", "COMPLETE", or "OVERDUE"
+ * @param {string} [args.createdAfter] - Filter todos created after this date (ISO 8601 format)
+ * @param {string} [args.createdBefore] - Filter todos created before this date (ISO 8601 format)
+ * @param {string} [args.completedAfter] - Filter todos completed after this date (ISO 8601 format)
+ * @param {string} [args.completedBefore] - Filter todos completed before this date (ISO 8601 format)
  * @returns {Promise<{content: Array<{type: string, text: string}>}>}
  */
 export async function getTodos(args) {
@@ -394,6 +398,10 @@ export async function getTodos(args) {
     teamId,
     userId,
     status,
+    createdAfter,
+    createdBefore,
+    completedAfter,
+    completedBefore,
   } = args;
   // Validate stateId
   const validation = validateStateId(stateId);
@@ -442,6 +450,32 @@ export async function getTodos(args) {
     const now = new Date().toISOString();
     filterItems.push(`todoStatusId: {equalTo: "TODO"}`);
     filterItems.push(`dueDate: {lessThan: "${now}"}`);
+  }
+
+  // Add date filters for creation
+  if (createdAfter) {
+    filterItems.push(`createdAt: {greaterThanOrEqualTo: "${createdAfter}"}`);
+  }
+  if (createdBefore) {
+    filterItems.push(`createdAt: {lessThanOrEqualTo: "${createdBefore}"}`);
+  }
+
+  // Add date filters for completion (statusUpdatedAt when status is COMPLETE)
+  if (completedAfter || completedBefore) {
+    if (completedAfter) {
+      filterItems.push(
+        `statusUpdatedAt: {greaterThanOrEqualTo: "${completedAfter}"}`
+      );
+    }
+    if (completedBefore) {
+      filterItems.push(
+        `statusUpdatedAt: {lessThanOrEqualTo: "${completedBefore}"}`
+      );
+    }
+    // Only include completed todos when using completion date filters
+    if (!status) {
+      filterItems.push(`todoStatusId: {equalTo: "COMPLETE"}`);
+    }
   }
 
   const filterStr = [
@@ -603,10 +637,20 @@ export async function getRocks(args) {
  * @param {number} [args.first] - Optional page size
  * @param {number} [args.offset] - Optional offset
  * @param {string} [args.stateId] - Meeting state filter (defaults to 'ACTIVE')
+ * @param {string} [args.meetingInfoId] - Filter by meeting info ID (recurring meeting series)
+ * @param {string} [args.dateAfter] - Filter meetings occurring on or after this date (YYYY-MM-DD)
+ * @param {string} [args.dateBefore] - Filter meetings occurring on or before this date (YYYY-MM-DD)
  * @returns {Promise<{content: Array<{type: string, text: string}>}>}
  */
 export async function getMeetings(args) {
-  const { first, offset, stateId = "ACTIVE" } = args;
+  const {
+    first,
+    offset,
+    stateId = "ACTIVE",
+    meetingInfoId,
+    dateAfter,
+    dateBefore,
+  } = args;
   // Validate stateId
   const validation = validateStateId(stateId);
   if (!validation.isValid) {
@@ -614,8 +658,24 @@ export async function getMeetings(args) {
       content: [{ type: "text", text: validation.error }],
     };
   }
+
+  const filterItems = [`stateId: {equalTo: "${stateId}"}`];
+
+  // Add meetingInfoId filter if provided
+  if (meetingInfoId) {
+    filterItems.push(`meetingInfoId: {equalTo: "${meetingInfoId}"}`);
+  }
+
+  // Add date filters
+  if (dateAfter) {
+    filterItems.push(`date: {greaterThanOrEqualTo: "${dateAfter}"}`);
+  }
+  if (dateBefore) {
+    filterItems.push(`date: {lessThanOrEqualTo: "${dateBefore}"}`);
+  }
+
   const filterStr = [
-    `stateId: {equalTo: "${stateId}"}`,
+    filterItems.length > 0 ? `filter: {${filterItems.join(", ")}}` : "",
     first !== undefined ? `first: ${first}` : "",
     offset !== undefined ? `offset: ${offset}` : "",
   ]
@@ -624,7 +684,7 @@ export async function getMeetings(args) {
 
   const query = `
     query {
-      meetings(${filterStr ? `filter: {${filterStr}}` : ""}) {
+      meetings(${filterStr}) {
         nodes {
           id
           meetingInfoId
@@ -676,10 +736,28 @@ export async function getMeetings(args) {
  * @param {number} [args.first] - Optional page size
  * @param {number} [args.offset] - Optional offset
  * @param {string} [args.stateId] - Issue state filter (defaults to 'ACTIVE')
+ * @param {string} [args.teamId] - Filter by team ID
+ * @param {string} [args.userId] - Filter by user ID
+ * @param {string} [args.status] - Filter by status (e.g., "OPEN", "CLOSED")
+ * @param {boolean} [args.fromMeetings] - If true, only return issues linked to meetings
+ * @param {string} [args.createdAfter] - Filter issues created after this date (ISO 8601 format)
+ * @param {string} [args.createdBefore] - Filter issues created before this date (ISO 8601 format)
+ * @param {string} [args.statusUpdatedBefore] - Filter issues where status was last updated before this date
  * @returns {Promise<{content: Array<{type: string, text: string}>}>}
  */
 export async function getIssues(args) {
-  const { first, offset, stateId = "ACTIVE" } = args;
+  const {
+    first,
+    offset,
+    stateId = "ACTIVE",
+    teamId,
+    userId,
+    status,
+    fromMeetings = false,
+    createdAfter,
+    createdBefore,
+    statusUpdatedBefore,
+  } = args;
   // Validate stateId
   const validation = validateStateId(stateId);
   if (!validation.isValid) {
@@ -687,8 +765,44 @@ export async function getIssues(args) {
       content: [{ type: "text", text: validation.error }],
     };
   }
+
+  const filterItems = [`stateId: {equalTo: "${stateId}"}`];
+
+  // Add teamId filter if provided
+  if (teamId) {
+    filterItems.push(`teamId: {equalTo: "${teamId}"}`);
+  }
+
+  // Add userId filter if provided
+  if (userId) {
+    filterItems.push(`userId: {equalTo: "${userId}"}`);
+  }
+
+  // Add status filter if provided
+  if (status) {
+    filterItems.push(`issueStatusId: {equalTo: "${status}"}`);
+  }
+
+  // Add meetingId filter if fromMeetings is true
+  if (fromMeetings) {
+    filterItems.push(`meetingId: {isNull: false}`);
+  }
+
+  // Add date filters
+  if (createdAfter) {
+    filterItems.push(`createdAt: {greaterThanOrEqualTo: "${createdAfter}"}`);
+  }
+  if (createdBefore) {
+    filterItems.push(`createdAt: {lessThanOrEqualTo: "${createdBefore}"}`);
+  }
+  if (statusUpdatedBefore) {
+    filterItems.push(
+      `statusUpdatedAt: {lessThanOrEqualTo: "${statusUpdatedBefore}"}`
+    );
+  }
+
   const filterStr = [
-    `stateId: {equalTo: "${stateId}"}`,
+    filterItems.length > 0 ? `filter: {${filterItems.join(", ")}}` : "",
     first !== undefined ? `first: ${first}` : "",
     offset !== undefined ? `offset: ${offset}` : "",
   ]
@@ -697,7 +811,7 @@ export async function getIssues(args) {
 
   const query = `
     query {
-      issues(${filterStr ? `filter: {${filterStr}}` : ""}) {
+      issues(${filterStr}) {
         nodes {
           id
           issueStatusId
@@ -2884,6 +2998,266 @@ export async function getLeadershipVTO(args) {
         {
           type: "text",
           text: `Error fetching leadership VTO: ${error.message}`,
+        },
+      ],
+    };
+  }
+}
+
+/**
+ * Get comprehensive meeting details including all related items (headlines, todos, issues, ratings)
+ * This tool is useful for queries like "What were the headlines from our last leadership L10?"
+ * or "Summarize last week's meetings"
+ *
+ * @param {Object} args - Arguments object
+ * @param {string} [args.meetingId] - Specific meeting ID to fetch details for
+ * @param {string} [args.teamId] - Filter meetings by team (via meetingInfo)
+ * @param {string} [args.dateAfter] - Filter meetings occurring on or after this date (YYYY-MM-DD)
+ * @param {string} [args.dateBefore] - Filter meetings occurring on or before this date (YYYY-MM-DD)
+ * @param {number} [args.first] - Optional page size (defaults to 10)
+ * @param {string} [args.stateId] - State filter (defaults to 'ACTIVE')
+ * @returns {Promise<Object>} Meeting details with related items
+ */
+export async function getMeetingDetails(args) {
+  const {
+    meetingId,
+    teamId,
+    dateAfter,
+    dateBefore,
+    first = 10,
+    stateId = "ACTIVE",
+  } = args;
+
+  try {
+    // Step 1: Get meetings based on filters
+    let meetingsQuery = `
+      query {
+        meetings(first: ${first}, filter: {stateId: {equalTo: "${stateId}"}`;
+
+    if (meetingId) {
+      meetingsQuery += `, id: {equalTo: "${meetingId}"}`;
+    }
+    if (dateAfter) {
+      meetingsQuery += `, date: {greaterThanOrEqualTo: "${dateAfter}"}`;
+    }
+    if (dateBefore) {
+      meetingsQuery += `, date: {lessThanOrEqualTo: "${dateBefore}"}`;
+    }
+
+    meetingsQuery += `}, orderBy: DATE_DESC) {
+          nodes {
+            id
+            meetingInfoId
+            date
+            startTime
+            endTime
+            averageRating
+            meetingStatusId
+            createdAt
+          }
+          totalCount
+        }
+      }
+    `;
+
+    const meetingsResult = await callSuccessCoGraphQL(meetingsQuery);
+    if (!meetingsResult.ok) {
+      return {
+        content: [{ type: "text", text: meetingsResult.error }],
+      };
+    }
+
+    let meetings = meetingsResult.data.data.meetings.nodes;
+
+    // If teamId filter is provided, filter meetings by team
+    if (teamId && meetings.length > 0) {
+      // Get meetingInfos for the team
+      const meetingInfosQuery = `
+        query {
+          meetingInfos(filter: {teamId: {equalTo: "${teamId}"}, stateId: {equalTo: "${stateId}"}}) {
+            nodes {
+              id
+            }
+          }
+        }
+      `;
+
+      const meetingInfosResult = await callSuccessCoGraphQL(meetingInfosQuery);
+      if (meetingInfosResult.ok) {
+        const teamMeetingInfoIds = new Set(
+          meetingInfosResult.data.data.meetingInfos.nodes.map((mi) => mi.id)
+        );
+        meetings = meetings.filter((m) =>
+          teamMeetingInfoIds.has(m.meetingInfoId)
+        );
+      }
+    }
+
+    if (meetings.length === 0) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              meetings: [],
+              totalCount: 0,
+              message: "No meetings found matching the criteria",
+            }),
+          },
+        ],
+      };
+    }
+
+    // Step 2: Get all meeting IDs for batch queries
+    const meetingIds = meetings.map((m) => m.id);
+    const meetingIdsStr = meetingIds.map((id) => `"${id}"`).join(", ");
+
+    // Step 3: Fetch related data in parallel
+    const [headlinesResult, todosResult, issuesResult] = await Promise.all([
+      // Get headlines for these meetings
+      callSuccessCoGraphQL(`
+        query {
+          headlines(filter: {meetingId: {in: [${meetingIdsStr}]}, stateId: {equalTo: "${stateId}"}}) {
+            nodes {
+              id
+              name
+              desc
+              userId
+              teamId
+              headlineStatusId
+              meetingId
+              createdAt
+            }
+          }
+        }
+      `),
+
+      // Get todos for these meetings
+      callSuccessCoGraphQL(`
+        query {
+          todos(filter: {meetingId: {in: [${meetingIdsStr}]}, stateId: {equalTo: "${stateId}"}}) {
+            nodes {
+              id
+              name
+              desc
+              todoStatusId
+              userId
+              teamId
+              meetingId
+              dueDate
+              createdAt
+            }
+          }
+        }
+      `),
+
+      // Get issues for these meetings
+      callSuccessCoGraphQL(`
+        query {
+          issues(filter: {meetingId: {in: [${meetingIdsStr}]}, stateId: {equalTo: "${stateId}"}}) {
+            nodes {
+              id
+              name
+              desc
+              issueStatusId
+              userId
+              teamId
+              meetingId
+              createdAt
+            }
+          }
+        }
+      `),
+    ]);
+
+    // Organize data by meeting
+    const meetingDetails = meetings.map((meeting) => {
+      const headlines = headlinesResult.ok
+        ? headlinesResult.data.data.headlines.nodes.filter(
+            (h) => h.meetingId === meeting.id
+          )
+        : [];
+
+      const todos = todosResult.ok
+        ? todosResult.data.data.todos.nodes.filter(
+            (t) => t.meetingId === meeting.id
+          )
+        : [];
+
+      const issues = issuesResult.ok
+        ? issuesResult.data.data.issues.nodes.filter(
+            (i) => i.meetingId === meeting.id
+          )
+        : [];
+
+      return {
+        meeting: {
+          id: meeting.id,
+          meetingInfoId: meeting.meetingInfoId,
+          date: meeting.date,
+          startTime: meeting.startTime,
+          endTime: meeting.endTime,
+          averageRating: meeting.averageRating,
+          status: meeting.meetingStatusId,
+          createdAt: meeting.createdAt,
+        },
+        headlines: headlines.map((h) => ({
+          id: h.id,
+          name: h.name,
+          description: h.desc || "",
+          status: h.headlineStatusId,
+          userId: h.userId,
+          teamId: h.teamId,
+          createdAt: h.createdAt,
+        })),
+        todos: todos.map((t) => ({
+          id: t.id,
+          name: t.name,
+          description: t.desc || "",
+          status: t.todoStatusId,
+          userId: t.userId,
+          teamId: t.teamId,
+          dueDate: t.dueDate,
+          createdAt: t.createdAt,
+        })),
+        issues: issues.map((i) => ({
+          id: i.id,
+          name: i.name,
+          description: i.desc || "",
+          status: i.issueStatusId,
+          userId: i.userId,
+          teamId: i.teamId,
+          createdAt: i.createdAt,
+        })),
+        summary: {
+          headlineCount: headlines.length,
+          todoCount: todos.length,
+          issueCount: issues.length,
+        },
+      };
+    });
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(
+            {
+              meetings: meetingDetails,
+              totalCount: meetingDetails.length,
+            },
+            null,
+            2
+          ),
+        },
+      ],
+    };
+  } catch (error) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error fetching meeting details: ${error.message}`,
         },
       ],
     };

@@ -29,6 +29,7 @@ import {
   getMeetingInfos,
   getLeadershipVTO,
   getAccountabilityChart,
+  getMeetingDetails,
 } from "./tools.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -117,7 +118,7 @@ const toolDefinitions = [
   {
     name: "getTodos",
     description:
-      "List Success.co todos. Use fromMeetings=true to get only todos from Level 10 meetings. Filter by teamId, userId, or status (TODO, COMPLETE, OVERDUE).",
+      "List Success.co todos. Use fromMeetings=true to get only todos from Level 10 meetings. Filter by teamId, userId, or status (TODO, COMPLETE, OVERDUE). Supports date filtering for creation and completion dates.",
     handler: async ({
       first,
       offset,
@@ -126,6 +127,10 @@ const toolDefinitions = [
       teamId,
       userId,
       status,
+      createdAfter,
+      createdBefore,
+      completedAfter,
+      completedBefore,
     }) =>
       await getTodos({
         first,
@@ -135,6 +140,10 @@ const toolDefinitions = [
         teamId,
         userId,
         status,
+        createdAfter,
+        createdBefore,
+        completedAfter,
+        completedBefore,
       }),
     schema: {
       first: z.number().int().optional().describe("Optional page size"),
@@ -156,6 +165,30 @@ const toolDefinitions = [
         .optional()
         .describe(
           'Filter by status: "TODO" for active todos, "COMPLETE" for completed todos, "OVERDUE" for todos past their due date'
+        ),
+      createdAfter: z
+        .string()
+        .optional()
+        .describe(
+          "Filter todos created after this date (ISO 8601 format, e.g., 2024-01-01T00:00:00Z)"
+        ),
+      createdBefore: z
+        .string()
+        .optional()
+        .describe(
+          "Filter todos created before this date (ISO 8601 format, e.g., 2024-12-31T23:59:59Z)"
+        ),
+      completedAfter: z
+        .string()
+        .optional()
+        .describe(
+          "Filter todos completed after this date (ISO 8601 format) - automatically sets status to COMPLETE"
+        ),
+      completedBefore: z
+        .string()
+        .optional()
+        .describe(
+          "Filter todos completed before this date (ISO 8601 format) - automatically sets status to COMPLETE"
         ),
     },
     required: [],
@@ -183,9 +216,24 @@ const toolDefinitions = [
   },
   {
     name: "getMeetings",
-    description: "List Success.co meetings",
-    handler: async ({ first, offset, stateId }) =>
-      await getMeetings({ first, offset, stateId }),
+    description:
+      "List Success.co meetings with optional date filtering and meeting series filtering",
+    handler: async ({
+      first,
+      offset,
+      stateId,
+      meetingInfoId,
+      dateAfter,
+      dateBefore,
+    }) =>
+      await getMeetings({
+        first,
+        offset,
+        stateId,
+        meetingInfoId,
+        dateAfter,
+        dateBefore,
+      }),
     schema: {
       first: z.number().int().optional().describe("Optional page size"),
       offset: z.number().int().optional().describe("Optional offset"),
@@ -193,14 +241,55 @@ const toolDefinitions = [
         .string()
         .optional()
         .describe("Meeting state filter (defaults to 'ACTIVE')"),
+      meetingInfoId: z
+        .string()
+        .optional()
+        .describe(
+          "Filter by meeting info ID (recurring meeting series/configuration)"
+        ),
+      dateAfter: z
+        .string()
+        .optional()
+        .describe(
+          "Filter meetings occurring on or after this date (YYYY-MM-DD format, e.g., 2024-01-01)"
+        ),
+      dateBefore: z
+        .string()
+        .optional()
+        .describe(
+          "Filter meetings occurring on or before this date (YYYY-MM-DD format, e.g., 2024-12-31)"
+        ),
     },
     required: [],
   },
   {
     name: "getIssues",
-    description: "List Success.co issues",
-    handler: async ({ first, offset, stateId }) =>
-      await getIssues({ first, offset, stateId }),
+    description:
+      "List Success.co issues with filtering by team, user, status, meeting linkage, and dates",
+    handler: async ({
+      first,
+      offset,
+      stateId,
+      teamId,
+      userId,
+      status,
+      fromMeetings,
+      createdAfter,
+      createdBefore,
+      statusUpdatedBefore,
+    }) =>
+      await getIssues({
+        first,
+        offset,
+        stateId,
+        teamId,
+        userId,
+        status,
+        fromMeetings,
+        createdAfter,
+        createdBefore,
+        statusUpdatedBefore,
+      }),
     schema: {
       first: z.number().int().optional().describe("Optional page size"),
       offset: z.number().int().optional().describe("Optional offset"),
@@ -208,6 +297,34 @@ const toolDefinitions = [
         .string()
         .optional()
         .describe("Issue state filter (defaults to 'ACTIVE')"),
+      teamId: z.string().optional().describe("Filter by team ID"),
+      userId: z.string().optional().describe("Filter by user ID"),
+      status: z
+        .string()
+        .optional()
+        .describe('Filter by status (e.g., "OPEN", "CLOSED")'),
+      fromMeetings: z
+        .boolean()
+        .optional()
+        .describe("If true, only return issues linked to meetings"),
+      createdAfter: z
+        .string()
+        .optional()
+        .describe(
+          "Filter issues created after this date (ISO 8601 format, e.g., 2024-01-01T00:00:00Z)"
+        ),
+      createdBefore: z
+        .string()
+        .optional()
+        .describe(
+          "Filter issues created before this date (ISO 8601 format, e.g., 2024-12-31T23:59:59Z)"
+        ),
+      statusUpdatedBefore: z
+        .string()
+        .optional()
+        .describe(
+          "Filter issues where status was last updated before this date - useful for finding stuck issues"
+        ),
     },
     required: [],
   },
@@ -390,6 +507,61 @@ const toolDefinitions = [
         .string()
         .optional()
         .describe("Optional team filter to focus on specific team"),
+    },
+    required: [],
+  },
+  {
+    name: "getMeetingDetails",
+    description:
+      "Get comprehensive meeting details including all related items (headlines, todos, issues, ratings). Perfect for queries like 'What were the headlines from our last leadership L10?', 'Summarize last week's meetings', or 'List all to-dos created in this week's meetings'. Returns meetings with their associated headlines, todos, and issues in a single call.",
+    handler: async ({
+      meetingId,
+      teamId,
+      dateAfter,
+      dateBefore,
+      first,
+      stateId,
+    }) =>
+      await getMeetingDetails({
+        meetingId,
+        teamId,
+        dateAfter,
+        dateBefore,
+        first,
+        stateId,
+      }),
+    schema: {
+      meetingId: z
+        .string()
+        .optional()
+        .describe("Specific meeting ID to fetch details for"),
+      teamId: z
+        .string()
+        .optional()
+        .describe(
+          "Filter meetings by team (via meetingInfo). Useful for getting leadership team meetings."
+        ),
+      dateAfter: z
+        .string()
+        .optional()
+        .describe(
+          "Filter meetings occurring on or after this date (YYYY-MM-DD format, e.g., 2024-01-01)"
+        ),
+      dateBefore: z
+        .string()
+        .optional()
+        .describe(
+          "Filter meetings occurring on or before this date (YYYY-MM-DD format, e.g., 2024-12-31)"
+        ),
+      first: z
+        .number()
+        .int()
+        .optional()
+        .describe("Number of meetings to return (defaults to 10)"),
+      stateId: z
+        .string()
+        .optional()
+        .describe("State filter (defaults to 'ACTIVE')"),
     },
     required: [],
   },
