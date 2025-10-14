@@ -4183,7 +4183,6 @@ export async function getMeetingDetails(args) {
  * @param {boolean} [args.forLeadershipTeam] - If true, automatically use the leadership team ID
  * @param {string} [args.desc] - Issue description
  * @param {string} [args.userId] - User ID to assign the issue to (defaults to current user from API key)
- * @param {string} [args.issueStatusId] - Issue status (defaults to 'TODO')
  * @param {string} [args.priority] - Priority level: 'High', 'Medium', 'Low', or 'No priority' (defaults to 'Medium')
  * @param {string} [args.type] - Issue type: 'short-term' or 'long-term' (defaults to 'short-term')
  * @returns {Promise<{content: Array<{type: string, text: string}>}>}
@@ -4195,13 +4194,15 @@ export async function createIssue(args) {
     forLeadershipTeam = false,
     desc = "",
     userId: providedUserId,
-    issueStatusId = "TODO",
     priority = "Medium",
     type = "short-term",
   } = args;
 
   // Map priority string to numeric value for GraphQL
   const priorityNo = mapPriorityToNumber(priority);
+
+  // Always set issueStatusId to TODO for new issues
+  const issueStatusId = "TODO";
 
   if (!name || name.trim() === "") {
     return {

@@ -867,7 +867,6 @@ const toolDefinitions = [
       teamId,
       forLeadershipTeam,
       userId,
-      issueStatusId,
       priority,
       type,
     }) =>
@@ -877,7 +876,6 @@ const toolDefinitions = [
         teamId,
         forLeadershipTeam,
         userId,
-        issueStatusId,
         priority,
         type,
       }),
@@ -904,12 +902,6 @@ const toolDefinitions = [
         .optional()
         .describe(
           "User ID to assign the issue to (optional - defaults to current user from API key)"
-        ),
-      issueStatusId: z
-        .string()
-        .optional()
-        .describe(
-          "Issue status (defaults to 'TODO' - valid statuses are in issue_statuses table)"
         ),
       priority: z
         .enum(["No priority", "Low", "Medium", "High"])
