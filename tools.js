@@ -16,6 +16,20 @@ let envConfig = {};
 let sql = null;
 let companyIdCache = new Map(); // Cache API key -> company ID mappings
 
+// Helper function to map priority string values to numeric values for GraphQL
+function mapPriorityToNumber(priority) {
+  if (!priority) return 2; // Default to Medium (2)
+
+  const priorityMap = {
+    "No priority": 999,
+    Low: 3,
+    Medium: 2,
+    High: 1,
+  };
+
+  return priorityMap[priority] ?? 2; // Default to Medium if invalid value
+}
+
 /**
  * Clear the GraphQL debug log file if it exists
  * @param {boolean} devMode - Whether we're in development mode
@@ -86,6 +100,48 @@ function getDatabase() {
     initDatabaseConnection();
   }
   return sql;
+}
+
+/**
+ * Get the leadership team ID for the current company
+ * @returns {Promise<string|null>} - Leadership team ID or null
+ */
+async function getLeadershipTeamId() {
+  try {
+    const query = `
+      query {
+        teams(filter: {stateId: {equalTo: "ACTIVE"}, isLeadership: {equalTo: true}}) {
+          nodes {
+            id
+          }
+          totalCount
+        }
+      }
+    `;
+
+    const result = await callSuccessCoGraphQL(query);
+    if (!result.ok) {
+      if (isDevMode) {
+        console.error(
+          `[DEBUG] Failed to lookup leadership team: ${result.error}`
+        );
+      }
+      return null;
+    }
+
+    const teams = result.data.data.teams.nodes;
+    if (teams.length > 0) {
+      return teams[0].id;
+    }
+
+    if (isDevMode) {
+      console.error("[DEBUG] No leadership team found");
+    }
+    return null;
+  } catch (error) {
+    console.error(`[ERROR] Failed to lookup leadership team: ${error.message}`);
+    return null;
+  }
 }
 
 /**
@@ -640,6 +696,7 @@ export async function getUsers(args) {
  * @param {string} [args.stateId] - Todo state filter (defaults to 'ACTIVE')
  * @param {boolean} [args.fromMeetings] - If true, only return todos linked to meetings (Level 10 meetings)
  * @param {string} [args.teamId] - Filter by team ID
+ * @param {boolean} [args.forLeadershipTeam] - If true, automatically use the leadership team ID
  * @param {string} [args.userId] - Filter by user ID
  * @param {string} [args.status] - Filter by status: "TODO", "COMPLETE", or "OVERDUE"
  * @param {string} [args.createdAfter] - Filter todos created after this date (ISO 8601 format)
@@ -654,7 +711,8 @@ export async function getTodos(args) {
     offset,
     stateId = "ACTIVE",
     fromMeetings = false,
-    teamId,
+    teamId: providedTeamId,
+    forLeadershipTeam = false,
     userId,
     status,
     createdAfter,
@@ -662,6 +720,22 @@ export async function getTodos(args) {
     completedAfter,
     completedBefore,
   } = args;
+
+  // Resolve teamId if forLeadershipTeam is true
+  let teamId = providedTeamId;
+  if (forLeadershipTeam && !providedTeamId) {
+    teamId = await getLeadershipTeamId();
+    if (!teamId) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: "Error: Could not find leadership team. Please ensure a team is marked as the leadership team.",
+          },
+        ],
+      };
+    }
+  }
   // Validate stateId
   const validation = validateStateId(stateId);
   if (!validation.isValid) {
@@ -996,6 +1070,7 @@ export async function getMeetings(args) {
  * @param {number} [args.offset] - Optional offset
  * @param {string} [args.stateId] - Issue state filter (defaults to 'ACTIVE')
  * @param {string} [args.teamId] - Filter by team ID
+ * @param {boolean} [args.forLeadershipTeam] - If true, automatically use the leadership team ID
  * @param {string} [args.userId] - Filter by user ID
  * @param {string} [args.status] - Filter by status (e.g., "OPEN", "CLOSED")
  * @param {boolean} [args.fromMeetings] - If true, only return issues linked to meetings
@@ -1009,7 +1084,8 @@ export async function getIssues(args) {
     first,
     offset,
     stateId = "ACTIVE",
-    teamId,
+    teamId: providedTeamId,
+    forLeadershipTeam = false,
     userId,
     status,
     fromMeetings = false,
@@ -1017,6 +1093,22 @@ export async function getIssues(args) {
     createdBefore,
     statusUpdatedBefore,
   } = args;
+
+  // Resolve teamId if forLeadershipTeam is true
+  let teamId = providedTeamId;
+  if (forLeadershipTeam && !providedTeamId) {
+    teamId = await getLeadershipTeamId();
+    if (!teamId) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: "Error: Could not find leadership team. Please ensure a team is marked as the leadership team.",
+          },
+        ],
+      };
+    }
+  }
   // Validate stateId
   const validation = validateStateId(stateId);
   if (!validation.isValid) {
@@ -1131,6 +1223,7 @@ export async function getIssues(args) {
  * @param {number} [args.offset] - Optional offset
  * @param {string} [args.stateId] - Headline state filter (defaults to 'ACTIVE')
  * @param {string} [args.teamId] - Filter by team ID
+ * @param {boolean} [args.forLeadershipTeam] - If true, automatically use the leadership team ID
  * @param {string} [args.userId] - Filter by user ID
  * @param {boolean} [args.fromMeetings] - If true, only return headlines from meetings
  * @param {string} [args.createdAfter] - Filter headlines created after this date (ISO 8601 format)
@@ -1143,13 +1236,30 @@ export async function getHeadlines(args) {
     first,
     offset,
     stateId = "ACTIVE",
-    teamId,
+    teamId: providedTeamId,
+    forLeadershipTeam = false,
     userId,
     fromMeetings = false,
     createdAfter,
     createdBefore,
     keyword,
   } = args;
+
+  // Resolve teamId if forLeadershipTeam is true
+  let teamId = providedTeamId;
+  if (forLeadershipTeam && !providedTeamId) {
+    teamId = await getLeadershipTeamId();
+    if (!teamId) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: "Error: Could not find leadership team. Please ensure a team is marked as the leadership team.",
+          },
+        ],
+      };
+    }
+  }
   // Validate stateId
   const validation = validateStateId(stateId);
   if (!validation.isValid) {
@@ -2590,7 +2700,8 @@ export async function getScorecardMeasurables(args) {
     first = 50,
     offset = 0,
     stateId = "ACTIVE",
-    teamId,
+    teamId: providedTeamId,
+    forLeadershipTeam = false,
     userId,
     type,
     dataFieldId,
@@ -2598,6 +2709,22 @@ export async function getScorecardMeasurables(args) {
     endDate,
     periods = 13,
   } = args;
+
+  // Resolve teamId if forLeadershipTeam is true
+  let teamId = providedTeamId;
+  if (forLeadershipTeam && !providedTeamId) {
+    teamId = await getLeadershipTeamId();
+    if (!teamId) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: "Error: Could not find leadership team. Please ensure a team is marked as the leadership team.",
+          },
+        ],
+      };
+    }
+  }
 
   if (!validateStateId(stateId)) {
     return {
@@ -2936,9 +3063,26 @@ export async function getMeetingInfos(args) {
     first = 50,
     offset = 0,
     stateId = "ACTIVE",
-    teamId,
+    teamId: providedTeamId,
+    forLeadershipTeam = false,
     meetingInfoStatusId,
   } = args;
+
+  // Resolve teamId if forLeadershipTeam is true
+  let teamId = providedTeamId;
+  if (forLeadershipTeam && !providedTeamId) {
+    teamId = await getLeadershipTeamId();
+    if (!teamId) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: "Error: Could not find leadership team. Please ensure a team is marked as the leadership team.",
+          },
+        ],
+      };
+    }
+  }
 
   const query = `
     query GetMeetingInfos($first: Int, $offset: Int, $stateId: String, $teamId: String, $meetingInfoStatusId: String) {
@@ -3329,6 +3473,7 @@ export async function getLeadershipVTO(args) {
  * @param {number} [args.offset] - Optional offset
  * @param {string} [args.stateId] - State filter (defaults to 'ACTIVE')
  * @param {string} [args.teamId] - Filter by team ID
+ * @param {boolean} [args.forLeadershipTeam] - If true, automatically use the leadership team ID
  * @param {string} [args.sessionId] - Filter by specific session ID
  * @param {string} [args.createdAfter] - Filter sessions created after this date
  * @param {string} [args.createdBefore] - Filter sessions created before this date
@@ -3339,11 +3484,28 @@ export async function getPeopleAnalyzerSessions(args) {
     first = 50,
     offset = 0,
     stateId = "ACTIVE",
-    teamId,
+    teamId: providedTeamId,
+    forLeadershipTeam = false,
     sessionId,
     createdAfter,
     createdBefore,
   } = args;
+
+  // Resolve teamId if forLeadershipTeam is true
+  let teamId = providedTeamId;
+  if (forLeadershipTeam && !providedTeamId) {
+    teamId = await getLeadershipTeamId();
+    if (!teamId) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: "Error: Could not find leadership team. Please ensure a team is marked as the leadership team.",
+          },
+        ],
+      };
+    }
+  }
 
   const validation = validateStateId(stateId);
   if (!validation.isValid) {
@@ -3584,12 +3746,34 @@ export async function getOrgCheckups(args) {
  * Get users on teams (team membership)
  * @param {Object} args - Arguments object
  * @param {string} [args.teamId] - Filter by team ID
+ * @param {boolean} [args.forLeadershipTeam] - If true, automatically use the leadership team ID
  * @param {string} [args.userId] - Filter by user ID
  * @param {string} [args.stateId] - State filter (defaults to 'ACTIVE')
  * @returns {Promise<{content: Array<{type: string, text: string}>}>}
  */
 export async function getUsersOnTeams(args) {
-  const { teamId, userId, stateId = "ACTIVE" } = args;
+  const {
+    teamId: providedTeamId,
+    forLeadershipTeam = false,
+    userId,
+    stateId = "ACTIVE",
+  } = args;
+
+  // Resolve teamId if forLeadershipTeam is true
+  let teamId = providedTeamId;
+  if (forLeadershipTeam && !providedTeamId) {
+    teamId = await getLeadershipTeamId();
+    if (!teamId) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: "Error: Could not find leadership team. Please ensure a team is marked as the leadership team.",
+          },
+        ],
+      };
+    }
+  }
 
   const validation = validateStateId(stateId);
   if (!validation.isValid) {
@@ -3718,12 +3902,10 @@ export async function getUsersOnTeams(args) {
  * This tool is useful for queries like "What were the headlines from our last leadership L10?"
  * or "Summarize last week's meetings"
  *
- * IMPORTANT: For leadership meetings, first use getTeams to find the team with isLeadership=true,
- * then pass that team's ID to the teamId parameter.
- *
  * @param {Object} args - Arguments object
  * @param {string} [args.meetingId] - Specific meeting ID to fetch details for
- * @param {string} [args.teamId] - Filter meetings by team (via meetingInfo) - REQUIRED for leadership meetings
+ * @param {string} [args.teamId] - Filter meetings by team (via meetingInfo)
+ * @param {boolean} [args.forLeadershipTeam] - If true, automatically use the leadership team ID
  * @param {string} [args.dateAfter] - Filter meetings occurring on or after this date (YYYY-MM-DD)
  * @param {string} [args.dateBefore] - Filter meetings occurring on or before this date (YYYY-MM-DD)
  * @param {number} [args.first] - Optional page size (defaults to 10)
@@ -3733,12 +3915,29 @@ export async function getUsersOnTeams(args) {
 export async function getMeetingDetails(args) {
   const {
     meetingId,
-    teamId,
+    teamId: providedTeamId,
+    forLeadershipTeam = false,
     dateAfter,
     dateBefore,
     first = 10,
     stateId = "ACTIVE",
   } = args;
+
+  // Resolve teamId if forLeadershipTeam is true
+  let teamId = providedTeamId;
+  if (forLeadershipTeam && !providedTeamId) {
+    teamId = await getLeadershipTeamId();
+    if (!teamId) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: "Error: Could not find leadership team. Please ensure a team is marked as the leadership team.",
+          },
+        ],
+      };
+    }
+  }
 
   try {
     // Step 1: Get meetings based on filters
@@ -3980,24 +4179,29 @@ export async function getMeetingDetails(args) {
  * Create a new issue
  * @param {Object} args - Arguments object
  * @param {string} args.name - Issue name/title (required)
- * @param {string} args.teamId - Team ID to assign the issue to (required)
+ * @param {string} [args.teamId] - Team ID to assign the issue to (required unless forLeadershipTeam is true)
+ * @param {boolean} [args.forLeadershipTeam] - If true, automatically use the leadership team ID
  * @param {string} [args.desc] - Issue description
  * @param {string} [args.userId] - User ID to assign the issue to (defaults to current user from API key)
  * @param {string} [args.issueStatusId] - Issue status (defaults to 'TODO')
- * @param {number} [args.priorityNo] - Priority number (1-5, higher = more important)
+ * @param {string} [args.priority] - Priority level: 'High', 'Medium', 'Low', or 'No priority' (defaults to 'Medium')
  * @param {string} [args.type] - Issue type: 'short-term' or 'long-term' (defaults to 'short-term')
  * @returns {Promise<{content: Array<{type: string, text: string}>}>}
  */
 export async function createIssue(args) {
   const {
     name,
-    teamId,
+    teamId: providedTeamId,
+    forLeadershipTeam = false,
     desc = "",
     userId: providedUserId,
     issueStatusId = "TODO",
-    priorityNo = 3,
+    priority = "Medium",
     type = "short-term",
   } = args;
+
+  // Map priority string to numeric value for GraphQL
+  const priorityNo = mapPriorityToNumber(priority);
 
   if (!name || name.trim() === "") {
     return {
@@ -4010,12 +4214,28 @@ export async function createIssue(args) {
     };
   }
 
+  // Resolve teamId if forLeadershipTeam is true
+  let teamId = providedTeamId;
+  if (forLeadershipTeam && !providedTeamId) {
+    teamId = await getLeadershipTeamId();
+    if (!teamId) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: "Error: Could not find leadership team. Please ensure a team is marked as the leadership team.",
+          },
+        ],
+      };
+    }
+  }
+
   if (!teamId) {
     return {
       content: [
         {
           type: "text",
-          text: "Error: Team ID is required. Use getTeams to find the appropriate team ID.",
+          text: "Error: Team ID is required. Either provide teamId or set forLeadershipTeam to true.",
         },
       ],
     };
@@ -4140,6 +4360,7 @@ export async function createIssue(args) {
  * @param {string} [args.desc] - Rock description
  * @param {string} args.dueDate - Due date (YYYY-MM-DD format, required)
  * @param {string} [args.teamId] - Team ID to assign the rock to
+ * @param {boolean} [args.forLeadershipTeam] - If true, automatically use the leadership team ID
  * @param {string} [args.userId] - User ID to assign the rock to
  * @param {string} [args.rockStatusId] - Rock status (defaults to 'ONTRACK')
  * @param {string} [args.type] - Rock type (e.g., 'COMPANY', 'LEADERSHIP', 'DEPARTMENTAL')
@@ -4150,11 +4371,28 @@ export async function createRock(args) {
     name,
     desc = "",
     dueDate,
-    teamId,
+    teamId: providedTeamId,
+    forLeadershipTeam = false,
     userId,
     rockStatusId = "ONTRACK",
     type = "COMPANY",
   } = args;
+
+  // Resolve teamId if forLeadershipTeam is true
+  let teamId = providedTeamId;
+  if (forLeadershipTeam && !providedTeamId) {
+    teamId = await getLeadershipTeamId();
+    if (!teamId) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: "Error: Could not find leadership team. Please ensure a team is marked as the leadership team.",
+          },
+        ],
+      };
+    }
+  }
 
   if (!name || name.trim() === "") {
     return {
@@ -4293,13 +4531,42 @@ export async function createRock(args) {
  * @param {string} [args.desc] - Update issue description
  * @param {string} [args.issueStatusId] - Update status (e.g., 'OPEN', 'CLOSED')
  * @param {string} [args.teamId] - Update team assignment
+ * @param {boolean} [args.forLeadershipTeam] - If true, automatically use the leadership team ID for assignment
  * @param {string} [args.userId] - Update user assignment
- * @param {number} [args.priorityNo] - Update priority (1-5)
+ * @param {string} [args.priority] - Update priority level: 'High', 'Medium', 'Low', or 'No priority'
  * @returns {Promise<{content: Array<{type: string, text: string}>}>}
  */
 export async function updateIssue(args) {
-  const { issueId, name, desc, issueStatusId, teamId, userId, priorityNo } =
-    args;
+  const {
+    issueId,
+    name,
+    desc,
+    issueStatusId,
+    teamId: providedTeamId,
+    forLeadershipTeam = false,
+    userId,
+    priority,
+  } = args;
+
+  // Map priority string to numeric value for GraphQL if priority is provided
+  const priorityNo =
+    priority !== undefined ? mapPriorityToNumber(priority) : undefined;
+
+  // Resolve teamId if forLeadershipTeam is true
+  let teamId = providedTeamId;
+  if (forLeadershipTeam && !providedTeamId) {
+    teamId = await getLeadershipTeamId();
+    if (!teamId) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: "Error: Could not find leadership team. Please ensure a team is marked as the leadership team.",
+          },
+        ],
+      };
+    }
+  }
 
   if (!issueId) {
     return {
@@ -4425,11 +4692,37 @@ export async function updateIssue(args) {
  * @param {string} [args.rockStatusId] - Update status ('ONTRACK', 'OFFTRACK', 'COMPLETE', 'INCOMPLETE')
  * @param {string} [args.dueDate] - Update due date
  * @param {string} [args.teamId] - Update team assignment
+ * @param {boolean} [args.forLeadershipTeam] - If true, automatically use the leadership team ID for assignment
  * @param {string} [args.userId] - Update user assignment
  * @returns {Promise<{content: Array<{type: string, text: string}>}>}
  */
 export async function updateRock(args) {
-  const { rockId, name, desc, rockStatusId, dueDate, teamId, userId } = args;
+  const {
+    rockId,
+    name,
+    desc,
+    rockStatusId,
+    dueDate,
+    teamId: providedTeamId,
+    forLeadershipTeam = false,
+    userId,
+  } = args;
+
+  // Resolve teamId if forLeadershipTeam is true
+  let teamId = providedTeamId;
+  if (forLeadershipTeam && !providedTeamId) {
+    teamId = await getLeadershipTeamId();
+    if (!teamId) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: "Error: Could not find leadership team. Please ensure a team is marked as the leadership team.",
+          },
+        ],
+      };
+    }
+  }
 
   if (!rockId) {
     return {
@@ -4678,6 +4971,7 @@ export async function updateTodo(args) {
  * @param {string} [args.desc] - Update headline description
  * @param {string} [args.headlineStatusId] - Update status
  * @param {string} [args.teamId] - Update team association
+ * @param {boolean} [args.forLeadershipTeam] - If true, automatically use the leadership team ID for association
  * @param {string} [args.userId] - Update user association
  * @param {boolean} [args.isCascadingMessage] - Update cascading message flag
  * @returns {Promise<{content: Array<{type: string, text: string}>}>}
@@ -4688,10 +4982,27 @@ export async function updateHeadline(args) {
     name,
     desc,
     headlineStatusId,
-    teamId,
+    teamId: providedTeamId,
+    forLeadershipTeam = false,
     userId,
     isCascadingMessage,
   } = args;
+
+  // Resolve teamId if forLeadershipTeam is true
+  let teamId = providedTeamId;
+  if (forLeadershipTeam && !providedTeamId) {
+    teamId = await getLeadershipTeamId();
+    if (!teamId) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: "Error: Could not find leadership team. Please ensure a team is marked as the leadership team.",
+          },
+        ],
+      };
+    }
+  }
 
   if (!headlineId) {
     return {
@@ -4815,6 +5126,7 @@ export async function updateHeadline(args) {
  * @param {string} args.name - Headline text (required)
  * @param {string} [args.desc] - Headline description/details
  * @param {string} [args.teamId] - Team ID to associate with
+ * @param {boolean} [args.forLeadershipTeam] - If true, automatically use the leadership team ID
  * @param {string} [args.userId] - User ID to associate with
  * @param {string} [args.headlineStatusId] - Headline status (defaults to 'ACTIVE')
  * @param {boolean} [args.isCascadingMessage] - Whether this is a cascading message (defaults to false)
@@ -4824,11 +5136,28 @@ export async function createHeadline(args) {
   const {
     name,
     desc = "",
-    teamId,
+    teamId: providedTeamId,
+    forLeadershipTeam = false,
     userId,
     headlineStatusId = "ACTIVE",
     isCascadingMessage = false,
   } = args;
+
+  // Resolve teamId if forLeadershipTeam is true
+  let teamId = providedTeamId;
+  if (forLeadershipTeam && !providedTeamId) {
+    teamId = await getLeadershipTeamId();
+    if (!teamId) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: "Error: Could not find leadership team. Please ensure a team is marked as the leadership team.",
+          },
+        ],
+      };
+    }
+  }
 
   if (!name || name.trim() === "") {
     return {
