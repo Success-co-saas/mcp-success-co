@@ -4,7 +4,14 @@
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import { validateStateId } from "./helpers.js";
+import {
+  validateStateId,
+  mapPriorityToNumber,
+  mapIssueTypeToLowercase,
+  mapRockTypeToLowercase,
+  clearDebugLog,
+  getLastDateOfCurrentQuarter,
+} from "./helpers.js";
 import postgres from "postgres";
 
 // Logging - Debug
@@ -15,61 +22,6 @@ let envConfig = {};
 // Database connection
 let sql = null;
 let companyIdCache = new Map(); // Cache API key -> company ID mappings
-
-// Helper function to map priority string values to numeric values for GraphQL
-function mapPriorityToNumber(priority) {
-  if (!priority) return 2; // Default to Medium (2)
-
-  const priorityMap = {
-    "No priority": 999,
-    Low: 3,
-    Medium: 2,
-    High: 1,
-  };
-
-  return priorityMap[priority] ?? 2; // Default to Medium if invalid value
-}
-
-// Helper function to map issue type to lowercase for GraphQL
-function mapIssueTypeToLowercase(type) {
-  if (!type) return "short-term"; // Default to short-term
-
-  const typeMap = {
-    "Short-term": "short-term",
-    "Long-term": "long-term",
-  };
-
-  return typeMap[type] ?? "short-term"; // Default to short-term if invalid value
-}
-
-// Helper function to map rock type to lowercase for GraphQL
-function mapRockTypeToLowercase(type) {
-  if (!type) return "company"; // Default to company
-
-  const typeMap = {
-    Personal: "personal",
-    Company: "company",
-  };
-
-  return typeMap[type] ?? "company"; // Default to company if invalid value
-}
-
-/**
- * Clear the GraphQL debug log file if it exists
- * @param {boolean} devMode - Whether we're in development mode
- */
-function clearDebugLog(devMode) {
-  if (!devMode) return;
-
-  try {
-    if (fs.existsSync(DEBUG_LOG_FILE)) {
-      fs.writeFileSync(DEBUG_LOG_FILE, "", "utf8");
-      console.error(`[DEBUG] Cleared GraphQL debug log: ${DEBUG_LOG_FILE}`);
-    }
-  } catch (error) {
-    console.error(`[DEBUG] Failed to clear debug log: ${error.message}`);
-  }
-}
 
 /**
  * Initialize database connection
@@ -342,7 +294,7 @@ export function init(config) {
     envConfig.NODE_ENV === "development" || envConfig.DEBUG === "true";
 
   // Clear debug log at startup if we're in debug mode
-  clearDebugLog(isDevMode);
+  clearDebugLog(DEBUG_LOG_FILE, isDevMode);
 
   // Initialize database connection if config is available
   if (envConfig.DATABASE_URL || envConfig.DB_HOST) {
@@ -4368,11 +4320,10 @@ export async function createIssue(args) {
  * @param {Object} args - Arguments object
  * @param {string} args.name - Rock name/title (required)
  * @param {string} [args.desc] - Rock description
- * @param {string} args.dueDate - Due date (YYYY-MM-DD format, required)
+ * @param {string} [args.dueDate] - Due date (YYYY-MM-DD format). If not provided, defaults to the last date of the current quarter based on company's quarter dates.
  * @param {string} [args.teamId] - Team ID to assign the rock to (REQUIRED unless forLeadershipTeam is true)
  * @param {boolean} [args.forLeadershipTeam] - If true, automatically use the leadership team ID (REQUIRED unless teamId is provided)
  * @param {string} [args.userId] - User ID to assign the rock to
- * @param {string} [args.rockStatusId] - Rock status (defaults to 'ONTRACK')
  * @param {string} [args.type] - Rock type: 'Personal' or 'Company' (defaults to 'Company')
  * @returns {Promise<{content: Array<{type: string, text: string}>}>}
  */
@@ -4380,13 +4331,15 @@ export async function createRock(args) {
   const {
     name,
     desc = "",
-    dueDate,
+    dueDate: providedDueDate,
     teamId: providedTeamId,
     forLeadershipTeam = false,
     userId,
-    rockStatusId = "ONTRACK",
     type: providedType = "Company",
   } = args;
+
+  // New rocks always start as ONTRACK
+  const rockStatusId = "ONTRACK";
 
   // Map type to lowercase for GraphQL
   const type = mapRockTypeToLowercase(providedType);
@@ -4430,17 +4383,6 @@ export async function createRock(args) {
     };
   }
 
-  if (!dueDate) {
-    return {
-      content: [
-        {
-          type: "text",
-          text: "Error: Due date is required (format: YYYY-MM-DD)",
-        },
-      ],
-    };
-  }
-
   const apiKey = getSuccessCoApiKey();
   if (!apiKey) {
     return {
@@ -4469,6 +4411,27 @@ export async function createRock(args) {
   const companyId = context.companyId;
   // Use provided userId or default to current user from API key
   const finalUserId = userId || context.userId;
+
+  // If dueDate is not provided, calculate the last date of the current quarter
+  let dueDate = providedDueDate;
+  if (!dueDate) {
+    dueDate = await getLastDateOfCurrentQuarter(companyId);
+    if (!dueDate) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: "Error: Could not determine default due date. Please provide a due date explicitly.",
+          },
+        ],
+      };
+    }
+    if (isDevMode) {
+      console.error(
+        `[DEBUG] Using calculated quarter end date as due date: ${dueDate}`
+      );
+    }
+  }
 
   const mutation = `
     mutation CreateRock($input: CreateRockInput!) {

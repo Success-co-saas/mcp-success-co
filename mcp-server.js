@@ -921,7 +921,7 @@ const toolDefinitions = [
   {
     name: "createRock",
     description:
-      "Create a new Rock (90-day priority) in Success.co. IMPORTANT: Rocks MUST be assigned to a team - either provide 'teamId' or set 'forLeadershipTeam=true'. Perfect for queries like 'Create a Rock for marketing to launch referral program due next quarter'.",
+      "Create a new Rock (90-day priority) in Success.co. IMPORTANT: Rocks MUST be assigned to a team - either provide 'teamId' or set 'forLeadershipTeam=true'. New rocks always start with status 'ONTRACK'. Perfect for queries like 'Create a Rock for marketing to launch referral program due next quarter'.",
     handler: async ({
       name,
       desc,
@@ -929,7 +929,6 @@ const toolDefinitions = [
       teamId,
       forLeadershipTeam,
       userId,
-      rockStatusId,
       type,
     }) =>
       await createRock({
@@ -939,7 +938,6 @@ const toolDefinitions = [
         teamId,
         forLeadershipTeam,
         userId,
-        rockStatusId,
         type,
       }),
     schema: {
@@ -947,8 +945,9 @@ const toolDefinitions = [
       desc: z.string().optional().describe("Rock description or details"),
       dueDate: z
         .string()
+        .optional()
         .describe(
-          "Due date in YYYY-MM-DD format (required). For 'next quarter', calculate 90 days from today."
+          "Due date in YYYY-MM-DD format. If not provided, defaults to the last date of the current quarter based on the company's quarter dates."
         ),
       teamId: z
         .string()
@@ -968,12 +967,6 @@ const toolDefinitions = [
         .describe(
           "User ID to assign the rock to (use getUsers to find the user ID)"
         ),
-      rockStatusId: z
-        .string()
-        .optional()
-        .describe(
-          "Rock status: 'ONTRACK', 'OFFTRACK', 'COMPLETE', or 'INCOMPLETE' (defaults to 'ONTRACK')"
-        ),
       type: z
         .enum(["Personal", "Company"])
         .optional()
@@ -981,7 +974,7 @@ const toolDefinitions = [
           "Rock type: 'Personal' for individual rocks or 'Company' for company-wide rocks (defaults to 'Company')"
         ),
     },
-    required: ["name", "dueDate"],
+    required: ["name"],
   },
   {
     name: "updateTodo",
