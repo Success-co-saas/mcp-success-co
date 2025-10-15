@@ -65,3 +65,4 @@ logs
 tmp/
 temp/ 
 .api_key
+.api_key
