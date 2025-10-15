@@ -28,6 +28,7 @@ import {
   callSuccessCoGraphQL,
   getScorecardMeasurables,
   getMeetingInfos,
+  getMeetingAgendas,
   getLeadershipVTO,
   getAccountabilityChart,
   getMeetingDetails,
@@ -141,30 +142,20 @@ const toolDefinitions = [
     name: "getTeams",
     description:
       "List Success.co teams. Each team includes an 'isLeadership' flag indicating if it's the leadership team. Use this to find the leadership team ID before querying for leadership-specific data.",
-    handler: async ({ first, offset, stateId }) =>
-      await getTeams({ first, offset, stateId }),
+    handler: async ({ first, offset }) => await getTeams({ first, offset }),
     schema: {
       first: z.number().int().optional().describe("Optional page size"),
       offset: z.number().int().optional().describe("Optional offset"),
-      stateId: z
-        .string()
-        .optional()
-        .describe("Team state filter (defaults to 'ACTIVE')"),
     },
     required: [],
   },
   {
     name: "getUsers",
     description: "List Success.co users",
-    handler: async ({ first, offset, stateId }) =>
-      await getUsers({ first, offset, stateId }),
+    handler: async ({ first, offset }) => await getUsers({ first, offset }),
     schema: {
       first: z.number().int().optional().describe("Optional page size"),
       offset: z.number().int().optional().describe("Optional offset"),
-      stateId: z
-        .string()
-        .optional()
-        .describe("User state filter (defaults to 'ACTIVE')"),
     },
     required: [],
   },
@@ -175,7 +166,6 @@ const toolDefinitions = [
     handler: async ({
       first,
       offset,
-      stateId,
       fromMeetings,
       teamId,
       forLeadershipTeam,
@@ -189,7 +179,6 @@ const toolDefinitions = [
       await getTodos({
         first,
         offset,
-        stateId,
         fromMeetings,
         teamId,
         forLeadershipTeam,
@@ -203,10 +192,6 @@ const toolDefinitions = [
     schema: {
       first: z.number().int().optional().describe("Optional page size"),
       offset: z.number().int().optional().describe("Optional offset"),
-      stateId: z
-        .string()
-        .optional()
-        .describe("Todo state filter (defaults to 'ACTIVE')"),
       fromMeetings: z
         .boolean()
         .optional()
@@ -257,15 +242,11 @@ const toolDefinitions = [
   {
     name: "getRocks",
     description: "List Success.co rocks",
-    handler: async ({ first, offset, stateId, status }) =>
-      await getRocks({ first, offset, stateId, rockStatusId: status }),
+    handler: async ({ first, offset, status }) =>
+      await getRocks({ first, offset, rockStatusId: status }),
     schema: {
       first: z.number().int().optional().describe("Optional page size"),
       offset: z.number().int().optional().describe("Optional offset"),
-      stateId: z
-        .string()
-        .optional()
-        .describe("Rock state filter (defaults to 'ACTIVE')"),
       status: z
         .enum(["ONTRACK", "OFFTRACK", "COMPLETE", "INCOMPLETE"])
         .optional()
@@ -277,18 +258,10 @@ const toolDefinitions = [
     name: "getMeetings",
     description:
       "List Success.co meetings with optional date filtering and meeting series filtering",
-    handler: async ({
-      first,
-      offset,
-      stateId,
-      meetingInfoId,
-      dateAfter,
-      dateBefore,
-    }) =>
+    handler: async ({ first, offset, meetingInfoId, dateAfter, dateBefore }) =>
       await getMeetings({
         first,
         offset,
-        stateId,
         meetingInfoId,
         dateAfter,
         dateBefore,
@@ -296,10 +269,6 @@ const toolDefinitions = [
     schema: {
       first: z.number().int().optional().describe("Optional page size"),
       offset: z.number().int().optional().describe("Optional offset"),
-      stateId: z
-        .string()
-        .optional()
-        .describe("Meeting state filter (defaults to 'ACTIVE')"),
       meetingInfoId: z
         .string()
         .optional()
@@ -328,7 +297,6 @@ const toolDefinitions = [
     handler: async ({
       first,
       offset,
-      stateId,
       teamId,
       forLeadershipTeam,
       userId,
@@ -341,7 +309,6 @@ const toolDefinitions = [
       await getIssues({
         first,
         offset,
-        stateId,
         teamId,
         forLeadershipTeam,
         userId,
@@ -354,10 +321,6 @@ const toolDefinitions = [
     schema: {
       first: z.number().int().optional().describe("Optional page size"),
       offset: z.number().int().optional().describe("Optional offset"),
-      stateId: z
-        .string()
-        .optional()
-        .describe("Issue state filter (defaults to 'ACTIVE')"),
       teamId: z.string().optional().describe("Filter by team ID"),
       forLeadershipTeam: z
         .boolean()
@@ -398,10 +361,11 @@ const toolDefinitions = [
   {
     name: "getHeadlines",
     description:
-      "List Success.co headlines. Use forLeadershipTeam=true to automatically filter by the leadership team. Supports filtering by date, keyword, status, team, user, and meeting linkage. Perfect for queries like 'Show me all people headlines from this week' or 'List company headlines related to hiring'.",
+      "List Success.co headlines. Use forLeadershipTeam=true to automatically filter by the leadership team. Supports filtering by date, keyword, status, team, user, and meeting linkage. Perfect for queries like 'Show me all people headlines from this week' or 'List company headlines related to hiring'. Can also fetch a specific headline by ID.",
     handler: async ({
       first,
       offset,
+      headlineId,
       teamId,
       forLeadershipTeam,
       userId,
@@ -414,7 +378,7 @@ const toolDefinitions = [
       await getHeadlines({
         first,
         offset,
-        stateId: "ACTIVE",
+        headlineId,
         teamId,
         forLeadershipTeam,
         userId,
@@ -427,6 +391,10 @@ const toolDefinitions = [
     schema: {
       first: z.number().int().optional().describe("Optional page size"),
       offset: z.number().int().optional().describe("Optional offset"),
+      headlineId: z
+        .string()
+        .optional()
+        .describe("Filter by specific headline ID"),
       teamId: z.string().optional().describe("Filter by team ID"),
       forLeadershipTeam: z
         .boolean()
@@ -467,15 +435,11 @@ const toolDefinitions = [
   {
     name: "getMilestones",
     description: "List Success.co milestones on rocks",
-    handler: async ({ first, offset, stateId, rockId, userId, teamId }) =>
-      await getMilestones({ first, offset, stateId, rockId, userId, teamId }),
+    handler: async ({ first, offset, rockId, userId, teamId }) =>
+      await getMilestones({ first, offset, rockId, userId, teamId }),
     schema: {
       first: z.number().int().optional().describe("Optional page size"),
       offset: z.number().int().optional().describe("Optional offset"),
-      stateId: z
-        .string()
-        .optional()
-        .describe("Milestone state filter (defaults to 'ACTIVE')"),
       rockId: z.string().optional().describe("Filter by rock ID"),
       userId: z.string().optional().describe("Filter by user ID"),
       teamId: z.string().optional().describe("Filter by team ID"),
@@ -512,7 +476,6 @@ const toolDefinitions = [
     handler: async ({
       first,
       offset,
-      stateId,
       teamId,
       forLeadershipTeam,
       userId,
@@ -525,7 +488,6 @@ const toolDefinitions = [
       await getScorecardMeasurables({
         first,
         offset,
-        stateId,
         teamId,
         forLeadershipTeam,
         userId,
@@ -538,10 +500,6 @@ const toolDefinitions = [
     schema: {
       first: z.number().int().optional().describe("Optional page size"),
       offset: z.number().int().optional().describe("Optional offset"),
-      stateId: z
-        .string()
-        .optional()
-        .describe("Data field state filter (defaults to 'ACTIVE')"),
       teamId: z.string().optional().describe("Filter by team ID"),
       forLeadershipTeam: z
         .boolean()
@@ -589,7 +547,6 @@ const toolDefinitions = [
     handler: async ({
       first,
       offset,
-      stateId,
       teamId,
       forLeadershipTeam,
       meetingInfoStatusId,
@@ -597,7 +554,6 @@ const toolDefinitions = [
       await getMeetingInfos({
         first,
         offset,
-        stateId,
         teamId,
         forLeadershipTeam,
         meetingInfoStatusId,
@@ -605,10 +561,6 @@ const toolDefinitions = [
     schema: {
       first: z.number().int().optional().describe("Optional page size"),
       offset: z.number().int().optional().describe("Optional offset"),
-      stateId: z
-        .string()
-        .optional()
-        .describe("Meeting info state filter (defaults to 'ACTIVE')"),
       teamId: z.string().optional().describe("Filter by team ID"),
       forLeadershipTeam: z
         .boolean()
@@ -624,29 +576,68 @@ const toolDefinitions = [
     required: [],
   },
   {
+    name: "getMeetingAgendas",
+    description:
+      "List Success.co meeting agendas (templates for meetings). These are used to create meeting series. Use forLeadershipTeam=true to automatically filter by the leadership team. Use this to find agenda IDs needed for creating meeting infos or understanding meeting structure.",
+    handler: async ({
+      first,
+      offset,
+      teamId,
+      forLeadershipTeam,
+      meetingAgendaStatusId,
+      meetingAgendaTypeId,
+      builtIn,
+    }) =>
+      await getMeetingAgendas({
+        first,
+        offset,
+        teamId,
+        forLeadershipTeam,
+        meetingAgendaStatusId,
+        meetingAgendaTypeId,
+        builtIn,
+      }),
+    schema: {
+      first: z.number().int().optional().describe("Optional page size"),
+      offset: z.number().int().optional().describe("Optional offset"),
+      teamId: z.string().optional().describe("Filter by team ID"),
+      forLeadershipTeam: z
+        .boolean()
+        .optional()
+        .describe(
+          "If true, automatically use the leadership team ID (shortcut instead of calling getTeams first)"
+        ),
+      meetingAgendaStatusId: z
+        .string()
+        .optional()
+        .describe("Filter by meeting agenda status ID"),
+      meetingAgendaTypeId: z
+        .string()
+        .optional()
+        .describe("Filter by agenda type (e.g., 'LEVEL10', 'CUSTOM')"),
+      builtIn: z
+        .boolean()
+        .optional()
+        .describe(
+          "Filter by built-in agendas (true for built-in, false for custom)"
+        ),
+    },
+    required: [],
+  },
+  {
     name: "getLeadershipVTO",
     description:
       "Get the complete leadership Vision/Traction Organizer in one call. Fetches all VTO components (core values, core focus, goals, market strategies) in parallel for maximum efficiency.",
-    handler: async ({ stateId }) => await getLeadershipVTO({ stateId }),
-    schema: {
-      stateId: z
-        .string()
-        .optional()
-        .describe("State filter (defaults to 'ACTIVE')"),
-    },
+    handler: async () => await getLeadershipVTO({}),
+    schema: {},
     required: [],
   },
   {
     name: "getAccountabilityChart",
     description:
       "Get the complete accountability chart (organizational structure) for the company. Fetches all users, their roles, teams, and reporting relationships to answer questions like 'Who reports to the Integrator?' or 'What is the organizational structure?'. This tool provides a comprehensive view of the company's organizational hierarchy including key EOS roles like Integrator and Visionary.",
-    handler: async ({ stateId, teamId }) =>
-      await getAccountabilityChart({ stateId, teamId }),
+    handler: async ({ teamId }) => await getAccountabilityChart({ teamId }),
     schema: {
-      stateId: z
-        .string()
-        .optional()
-        .describe("State filter (defaults to 'ACTIVE')"),
       teamId: z
         .string()
         .optional()
@@ -665,7 +656,6 @@ const toolDefinitions = [
       dateAfter,
       dateBefore,
       first,
-      stateId,
     }) =>
       await getMeetingDetails({
         meetingId,
@@ -674,7 +664,6 @@ const toolDefinitions = [
         dateAfter,
         dateBefore,
         first,
-        stateId,
       }),
     schema: {
       meetingId: z
@@ -708,10 +697,6 @@ const toolDefinitions = [
         .int()
         .optional()
         .describe("Number of meetings to return (defaults to 10)"),
-      stateId: z
-        .string()
-        .optional()
-        .describe("State filter (defaults to 'ACTIVE')"),
     },
     required: [],
   },
@@ -722,7 +707,6 @@ const toolDefinitions = [
     handler: async ({
       first,
       offset,
-      stateId,
       teamId,
       forLeadershipTeam,
       sessionId,
@@ -732,7 +716,6 @@ const toolDefinitions = [
       await getPeopleAnalyzerSessions({
         first,
         offset,
-        stateId,
         teamId,
         forLeadershipTeam,
         sessionId,
@@ -746,10 +729,6 @@ const toolDefinitions = [
         .optional()
         .describe("Optional page size (defaults to 50)"),
       offset: z.number().int().optional().describe("Optional offset"),
-      stateId: z
-        .string()
-        .optional()
-        .describe("State filter (defaults to 'ACTIVE')"),
       teamId: z.string().optional().describe("Filter by team ID"),
       forLeadershipTeam: z
         .boolean()
@@ -783,7 +762,6 @@ const toolDefinitions = [
     handler: async ({
       first,
       offset,
-      stateId,
       checkupId,
       createdAfter,
       createdBefore,
@@ -791,7 +769,6 @@ const toolDefinitions = [
       await getOrgCheckups({
         first,
         offset,
-        stateId,
         checkupId,
         createdAfter,
         createdBefore,
@@ -803,10 +780,6 @@ const toolDefinitions = [
         .optional()
         .describe("Optional page size (defaults to 50)"),
       offset: z.number().int().optional().describe("Optional offset"),
-      stateId: z
-        .string()
-        .optional()
-        .describe("State filter (defaults to 'ACTIVE')"),
       checkupId: z
         .string()
         .optional()
@@ -830,8 +803,8 @@ const toolDefinitions = [
     name: "getUsersOnTeams",
     description:
       "Get team membership information showing which users are on which teams. Use forLeadershipTeam=true to automatically get the leadership team members. Perfect for queries like 'Who's on the Operations team?', 'Which teams is this user a member of?', or analyzing team composition and structure.",
-    handler: async ({ teamId, forLeadershipTeam, userId, stateId }) =>
-      await getUsersOnTeams({ teamId, forLeadershipTeam, userId, stateId }),
+    handler: async ({ teamId, forLeadershipTeam, userId }) =>
+      await getUsersOnTeams({ teamId, forLeadershipTeam, userId }),
     schema: {
       teamId: z
         .string()
@@ -849,10 +822,6 @@ const toolDefinitions = [
         .string()
         .optional()
         .describe("Filter by user ID to see which teams a user belongs to"),
-      stateId: z
-        .string()
-        .optional()
-        .describe("State filter (defaults to 'ACTIVE')"),
     },
     required: [],
   },
@@ -1066,17 +1035,25 @@ const toolDefinitions = [
   {
     name: "createMeeting",
     description:
-      "Create a new meeting instance in Success.co. Perfect for queries like 'Schedule a Level 10 meeting for the Integrator team next Monday'. Use getMeetingInfos to find the meeting series ID (meetingInfoId) for the team first.",
+      "Create a new meeting instance in Success.co. Perfect for queries like 'Schedule a Level 10 meeting for the leadership team next Monday'. Provide either meetingAgendaId or meetingAgendaType (e.g., 'WEEKLY-L10', 'QUARTERLY-PULSING-AGENDA'). The tool will create a meeting info and then the meeting automatically.",
     handler: async ({
       date,
-      meetingInfoId,
+      meetingAgendaId,
+      meetingAgendaType,
+      teamId,
+      forLeadershipTeam,
+      name,
       startTime,
       endTime,
       meetingStatusId,
     }) =>
       await createMeeting({
         date,
-        meetingInfoId,
+        meetingAgendaId,
+        meetingAgendaType,
+        teamId,
+        forLeadershipTeam,
+        name,
         startTime,
         endTime,
         meetingStatusId,
@@ -1087,10 +1064,42 @@ const toolDefinitions = [
         .describe(
           "Meeting date in YYYY-MM-DD format (required). For 'next Monday', calculate the date."
         ),
-      meetingInfoId: z
+      meetingAgendaId: z
         .string()
+        .optional()
         .describe(
-          "Meeting series ID (required). Use getMeetingInfos to find the meeting series for the team (e.g., Level 10 series)."
+          "Meeting agenda ID (optional if meetingAgendaType is provided). Use getMeetingAgendas to find available agendas."
+        ),
+      meetingAgendaType: z
+        .enum([
+          "ANNUAL-PLANNING-DAY-1",
+          "ANNUAL-PLANNING-DAY-2",
+          "QUARTERLY-PULSING-AGENDA",
+          "WEEKLY-L10",
+          "FOCUS-DAY",
+          "VISION-BUILDING-SESSION",
+        ])
+        .optional()
+        .describe(
+          "Meeting agenda type (optional if meetingAgendaId is provided). Automatically looks up the agenda for the team."
+        ),
+      teamId: z
+        .string()
+        .optional()
+        .describe(
+          "Team ID (optional if forLeadershipTeam is true). The team for which to create the meeting."
+        ),
+      forLeadershipTeam: z
+        .boolean()
+        .optional()
+        .describe(
+          "If true, automatically use the leadership team (optional if teamId is provided)"
+        ),
+      name: z
+        .string()
+        .optional()
+        .describe(
+          "Optional name for the meeting (defaults to the agenda name)"
         ),
       startTime: z
         .string()
@@ -1109,7 +1118,7 @@ const toolDefinitions = [
         .optional()
         .describe("Meeting status (defaults to 'SCHEDULED')"),
     },
-    required: ["date", "meetingInfoId"],
+    required: ["date"],
   },
   {
     name: "updateIssue",

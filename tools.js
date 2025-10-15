@@ -1204,6 +1204,7 @@ export async function getIssues(args) {
  * @param {Object} args - Arguments object
  * @param {number} [args.first] - Optional page size
  * @param {number} [args.offset] - Optional offset
+ * @param {string} [args.headlineId] - Filter by specific headline ID
  * @param {string} [args.teamId] - Filter by team ID
  * @param {boolean} [args.forLeadershipTeam] - If true, automatically use the leadership team ID
  * @param {string} [args.userId] - Filter by user ID
@@ -1219,6 +1220,7 @@ export async function getHeadlines(args) {
     first,
     offset,
     stateId = "ACTIVE",
+    headlineId,
     teamId: providedTeamId,
     forLeadershipTeam = false,
     userId,
@@ -1260,6 +1262,11 @@ export async function getHeadlines(args) {
   }
 
   const filterItems = [`stateId: {equalTo: "${stateId}"}`];
+
+  // Add headlineId filter if provided
+  if (headlineId) {
+    filterItems.push(`id: {equalTo: "${headlineId}"}`);
+  }
 
   // Add teamId filter if provided
   if (teamId) {
@@ -3183,9 +3190,173 @@ export async function getMeetingInfos(args) {
   return await callSuccessCoGraphQL(query, variables);
 }
 
-// Meeting agenda tools removed - not needed for the core EOS queries
-// Use getMeetingInfos for meeting series/recurring meeting configuration
-// Use getMeetings for actual meeting instances
+/**
+ * Get meeting agendas (templates for meetings)
+ * @param {Object} args - Arguments object
+ * @param {number} args.first - Number of records to return (default: 50)
+ * @param {number} args.offset - Number of records to skip (default: 0)
+ * @param {string} args.stateId - State filter (defaults to 'ACTIVE')
+ * @param {string} args.teamId - Filter by team ID
+ * @param {boolean} args.forLeadershipTeam - If true, automatically use the leadership team ID
+ * @param {string} args.meetingAgendaStatusId - Filter by agenda status
+ * @param {string} args.meetingAgendaTypeId - Filter by agenda type (e.g., 'LEVEL10', 'CUSTOM')
+ * @param {boolean} args.builtIn - Filter by built-in agendas (true/false)
+ * @returns {Promise<{content: Array<{type: string, text: string}>}>}
+ */
+export async function getMeetingAgendas(args) {
+  const {
+    first = 50,
+    offset = 0,
+    stateId = "ACTIVE",
+    teamId: providedTeamId,
+    forLeadershipTeam = false,
+    meetingAgendaStatusId,
+    meetingAgendaTypeId,
+    builtIn,
+  } = args;
+
+  // Resolve teamId if forLeadershipTeam is true
+  let teamId = providedTeamId;
+  if (forLeadershipTeam && !providedTeamId) {
+    teamId = await getLeadershipTeamId();
+    if (!teamId) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: "Error: Could not find leadership team. Please ensure a team is marked as the leadership team.",
+          },
+        ],
+      };
+    }
+  }
+
+  // Build filter conditions
+  const filterConditions = [
+    `stateId: {equalTo: "${stateId}"}`,
+    teamId ? `teamId: {equalTo: "${teamId}"}` : "",
+    meetingAgendaStatusId
+      ? `meetingAgendaStatusId: {equalTo: "${meetingAgendaStatusId}"}`
+      : "",
+    meetingAgendaTypeId
+      ? `meetingAgendaTypeId: {equalTo: "${meetingAgendaTypeId}"}`
+      : "",
+    builtIn !== undefined ? `builtIn: {equalTo: ${builtIn}}` : "",
+  ].filter(Boolean);
+
+  const filterStr = filterConditions.join(", ");
+
+  const query = `
+    query {
+      meetingAgendas(first: ${first}, offset: ${offset}, filter: {${filterStr}}, orderBy: CREATED_AT_DESC) {
+        nodes {
+          id
+          name
+          desc
+          builtIn
+          meetingAgendaStatusId
+          meetingRepeatsId
+          meetingAgendaTypeId
+          teamId
+          createdAt
+          stateId
+          companyId
+          facilitatorUserId
+          scribeUserId
+          repeatInterval
+          repeatUnit
+          selectedDays
+          team {
+            id
+            name
+            desc
+            color
+            isLeadership
+          }
+          meetingAgendaStatus {
+            id
+            name
+            color
+            order
+          }
+          meetingAgendaType {
+            id
+            name
+            order
+          }
+          facilitatorUser {
+            id
+            firstName
+            lastName
+            email
+            jobTitle
+          }
+          scribeUser {
+            id
+            firstName
+            lastName
+            email
+            jobTitle
+          }
+          meetingAgendaSections(orderBy: ORDER_ASC) {
+            nodes {
+              id
+              name
+              desc
+              order
+              duration
+              type
+              visible
+            }
+          }
+        }
+        totalCount
+      }
+    }
+  `;
+
+  const result = await callSuccessCoGraphQL(query);
+
+  if (!result.ok) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error fetching meeting agendas: ${result.error}`,
+        },
+      ],
+    };
+  }
+
+  const data = result.data?.data?.meetingAgendas;
+
+  if (!data) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: "Error: No meeting agendas data returned",
+        },
+      ],
+    };
+  }
+
+  return {
+    content: [
+      {
+        type: "text",
+        text: JSON.stringify(
+          {
+            totalCount: data.totalCount,
+            results: data.nodes,
+          },
+          null,
+          2
+        ),
+      },
+    ],
+  };
+}
 
 /**
  * Get the complete leadership Vision/Traction Organizer in one call
@@ -5960,7 +6131,11 @@ export async function updateMeeting(args) {
  * Create a new meeting
  * @param {Object} args - Arguments object
  * @param {string} args.date - Meeting date (YYYY-MM-DD format, required)
- * @param {string} args.meetingInfoId - Meeting info/series ID (required)
+ * @param {string} [args.meetingAgendaId] - Meeting agenda ID (provide either this or meetingAgendaType)
+ * @param {string} [args.meetingAgendaType] - Meeting agenda type: ANNUAL-PLANNING-DAY-1, ANNUAL-PLANNING-DAY-2, QUARTERLY-PULSING-AGENDA, WEEKLY-L10, FOCUS-DAY, or VISION-BUILDING-SESSION
+ * @param {string} [args.teamId] - Team ID (provide either this or forLeadershipTeam)
+ * @param {boolean} [args.forLeadershipTeam] - If true, use the leadership team
+ * @param {string} [args.name] - Optional name for the meeting info (defaults to agenda name)
  * @param {string} [args.startTime] - Start time (HH:MM format)
  * @param {string} [args.endTime] - End time (HH:MM format)
  * @param {string} [args.meetingStatusId] - Meeting status (defaults to 'SCHEDULED')
@@ -5969,12 +6144,17 @@ export async function updateMeeting(args) {
 export async function createMeeting(args) {
   const {
     date,
-    meetingInfoId,
+    meetingAgendaId: providedAgendaId,
+    meetingAgendaType,
+    teamId: providedTeamId,
+    forLeadershipTeam = false,
+    name,
     startTime = "09:00",
     endTime = "10:00",
     meetingStatusId = "SCHEDULED",
   } = args;
 
+  // Validate required parameters
   if (!date) {
     return {
       content: [
@@ -5986,12 +6166,23 @@ export async function createMeeting(args) {
     };
   }
 
-  if (!meetingInfoId) {
+  if (!providedAgendaId && !meetingAgendaType) {
     return {
       content: [
         {
           type: "text",
-          text: "Error: Meeting info ID is required. Use getMeetingInfos to find the meeting series for your team.",
+          text: "Error: Either meetingAgendaId or meetingAgendaType is required",
+        },
+      ],
+    };
+  }
+
+  if (!providedTeamId && !forLeadershipTeam) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: "Error: Either teamId or forLeadershipTeam=true is required",
         },
       ],
     };
@@ -6023,8 +6214,147 @@ export async function createMeeting(args) {
   }
 
   const companyId = context.companyId;
+  const userId = context.userId;
 
-  const mutation = `
+  // Resolve teamId if forLeadershipTeam is true
+  let teamId = providedTeamId;
+  if (forLeadershipTeam && !providedTeamId) {
+    teamId = await getLeadershipTeamId();
+    if (!teamId) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: "Error: Could not find leadership team. Please ensure a team is marked as the leadership team.",
+          },
+        ],
+      };
+    }
+  }
+
+  // Resolve meetingAgendaId if meetingAgendaType is provided
+  let meetingAgendaId = providedAgendaId;
+  let agendaName = name;
+
+  if (meetingAgendaType && !providedAgendaId) {
+    // Look up the meeting agenda by type and team
+    const agendaQuery = `
+      query {
+        meetingAgendas(
+          filter: {
+            meetingAgendaTypeId: {equalTo: "${meetingAgendaType}"}
+            teamId: {equalTo: "${teamId}"}
+            stateId: {equalTo: "ACTIVE"}
+          }
+          first: 1
+        ) {
+          nodes {
+            id
+            name
+          }
+        }
+      }
+    `;
+
+    const agendaResult = await callSuccessCoGraphQL(agendaQuery);
+
+    if (!agendaResult.ok) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error looking up meeting agenda: ${agendaResult.error}`,
+          },
+        ],
+      };
+    }
+
+    const agendas = agendaResult.data?.data?.meetingAgendas?.nodes || [];
+
+    if (agendas.length === 0) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error: No meeting agenda found with type "${meetingAgendaType}" for the specified team. Use getMeetingAgendas to see available agendas.`,
+          },
+        ],
+      };
+    }
+
+    meetingAgendaId = agendas[0].id;
+    if (!agendaName) {
+      agendaName = agendas[0].name;
+    }
+  }
+
+  // Step 1: Create meeting info
+  const createMeetingInfoMutation = `
+    mutation CreateMeetingInfo($input: CreateMeetingInfoInput!) {
+      createMeetingInfo(input: $input) {
+        meetingInfo {
+          id
+          name
+          meetingAgendaId
+          teamId
+          ownerUserId
+          stateId
+        }
+      }
+    }
+  `;
+
+  const meetingInfoVariables = {
+    input: {
+      meetingInfo: {
+        name: agendaName || `Meeting on ${date}`,
+        meetingAgendaId,
+        teamId,
+        ownerUserId: userId,
+        companyId,
+        stateId: "ACTIVE",
+        meetingInfoStatusId: "ACTIVE",
+        meetingRepeatsId: "NEVER",
+      },
+    },
+  };
+
+  const meetingInfoResult = await callSuccessCoGraphQL(
+    createMeetingInfoMutation,
+    meetingInfoVariables
+  );
+
+  if (!meetingInfoResult.ok) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error creating meeting info: ${meetingInfoResult.error}`,
+        },
+      ],
+    };
+  }
+
+  const meetingInfo =
+    meetingInfoResult.data?.data?.createMeetingInfo?.meetingInfo;
+
+  if (!meetingInfo) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error: Meeting info creation failed. ${JSON.stringify(
+            meetingInfoResult.data,
+            null,
+            2
+          )}`,
+        },
+      ],
+    };
+  }
+
+  // Step 2: Create meeting using the meeting info ID
+  const createMeetingMutation = `
     mutation CreateMeeting($input: CreateMeetingInput!) {
       createMeeting(input: $input) {
         meeting {
@@ -6042,11 +6372,11 @@ export async function createMeeting(args) {
     }
   `;
 
-  const variables = {
+  const meetingVariables = {
     input: {
       meeting: {
         date,
-        meetingInfoId,
+        meetingInfoId: meetingInfo.id,
         startTime,
         endTime,
         meetingStatusId,
@@ -6056,20 +6386,23 @@ export async function createMeeting(args) {
     },
   };
 
-  const result = await callSuccessCoGraphQL(mutation, variables);
+  const meetingResult = await callSuccessCoGraphQL(
+    createMeetingMutation,
+    meetingVariables
+  );
 
-  if (!result.ok) {
+  if (!meetingResult.ok) {
     return {
       content: [
         {
           type: "text",
-          text: `Error creating meeting: ${result.error}`,
+          text: `Error creating meeting: ${meetingResult.error}`,
         },
       ],
     };
   }
 
-  const meeting = result.data?.data?.createMeeting?.meeting;
+  const meeting = meetingResult.data?.data?.createMeeting?.meeting;
 
   if (!meeting) {
     return {
@@ -6077,7 +6410,7 @@ export async function createMeeting(args) {
         {
           type: "text",
           text: `Error: Meeting creation failed. ${JSON.stringify(
-            result.data,
+            meetingResult.data,
             null,
             2
           )}`,
@@ -6094,6 +6427,7 @@ export async function createMeeting(args) {
           {
             success: true,
             message: "Meeting created successfully",
+            meetingInfo: meetingInfo,
             meeting: meeting,
           },
           null,
