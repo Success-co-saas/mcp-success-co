@@ -751,7 +751,7 @@ export async function getUsers(args) {
  * @param {string} [args.stateId] - Todo state filter (defaults to 'ACTIVE')
  * @param {boolean} [args.fromMeetings] - If true, only return todos linked to meetings (Level 10 meetings)
  * @param {string} [args.teamId] - Filter by team ID
- * @param {boolean} [args.forLeadershipTeam] - If true, automatically use the leadership team ID
+ * @param {boolean} [args.leadershipTeam] - If true, automatically use the leadership team ID
  * @param {string} [args.userId] - Filter by user ID
  * @param {string} [args.status] - Filter by status: "TODO" (default), "COMPLETE", "OVERDUE", or "ALL"
  * @param {string} [args.keyword] - Search for todos with names containing this keyword (case-insensitive)
@@ -768,7 +768,7 @@ export async function getTodos(args) {
     stateId = "ACTIVE",
     fromMeetings = false,
     teamId: providedTeamId,
-    forLeadershipTeam = false,
+    leadershipTeam = false,
     userId,
     status = "TODO",
     keyword,
@@ -778,9 +778,9 @@ export async function getTodos(args) {
     completedBefore,
   } = args;
 
-  // Resolve teamId if forLeadershipTeam is true
+  // Resolve teamId if leadershipTeam is true
   let teamId = providedTeamId;
-  if (forLeadershipTeam && !providedTeamId) {
+  if (leadershipTeam && !providedTeamId) {
     teamId = await getLeadershipTeamId();
     if (!teamId) {
       return {
@@ -957,9 +957,26 @@ export async function getRocks(args) {
     stateId = "ACTIVE",
     rockStatusId = "",
     userId,
-    teamId,
+    teamId: providedTeamId,
+    leadershipTeam = false,
     keyword,
   } = args;
+
+  // Resolve teamId if leadershipTeam is true
+  let teamId = providedTeamId;
+  if (leadershipTeam && !providedTeamId) {
+    teamId = await getLeadershipTeamId();
+    if (!teamId) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: "Error: Could not find leadership team. Please ensure a team is marked as the leadership team.",
+          },
+        ],
+      };
+    }
+  }
   // Validate stateId
   const validation = validateStateId(stateId);
   if (!validation.isValid) {
@@ -1106,7 +1123,7 @@ export async function getRocks(args) {
  * @param {number} [args.offset] - Optional offset
  * @param {string} [args.stateId] - Meeting state filter (defaults to 'ACTIVE')
  * @param {string} [args.teamId] - Filter by team ID
- * @param {boolean} [args.forLeadershipTeam] - If true, automatically use the leadership team ID
+ * @param {boolean} [args.leadershipTeam] - If true, automatically use the leadership team ID
  * @param {string} [args.meetingAgendaId] - Filter by meeting agenda ID (only one of meetingAgendaId or meetingAgendaType can be used)
  * @param {string} [args.meetingAgendaType] - Filter by meeting agenda type (only one of meetingAgendaId or meetingAgendaType can be used)
  * @param {string} [args.dateAfter] - Filter meetings occurring on or after this date (YYYY-MM-DD)
@@ -1119,7 +1136,7 @@ export async function getMeetings(args) {
     offset,
     stateId = "ACTIVE",
     teamId: providedTeamId,
-    forLeadershipTeam = false,
+    leadershipTeam = false,
     meetingAgendaId,
     meetingAgendaType,
     dateAfter,
@@ -1138,9 +1155,9 @@ export async function getMeetings(args) {
     };
   }
 
-  // Resolve teamId if forLeadershipTeam is true
+  // Resolve teamId if leadershipTeam is true
   let teamId = providedTeamId;
-  if (forLeadershipTeam && !providedTeamId) {
+  if (leadershipTeam && !providedTeamId) {
     teamId = await getLeadershipTeamId();
     if (!teamId) {
       return {
@@ -1159,7 +1176,7 @@ export async function getMeetings(args) {
       content: [
         {
           type: "text",
-          text: "Error: Team ID is required. Either provide teamId or set forLeadershipTeam to true.",
+          text: "Error: Team ID is required. Either provide teamId or set leadershipTeam to true.",
         },
       ],
     };
@@ -1364,7 +1381,7 @@ export async function getMeetings(args) {
  * @param {number} [args.offset] - Optional offset
  * @param {string} [args.stateId] - Issue state filter (defaults to 'ACTIVE')
  * @param {string} [args.teamId] - Filter by team ID
- * @param {boolean} [args.forLeadershipTeam] - If true, automatically use the leadership team ID
+ * @param {boolean} [args.leadershipTeam] - If true, automatically use the leadership team ID
  * @param {string} [args.userId] - Filter by user ID
  * @param {string} [args.status] - Filter by status: "TODO" (default), "COMPLETE", or "ALL"
  * @param {boolean} [args.fromMeetings] - If true, only return issues linked to meetings
@@ -1380,7 +1397,7 @@ export async function getIssues(args) {
     offset,
     stateId = "ACTIVE",
     teamId: providedTeamId,
-    forLeadershipTeam = false,
+    leadershipTeam = false,
     userId,
     status = "TODO",
     type = "Short-term",
@@ -1391,9 +1408,9 @@ export async function getIssues(args) {
     statusUpdatedBefore,
   } = args;
 
-  // Resolve teamId if forLeadershipTeam is true
+  // Resolve teamId if leadershipTeam is true
   let teamId = providedTeamId;
-  if (forLeadershipTeam && !providedTeamId) {
+  if (leadershipTeam && !providedTeamId) {
     teamId = await getLeadershipTeamId();
     if (!teamId) {
       return {
@@ -1556,7 +1573,7 @@ export async function getIssues(args) {
  * @param {number} [args.offset] - Optional offset
  * @param {string} [args.headlineId] - Filter by specific headline ID
  * @param {string} [args.teamId] - Filter by team ID
- * @param {boolean} [args.forLeadershipTeam] - If true, automatically use the leadership team ID
+ * @param {boolean} [args.leadershipTeam] - If true, automatically use the leadership team ID
  * @param {string} [args.userId] - Filter by user ID
  * @param {string} [args.status] - Filter by headline status: 'Shared' or 'Not shared' (defaults to 'Not shared')
  * @param {boolean} [args.fromMeetings] - If true, only return headlines from meetings
@@ -1572,7 +1589,7 @@ export async function getHeadlines(args) {
     stateId = "ACTIVE",
     headlineId,
     teamId: providedTeamId,
-    forLeadershipTeam = false,
+    leadershipTeam = false,
     userId,
     fromMeetings = false,
     createdAfter,
@@ -1588,9 +1605,9 @@ export async function getHeadlines(args) {
   };
   const internalStatus = statusMapping[status];
 
-  // Resolve teamId if forLeadershipTeam is true
+  // Resolve teamId if leadershipTeam is true
   let teamId = providedTeamId;
-  if (forLeadershipTeam && !providedTeamId) {
+  if (leadershipTeam && !providedTeamId) {
     teamId = await getLeadershipTeamId();
     if (!teamId) {
       return {
@@ -1756,9 +1773,26 @@ export async function getMilestones(args) {
     stateId = "ACTIVE",
     rockId,
     userId,
-    teamId,
+    teamId: providedTeamId,
+    leadershipTeam = false,
     keyword,
   } = args;
+
+  // Resolve teamId if leadershipTeam is true
+  let teamId = providedTeamId;
+  if (leadershipTeam && !providedTeamId) {
+    teamId = await getLeadershipTeamId();
+    if (!teamId) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: "Error: Could not find leadership team. Please ensure a team is marked as the leadership team.",
+          },
+        ],
+      };
+    }
+  }
   // Validate stateId
   const validation = validateStateId(stateId);
   if (!validation.isValid) {
@@ -3090,7 +3124,7 @@ export async function fetch(args) {
  * @param {number} [args.offset] - Optional offset (default: 0)
  * @param {string} [args.stateId] - State filter (defaults to 'ACTIVE')
  * @param {string} [args.teamId] - Filter by team ID
- * @param {boolean} [args.forLeadershipTeam] - If true, automatically use the leadership team ID
+ * @param {boolean} [args.leadershipTeam] - If true, automatically use the leadership team ID
  * @param {string} [args.userId] - Filter by user ID
  * @param {string} [args.type] - Filter by measurable type
  * @param {string} [args.dataFieldId] - Filter by specific data field ID
@@ -3106,7 +3140,7 @@ export async function getScorecardMeasurables(args) {
     offset = 0,
     stateId = "ACTIVE",
     teamId: providedTeamId,
-    forLeadershipTeam = false,
+    leadershipTeam = false,
     userId,
     type,
     dataFieldId,
@@ -3116,9 +3150,9 @@ export async function getScorecardMeasurables(args) {
     periods = 13,
   } = args;
 
-  // Resolve teamId if forLeadershipTeam is true
+  // Resolve teamId if leadershipTeam is true
   let teamId = providedTeamId;
-  if (forLeadershipTeam && !providedTeamId) {
+  if (leadershipTeam && !providedTeamId) {
     teamId = await getLeadershipTeamId();
     if (!teamId) {
       return {
@@ -3475,13 +3509,13 @@ export async function getMeetingInfos(args) {
     offset = 0,
     stateId = "ACTIVE",
     teamId: providedTeamId,
-    forLeadershipTeam = false,
+    leadershipTeam = false,
     meetingInfoStatusId,
   } = args;
 
-  // Resolve teamId if forLeadershipTeam is true
+  // Resolve teamId if leadershipTeam is true
   let teamId = providedTeamId;
-  if (forLeadershipTeam && !providedTeamId) {
+  if (leadershipTeam && !providedTeamId) {
     teamId = await getLeadershipTeamId();
     if (!teamId) {
       return {
@@ -3580,7 +3614,7 @@ export async function getMeetingInfos(args) {
  * @param {number} args.offset - Number of records to skip (default: 0)
  * @param {string} args.stateId - State filter (defaults to 'ACTIVE')
  * @param {string} args.teamId - Filter by team ID
- * @param {boolean} args.forLeadershipTeam - If true, automatically use the leadership team ID
+ * @param {boolean} args.leadershipTeam - If true, automatically use the leadership team ID
  * @param {string} args.meetingAgendaStatusId - Filter by agenda status
  * @param {string} args.meetingAgendaTypeId - Filter by agenda type (e.g., 'LEVEL10', 'CUSTOM')
  * @param {boolean} args.builtIn - Filter by built-in agendas (true/false)
@@ -3592,15 +3626,15 @@ export async function getMeetingAgendas(args) {
     offset = 0,
     stateId = "ACTIVE",
     teamId: providedTeamId,
-    forLeadershipTeam = false,
+    leadershipTeam = false,
     meetingAgendaStatusId,
     meetingAgendaTypeId,
     builtIn,
   } = args;
 
-  // Resolve teamId if forLeadershipTeam is true
+  // Resolve teamId if leadershipTeam is true
   let teamId = providedTeamId;
-  if (forLeadershipTeam && !providedTeamId) {
+  if (leadershipTeam && !providedTeamId) {
     teamId = await getLeadershipTeamId();
     if (!teamId) {
       return {
@@ -4048,7 +4082,7 @@ export async function getLeadershipVTO(args) {
  * @param {number} [args.offset] - Optional offset
  * @param {string} [args.stateId] - State filter (defaults to 'ACTIVE')
  * @param {string} [args.teamId] - Filter by team ID
- * @param {boolean} [args.forLeadershipTeam] - If true, automatically use the leadership team ID
+ * @param {boolean} [args.leadershipTeam] - If true, automatically use the leadership team ID
  * @param {string} [args.sessionId] - Filter by specific session ID
  * @param {string} [args.createdAfter] - Filter sessions created after this date
  * @param {string} [args.createdBefore] - Filter sessions created before this date
@@ -4060,15 +4094,15 @@ export async function getPeopleAnalyzerSessions(args) {
     offset = 0,
     stateId = "ACTIVE",
     teamId: providedTeamId,
-    forLeadershipTeam = false,
+    leadershipTeam = false,
     sessionId,
     createdAfter,
     createdBefore,
   } = args;
 
-  // Resolve teamId if forLeadershipTeam is true
+  // Resolve teamId if leadershipTeam is true
   let teamId = providedTeamId;
-  if (forLeadershipTeam && !providedTeamId) {
+  if (leadershipTeam && !providedTeamId) {
     teamId = await getLeadershipTeamId();
     if (!teamId) {
       return {
@@ -4321,7 +4355,7 @@ export async function getOrgCheckups(args) {
  * Get users on teams (team membership)
  * @param {Object} args - Arguments object
  * @param {string} [args.teamId] - Filter by team ID
- * @param {boolean} [args.forLeadershipTeam] - If true, automatically use the leadership team ID
+ * @param {boolean} [args.leadershipTeam] - If true, automatically use the leadership team ID
  * @param {string} [args.userId] - Filter by user ID
  * @param {string} [args.stateId] - State filter (defaults to 'ACTIVE')
  * @returns {Promise<{content: Array<{type: string, text: string}>}>}
@@ -4329,14 +4363,14 @@ export async function getOrgCheckups(args) {
 export async function getUsersOnTeams(args) {
   const {
     teamId: providedTeamId,
-    forLeadershipTeam = false,
+    leadershipTeam = false,
     userId,
     stateId = "ACTIVE",
   } = args;
 
-  // Resolve teamId if forLeadershipTeam is true
+  // Resolve teamId if leadershipTeam is true
   let teamId = providedTeamId;
-  if (forLeadershipTeam && !providedTeamId) {
+  if (leadershipTeam && !providedTeamId) {
     teamId = await getLeadershipTeamId();
     if (!teamId) {
       return {
@@ -4480,7 +4514,7 @@ export async function getUsersOnTeams(args) {
  * @param {Object} args - Arguments object
  * @param {string} [args.meetingId] - Specific meeting ID to fetch details for
  * @param {string} [args.teamId] - Filter meetings by team (via meetingInfo)
- * @param {boolean} [args.forLeadershipTeam] - If true, automatically use the leadership team ID
+ * @param {boolean} [args.leadershipTeam] - If true, automatically use the leadership team ID
  * @param {string} [args.dateAfter] - Filter meetings occurring on or after this date (YYYY-MM-DD)
  * @param {string} [args.dateBefore] - Filter meetings occurring on or before this date (YYYY-MM-DD)
  * @param {number} [args.first] - Optional page size (defaults to 10)
@@ -4491,16 +4525,16 @@ export async function getMeetingDetails(args) {
   const {
     meetingId,
     teamId: providedTeamId,
-    forLeadershipTeam = false,
+    leadershipTeam = false,
     dateAfter,
     dateBefore,
     first = 10,
     stateId = "ACTIVE",
   } = args;
 
-  // Resolve teamId if forLeadershipTeam is true
+  // Resolve teamId if leadershipTeam is true
   let teamId = providedTeamId;
-  if (forLeadershipTeam && !providedTeamId) {
+  if (leadershipTeam && !providedTeamId) {
     teamId = await getLeadershipTeamId();
     if (!teamId) {
       return {
@@ -4754,8 +4788,8 @@ export async function getMeetingDetails(args) {
  * Create a new issue
  * @param {Object} args - Arguments object
  * @param {string} args.name - Issue name/title (required)
- * @param {string} [args.teamId] - Team ID to assign the issue to (required unless forLeadershipTeam is true)
- * @param {boolean} [args.forLeadershipTeam] - If true, automatically use the leadership team ID
+ * @param {string} [args.teamId] - Team ID to assign the issue to (required unless leadershipTeam is true)
+ * @param {boolean} [args.leadershipTeam] - If true, automatically use the leadership team ID
  * @param {string} [args.desc] - Issue description
  * @param {string} [args.userId] - User ID to assign the issue to (defaults to current user from API key)
  * @param {string} [args.priority] - Priority level: 'High', 'Medium', 'Low', or 'No priority' (defaults to 'Medium')
@@ -4766,7 +4800,7 @@ export async function createIssue(args) {
   const {
     name,
     teamId: providedTeamId,
-    forLeadershipTeam = false,
+    leadershipTeam = false,
     desc = "",
     userId: providedUserId,
     priority = "Medium",
@@ -4793,9 +4827,9 @@ export async function createIssue(args) {
     };
   }
 
-  // Resolve teamId if forLeadershipTeam is true
+  // Resolve teamId if leadershipTeam is true
   let teamId = providedTeamId;
-  if (forLeadershipTeam && !providedTeamId) {
+  if (leadershipTeam && !providedTeamId) {
     teamId = await getLeadershipTeamId();
     if (!teamId) {
       return {
@@ -4814,7 +4848,7 @@ export async function createIssue(args) {
       content: [
         {
           type: "text",
-          text: "Error: Team ID is required. Either provide teamId or set forLeadershipTeam to true.",
+          text: "Error: Team ID is required. Either provide teamId or set leadershipTeam to true.",
         },
       ],
     };
@@ -4938,8 +4972,8 @@ export async function createIssue(args) {
  * @param {string} args.name - Rock name/title (required)
  * @param {string} [args.desc] - Rock description
  * @param {string} [args.dueDate] - Due date (YYYY-MM-DD format). If not provided, defaults to the last date of the current quarter based on company's quarter dates.
- * @param {string} [args.teamId] - Team ID to assign the rock to (REQUIRED unless forLeadershipTeam is true)
- * @param {boolean} [args.forLeadershipTeam] - If true, automatically use the leadership team ID (REQUIRED unless teamId is provided)
+ * @param {string} [args.teamId] - Team ID to assign the rock to (REQUIRED unless leadershipTeam is true)
+ * @param {boolean} [args.leadershipTeam] - If true, automatically use the leadership team ID (REQUIRED unless teamId is provided)
  * @param {string} [args.userId] - User ID to assign the rock to
  * @param {string} [args.type] - Rock type: 'Personal' or 'Company' (defaults to 'Company')
  * @returns {Promise<{content: Array<{type: string, text: string}>}>}
@@ -4950,7 +4984,7 @@ export async function createRock(args) {
     desc = "",
     dueDate: providedDueDate,
     teamId: providedTeamId,
-    forLeadershipTeam = false,
+    leadershipTeam = false,
     userId,
     type: providedType = "Company",
   } = args;
@@ -4961,9 +4995,9 @@ export async function createRock(args) {
   // Map type to lowercase for GraphQL
   const type = mapRockTypeToLowercase(providedType);
 
-  // Resolve teamId if forLeadershipTeam is true
+  // Resolve teamId if leadershipTeam is true
   let teamId = providedTeamId;
-  if (forLeadershipTeam && !providedTeamId) {
+  if (leadershipTeam && !providedTeamId) {
     teamId = await getLeadershipTeamId();
     if (!teamId) {
       return {
@@ -4983,7 +5017,7 @@ export async function createRock(args) {
       content: [
         {
           type: "text",
-          text: "Error: Rock must be assigned to a team. Please provide either 'teamId' or set 'forLeadershipTeam' to true.",
+          text: "Error: Rock must be assigned to a team. Please provide either 'teamId' or set 'leadershipTeam' to true.",
         },
       ],
     };
@@ -5264,7 +5298,7 @@ export async function createRock(args) {
  * @param {string} [args.desc] - Update issue description
  * @param {string} [args.issueStatusId] - Update status: 'TODO' or 'COMPLETE'
  * @param {string} [args.teamId] - Update team assignment
- * @param {boolean} [args.forLeadershipTeam] - If true, automatically use the leadership team ID for assignment
+ * @param {boolean} [args.leadershipTeam] - If true, automatically use the leadership team ID for assignment
  * @param {string} [args.userId] - Update user assignment
  * @param {string} [args.priority] - Update priority level: 'High', 'Medium', 'Low', or 'No priority'
  * @returns {Promise<{content: Array<{type: string, text: string}>}>}
@@ -5276,7 +5310,7 @@ export async function updateIssue(args) {
     desc,
     issueStatusId,
     teamId: providedTeamId,
-    forLeadershipTeam = false,
+    leadershipTeam = false,
     userId,
     priority,
   } = args;
@@ -5285,9 +5319,9 @@ export async function updateIssue(args) {
   const priorityNo =
     priority !== undefined ? mapPriorityToNumber(priority) : undefined;
 
-  // Resolve teamId if forLeadershipTeam is true
+  // Resolve teamId if leadershipTeam is true
   let teamId = providedTeamId;
-  if (forLeadershipTeam && !providedTeamId) {
+  if (leadershipTeam && !providedTeamId) {
     teamId = await getLeadershipTeamId();
     if (!teamId) {
       return {
@@ -6018,7 +6052,7 @@ export async function updateTodo(args) {
  * @param {string} [args.desc] - Update headline description
  * @param {string} [args.status] - Update headline status: 'Shared' or 'Not shared'
  * @param {string} [args.teamId] - Update team association
- * @param {boolean} [args.forLeadershipTeam] - If true, automatically use the leadership team ID for association
+ * @param {boolean} [args.leadershipTeam] - If true, automatically use the leadership team ID for association
  * @param {string} [args.userId] - Update user association
  * @param {boolean} [args.isCascadingMessage] - Update cascading message flag
  * @returns {Promise<{content: Array<{type: string, text: string}>}>}
@@ -6030,7 +6064,7 @@ export async function updateHeadline(args) {
     desc,
     status,
     teamId: providedTeamId,
-    forLeadershipTeam = false,
+    leadershipTeam = false,
     userId,
     isCascadingMessage,
   } = args;
@@ -6042,9 +6076,9 @@ export async function updateHeadline(args) {
   };
   const internalStatus = status ? statusMapping[status] : undefined;
 
-  // Resolve teamId if forLeadershipTeam is true
+  // Resolve teamId if leadershipTeam is true
   let teamId = providedTeamId;
-  if (forLeadershipTeam && !providedTeamId) {
+  if (leadershipTeam && !providedTeamId) {
     teamId = await getLeadershipTeamId();
     if (!teamId) {
       return {
@@ -6190,8 +6224,8 @@ export async function updateHeadline(args) {
  * @param {Object} args - Arguments object
  * @param {string} args.name - Headline text (required)
  * @param {string} [args.desc] - Headline description/details
- * @param {string} [args.teamId] - Team ID to associate with (required if forLeadershipTeam is false)
- * @param {boolean} [args.forLeadershipTeam] - If true, automatically use the leadership team ID (required if teamId not provided)
+ * @param {string} [args.teamId] - Team ID to associate with (required if leadershipTeam is false)
+ * @param {boolean} [args.leadershipTeam] - If true, automatically use the leadership team ID (required if teamId not provided)
  * @param {string} [args.userId] - User ID to associate with
  * @param {string} [args.status] - Headline status: 'Shared' or 'Not shared' (defaults to 'Not shared')
  * @param {boolean} [args.isCascadingMessage] - Whether this is a cascading message (defaults to false)
@@ -6202,7 +6236,7 @@ export async function createHeadline(args) {
     name,
     desc = "",
     teamId: providedTeamId,
-    forLeadershipTeam = false,
+    leadershipTeam = false,
     userId,
     status = "Not shared",
     isCascadingMessage = false,
@@ -6215,9 +6249,9 @@ export async function createHeadline(args) {
   };
   const headlineStatusId = statusMapping[status] || "DISCUSS";
 
-  // Resolve teamId if forLeadershipTeam is true
+  // Resolve teamId if leadershipTeam is true
   let teamId = providedTeamId;
-  if (forLeadershipTeam && !providedTeamId) {
+  if (leadershipTeam && !providedTeamId) {
     teamId = await getLeadershipTeamId();
     if (!teamId) {
       return {
@@ -6237,7 +6271,7 @@ export async function createHeadline(args) {
       content: [
         {
           type: "text",
-          text: "Error: Headline must be assigned to a team. Please provide either 'teamId' or set 'forLeadershipTeam' to true.",
+          text: "Error: Headline must be assigned to a team. Please provide either 'teamId' or set 'leadershipTeam' to true.",
         },
       ],
     };
@@ -6517,8 +6551,8 @@ export async function updateMeeting(args) {
  * @param {string} args.date - Meeting date (YYYY-MM-DD format, required)
  * @param {string} [args.meetingAgendaId] - Meeting agenda ID (provide either this or meetingAgendaType)
  * @param {string} [args.meetingAgendaType] - Meeting agenda type: ANNUAL-PLANNING-DAY-1, ANNUAL-PLANNING-DAY-2, QUARTERLY-PULSING-AGENDA, WEEKLY-L10, FOCUS-DAY, or VISION-BUILDING-SESSION
- * @param {string} [args.teamId] - Team ID (provide either this or forLeadershipTeam)
- * @param {boolean} [args.forLeadershipTeam] - If true, use the leadership team
+ * @param {string} [args.teamId] - Team ID (provide either this or leadershipTeam)
+ * @param {boolean} [args.leadershipTeam] - If true, use the leadership team
  * @param {string} [args.name] - Optional name for the meeting info (defaults to agenda name)
  * @returns {Promise<{content: Array<{type: string, text: string}>}>}
  * @note Meeting status defaults to 'NOT-STARTED'. Start and end times are set when the meeting is started/ended.
@@ -6529,7 +6563,7 @@ export async function createMeeting(args) {
     meetingAgendaId: providedAgendaId,
     meetingAgendaType,
     teamId: providedTeamId,
-    forLeadershipTeam = false,
+    leadershipTeam = false,
     name,
   } = args;
 
@@ -6571,12 +6605,12 @@ export async function createMeeting(args) {
     };
   }
 
-  if (!providedTeamId && !forLeadershipTeam) {
+  if (!providedTeamId && !leadershipTeam) {
     return {
       content: [
         {
           type: "text",
-          text: "Error: Either teamId or forLeadershipTeam=true is required",
+          text: "Error: Either teamId or leadershipTeam=true is required",
         },
       ],
     };
@@ -6610,9 +6644,9 @@ export async function createMeeting(args) {
   const companyId = context.companyId;
   const userId = context.userId;
 
-  // Resolve teamId if forLeadershipTeam is true
+  // Resolve teamId if leadershipTeam is true
   let teamId = providedTeamId;
-  if (forLeadershipTeam && !providedTeamId) {
+  if (leadershipTeam && !providedTeamId) {
     teamId = await getLeadershipTeamId();
     if (!teamId) {
       return {

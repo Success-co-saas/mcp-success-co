@@ -171,13 +171,13 @@ const toolDefinitions = [
   {
     name: "getTodos",
     description:
-      "List Success.co todos. Use forLeadershipTeam=true to automatically filter by the leadership team. Use fromMeetings=true to get only todos from Level 10 meetings. Filter by teamId, userId, status (TODO, COMPLETE, OVERDUE, ALL), or keyword. Supports date filtering for creation and completion dates.",
+      "List Success.co todos. Use leadershipTeam=true to automatically filter by the leadership team. Use fromMeetings=true to get only todos from Level 10 meetings. Filter by teamId, userId, status (TODO, COMPLETE, OVERDUE, ALL), or keyword. Supports date filtering for creation and completion dates.",
     handler: async ({
       first,
       offset,
       fromMeetings,
       teamId,
-      forLeadershipTeam,
+      leadershipTeam,
       userId,
       status,
       keyword,
@@ -191,7 +191,7 @@ const toolDefinitions = [
         offset,
         fromMeetings,
         teamId,
-        forLeadershipTeam,
+        leadershipTeam,
         userId,
         status,
         keyword,
@@ -210,7 +210,7 @@ const toolDefinitions = [
           "If true, only return todos linked to meetings (Level 10 meetings)"
         ),
       teamId: z.string().optional().describe("Filter by team ID"),
-      forLeadershipTeam: z
+      leadershipTeam: z
         .boolean()
         .optional()
         .describe(
@@ -260,14 +260,23 @@ const toolDefinitions = [
   {
     name: "getRocks",
     description:
-      "List Success.co rocks with ownership and team information. Returns userId (rock owner) and teamIds (associated teams) for each rock. Perfect for analyzing accountability and team execution. Supports keyword search.",
-    handler: async ({ first, offset, status, userId, teamId, keyword }) =>
+      "List Success.co rocks with ownership and team information. Use leadershipTeam=true to automatically filter by the leadership team. Returns userId (rock owner) and teamIds (associated teams) for each rock. Perfect for analyzing accountability and team execution. Supports keyword search.",
+    handler: async ({
+      first,
+      offset,
+      status,
+      userId,
+      teamId,
+      leadershipTeam,
+      keyword,
+    }) =>
       await getRocks({
         first,
         offset,
         rockStatusId: status,
         userId,
         teamId,
+        leadershipTeam,
         keyword,
       }),
     schema: {
@@ -287,6 +296,12 @@ const toolDefinitions = [
         .string()
         .optional()
         .describe("Filter rocks by team ID. Use getTeams to find team IDs."),
+      leadershipTeam: z
+        .boolean()
+        .optional()
+        .describe(
+          "If true, automatically use the leadership team ID (shortcut instead of calling getTeams first)"
+        ),
       keyword: z
         .string()
         .optional()
@@ -299,12 +314,12 @@ const toolDefinitions = [
   {
     name: "getMeetings",
     description:
-      "List Success.co meetings. IMPORTANT: Either teamId or forLeadershipTeam is REQUIRED. Use forLeadershipTeam=true to automatically filter by the leadership team. Supports filtering by team, meeting agenda, and dates. Note: Only one of meetingAgendaId or meetingAgendaType can be used.",
+      "List Success.co meetings. IMPORTANT: Either teamId or leadershipTeam is REQUIRED. Use leadershipTeam=true to automatically filter by the leadership team. Supports filtering by team, meeting agenda, and dates. Note: Only one of meetingAgendaId or meetingAgendaType can be used.",
     handler: async ({
       first,
       offset,
       teamId,
-      forLeadershipTeam,
+      leadershipTeam,
       meetingAgendaId,
       meetingAgendaType,
       dateAfter,
@@ -314,7 +329,7 @@ const toolDefinitions = [
         first,
         offset,
         teamId,
-        forLeadershipTeam,
+        leadershipTeam,
         meetingAgendaId,
         meetingAgendaType,
         dateAfter,
@@ -327,9 +342,9 @@ const toolDefinitions = [
         .string()
         .optional()
         .describe(
-          "Filter by team ID (either this or forLeadershipTeam is required)"
+          "Filter by team ID (either this or leadershipTeam is required)"
         ),
-      forLeadershipTeam: z
+      leadershipTeam: z
         .boolean()
         .optional()
         .describe(
@@ -365,12 +380,12 @@ const toolDefinitions = [
   {
     name: "getIssues",
     description:
-      "List Success.co issues. Use forLeadershipTeam=true to automatically filter by the leadership team. Supports filtering by team, user, status, type, meeting linkage, and dates.",
+      "List Success.co issues. Use leadershipTeam=true to automatically filter by the leadership team. Supports filtering by team, user, status, type, meeting linkage, and dates.",
     handler: async ({
       first,
       offset,
       teamId,
-      forLeadershipTeam,
+      leadershipTeam,
       userId,
       status,
       type,
@@ -383,7 +398,7 @@ const toolDefinitions = [
         first,
         offset,
         teamId,
-        forLeadershipTeam,
+        leadershipTeam,
         userId,
         status,
         type,
@@ -396,7 +411,7 @@ const toolDefinitions = [
       first: z.number().int().optional().describe("Optional page size"),
       offset: z.number().int().optional().describe("Optional offset"),
       teamId: z.string().optional().describe("Filter by team ID"),
-      forLeadershipTeam: z
+      leadershipTeam: z
         .boolean()
         .optional()
         .describe(
@@ -445,13 +460,13 @@ const toolDefinitions = [
   {
     name: "getHeadlines",
     description:
-      "List Success.co headlines. Use forLeadershipTeam=true to automatically filter by the leadership team. Supports filtering by date, keyword, status, team, user, and meeting linkage. Perfect for queries like 'Show me all people headlines from this week' or 'List company headlines related to hiring'. Can also fetch a specific headline by ID.",
+      "List Success.co headlines. Use leadershipTeam=true to automatically filter by the leadership team. Supports filtering by date, keyword, status, team, user, and meeting linkage. Perfect for queries like 'Show me all people headlines from this week' or 'List company headlines related to hiring'. Can also fetch a specific headline by ID.",
     handler: async ({
       first,
       offset,
       headlineId,
       teamId,
-      forLeadershipTeam,
+      leadershipTeam,
       userId,
       fromMeetings,
       createdAfter,
@@ -464,7 +479,7 @@ const toolDefinitions = [
         offset,
         headlineId,
         teamId,
-        forLeadershipTeam,
+        leadershipTeam,
         userId,
         fromMeetings,
         createdAfter,
@@ -480,7 +495,7 @@ const toolDefinitions = [
         .optional()
         .describe("Filter by specific headline ID"),
       teamId: z.string().optional().describe("Filter by team ID"),
-      forLeadershipTeam: z
+      leadershipTeam: z
         .boolean()
         .optional()
         .describe(
@@ -518,15 +533,36 @@ const toolDefinitions = [
   },
   {
     name: "getMilestones",
-    description: "List Success.co milestones on rocks",
-    handler: async ({ first, offset, rockId, userId, teamId }) =>
-      await getMilestones({ first, offset, rockId, userId, teamId }),
+    description:
+      "List Success.co milestones on rocks. Use leadershipTeam=true to automatically filter by the leadership team.",
+    handler: async ({
+      first,
+      offset,
+      rockId,
+      userId,
+      teamId,
+      leadershipTeam,
+    }) =>
+      await getMilestones({
+        first,
+        offset,
+        rockId,
+        userId,
+        teamId,
+        leadershipTeam,
+      }),
     schema: {
       first: z.number().int().optional().describe("Optional page size"),
       offset: z.number().int().optional().describe("Optional offset"),
       rockId: z.string().optional().describe("Filter by rock ID"),
       userId: z.string().optional().describe("Filter by user ID"),
       teamId: z.string().optional().describe("Filter by team ID"),
+      leadershipTeam: z
+        .boolean()
+        .optional()
+        .describe(
+          "If true, automatically use the leadership team ID (shortcut instead of calling getTeams first)"
+        ),
     },
     required: [],
   },
@@ -556,12 +592,12 @@ const toolDefinitions = [
   {
     name: "getScorecardMeasurables",
     description:
-      "Get scorecard data (KPIs) with their values. Use forLeadershipTeam=true to automatically filter by the leadership team. Provides comprehensive scorecard analysis with data fields and their corresponding values. Supports flexible date filtering: use startDate/endDate for precise ranges, or use periods/type for relative periods (e.g., 'last 13 weeks', 'last 6 months'). Defaults to last 13 weeks of data when no date parameters are provided.",
+      "Get scorecard data (KPIs) with their values. Use leadershipTeam=true to automatically filter by the leadership team. Provides comprehensive scorecard analysis with data fields and their corresponding values. Supports flexible date filtering: use startDate/endDate for precise ranges, or use periods/type for relative periods (e.g., 'last 13 weeks', 'last 6 months'). Defaults to last 13 weeks of data when no date parameters are provided.",
     handler: async ({
       first,
       offset,
       teamId,
-      forLeadershipTeam,
+      leadershipTeam,
       userId,
       type,
       dataFieldId,
@@ -573,7 +609,7 @@ const toolDefinitions = [
         first,
         offset,
         teamId,
-        forLeadershipTeam,
+        leadershipTeam,
         userId,
         type,
         dataFieldId,
@@ -585,7 +621,7 @@ const toolDefinitions = [
       first: z.number().int().optional().describe("Optional page size"),
       offset: z.number().int().optional().describe("Optional offset"),
       teamId: z.string().optional().describe("Filter by team ID"),
-      forLeadershipTeam: z
+      leadershipTeam: z
         .boolean()
         .optional()
         .describe(
@@ -627,26 +663,26 @@ const toolDefinitions = [
   {
     name: "getMeetingInfos",
     description:
-      "List Success.co meeting infos. Use forLeadershipTeam=true to automatically filter by the leadership team.",
+      "List Success.co meeting infos. Use leadershipTeam=true to automatically filter by the leadership team.",
     handler: async ({
       first,
       offset,
       teamId,
-      forLeadershipTeam,
+      leadershipTeam,
       meetingInfoStatusId,
     }) =>
       await getMeetingInfos({
         first,
         offset,
         teamId,
-        forLeadershipTeam,
+        leadershipTeam,
         meetingInfoStatusId,
       }),
     schema: {
       first: z.number().int().optional().describe("Optional page size"),
       offset: z.number().int().optional().describe("Optional offset"),
       teamId: z.string().optional().describe("Filter by team ID"),
-      forLeadershipTeam: z
+      leadershipTeam: z
         .boolean()
         .optional()
         .describe(
@@ -662,12 +698,12 @@ const toolDefinitions = [
   {
     name: "getMeetingAgendas",
     description:
-      "List Success.co meeting agendas (templates for meetings). These are used to create meeting series. Use forLeadershipTeam=true to automatically filter by the leadership team. Use this to find agenda IDs needed for creating meeting infos or understanding meeting structure.",
+      "List Success.co meeting agendas (templates for meetings). These are used to create meeting series. Use leadershipTeam=true to automatically filter by the leadership team. Use this to find agenda IDs needed for creating meeting infos or understanding meeting structure.",
     handler: async ({
       first,
       offset,
       teamId,
-      forLeadershipTeam,
+      leadershipTeam,
       meetingAgendaStatusId,
       meetingAgendaTypeId,
       builtIn,
@@ -676,7 +712,7 @@ const toolDefinitions = [
         first,
         offset,
         teamId,
-        forLeadershipTeam,
+        leadershipTeam,
         meetingAgendaStatusId,
         meetingAgendaTypeId,
         builtIn,
@@ -685,7 +721,7 @@ const toolDefinitions = [
       first: z.number().int().optional().describe("Optional page size"),
       offset: z.number().int().optional().describe("Optional offset"),
       teamId: z.string().optional().describe("Filter by team ID"),
-      forLeadershipTeam: z
+      leadershipTeam: z
         .boolean()
         .optional()
         .describe(
@@ -732,11 +768,11 @@ const toolDefinitions = [
   {
     name: "getMeetingDetails",
     description:
-      "Get comprehensive meeting details including all related items (headlines, todos, issues, ratings). Use forLeadershipTeam=true to automatically filter by the leadership team. Perfect for queries like 'What were the headlines from our last leadership L10?', 'Summarize last week's meetings', or 'List all to-dos created in this week's meetings'. Returns meetings with their associated headlines, todos, and issues in a single call.",
+      "Get comprehensive meeting details including all related items (headlines, todos, issues, ratings). Use leadershipTeam=true to automatically filter by the leadership team. Perfect for queries like 'What were the headlines from our last leadership L10?', 'Summarize last week's meetings', or 'List all to-dos created in this week's meetings'. Returns meetings with their associated headlines, todos, and issues in a single call.",
     handler: async ({
       meetingId,
       teamId,
-      forLeadershipTeam,
+      leadershipTeam,
       dateAfter,
       dateBefore,
       first,
@@ -744,7 +780,7 @@ const toolDefinitions = [
       await getMeetingDetails({
         meetingId,
         teamId,
-        forLeadershipTeam,
+        leadershipTeam,
         dateAfter,
         dateBefore,
         first,
@@ -758,7 +794,7 @@ const toolDefinitions = [
         .string()
         .optional()
         .describe("Filter meetings by team ID (via meetingInfo)"),
-      forLeadershipTeam: z
+      leadershipTeam: z
         .boolean()
         .optional()
         .describe(
@@ -787,12 +823,12 @@ const toolDefinitions = [
   {
     name: "getPeopleAnalyzerSessions",
     description:
-      "Get People Analyzer sessions with user scores including 'Gets it', 'Wants it', 'Capacity to do it', 'Right person', and 'Right seat' ratings. Use forLeadershipTeam=true to automatically filter by the leadership team. Perfect for queries like 'Show me the people analyzer results for the leadership team', 'Who's rated below a 3 on Gets it?', or 'Summarize people analyzer trends for the last quarter'.",
+      "Get People Analyzer sessions with user scores including 'Gets it', 'Wants it', 'Capacity to do it', 'Right person', and 'Right seat' ratings. Use leadershipTeam=true to automatically filter by the leadership team. Perfect for queries like 'Show me the people analyzer results for the leadership team', 'Who's rated below a 3 on Gets it?', or 'Summarize people analyzer trends for the last quarter'.",
     handler: async ({
       first,
       offset,
       teamId,
-      forLeadershipTeam,
+      leadershipTeam,
       sessionId,
       createdAfter,
       createdBefore,
@@ -801,7 +837,7 @@ const toolDefinitions = [
         first,
         offset,
         teamId,
-        forLeadershipTeam,
+        leadershipTeam,
         sessionId,
         createdAfter,
         createdBefore,
@@ -814,7 +850,7 @@ const toolDefinitions = [
         .describe("Optional page size (defaults to 50)"),
       offset: z.number().int().optional().describe("Optional offset"),
       teamId: z.string().optional().describe("Filter by team ID"),
-      forLeadershipTeam: z
+      leadershipTeam: z
         .boolean()
         .optional()
         .describe(
@@ -886,9 +922,9 @@ const toolDefinitions = [
   {
     name: "getUsersOnTeams",
     description:
-      "Get team membership information showing which users are on which teams. Use forLeadershipTeam=true to automatically get the leadership team members. Perfect for queries like 'Who's on the Operations team?', 'Which teams is this user a member of?', or analyzing team composition and structure.",
-    handler: async ({ teamId, forLeadershipTeam, userId }) =>
-      await getUsersOnTeams({ teamId, forLeadershipTeam, userId }),
+      "Get team membership information showing which users are on which teams. Use leadershipTeam=true to automatically get the leadership team members. Perfect for queries like 'Who's on the Operations team?', 'Which teams is this user a member of?', or analyzing team composition and structure.",
+    handler: async ({ teamId, leadershipTeam, userId }) =>
+      await getUsersOnTeams({ teamId, leadershipTeam, userId }),
     schema: {
       teamId: z
         .string()
@@ -896,7 +932,7 @@ const toolDefinitions = [
         .describe(
           "Filter by team ID to see all members of a specific team (e.g., Operations, Sales)"
         ),
-      forLeadershipTeam: z
+      leadershipTeam: z
         .boolean()
         .optional()
         .describe(
@@ -912,12 +948,12 @@ const toolDefinitions = [
   {
     name: "createIssue",
     description:
-      "Create a new issue in Success.co. Use forLeadershipTeam=true to automatically assign to the leadership team. Perfect for queries like 'Add a new issue for customer churn increase to the leadership team'. Either teamId or forLeadershipTeam is REQUIRED.",
+      "Create a new issue in Success.co. Use leadershipTeam=true to automatically assign to the leadership team. Perfect for queries like 'Add a new issue for customer churn increase to the leadership team'. Either teamId or leadershipTeam is REQUIRED.",
     handler: async ({
       name,
       desc,
       teamId,
-      forLeadershipTeam,
+      leadershipTeam,
       userId,
       priority,
       type,
@@ -926,7 +962,7 @@ const toolDefinitions = [
         name,
         desc,
         teamId,
-        forLeadershipTeam,
+        leadershipTeam,
         userId,
         priority,
         type,
@@ -941,9 +977,9 @@ const toolDefinitions = [
         .string()
         .optional()
         .describe(
-          "Team ID to assign the issue to (either this or forLeadershipTeam is required)"
+          "Team ID to assign the issue to (either this or leadershipTeam is required)"
         ),
-      forLeadershipTeam: z
+      leadershipTeam: z
         .boolean()
         .optional()
         .describe(
@@ -973,13 +1009,13 @@ const toolDefinitions = [
   {
     name: "createRock",
     description:
-      "Create a new Rock (90-day priority) in Success.co. IMPORTANT: Rocks MUST be assigned to at least one team - either provide 'teamId' or set 'forLeadershipTeam=true'. Supports assigning to multiple teams with comma-separated IDs. New rocks always start with status 'ONTRACK'. Perfect for queries like 'Create a Rock for marketing and sales teams to launch referral program due next quarter'.",
+      "Create a new Rock (90-day priority) in Success.co. IMPORTANT: Rocks MUST be assigned to at least one team - either provide 'teamId' or set 'leadershipTeam=true'. Supports assigning to multiple teams with comma-separated IDs. New rocks always start with status 'ONTRACK'. Perfect for queries like 'Create a Rock for marketing and sales teams to launch referral program due next quarter'.",
     handler: async ({
       name,
       desc,
       dueDate,
       teamId,
-      forLeadershipTeam,
+      leadershipTeam,
       userId,
       type,
     }) =>
@@ -988,7 +1024,7 @@ const toolDefinitions = [
         desc,
         dueDate,
         teamId,
-        forLeadershipTeam,
+        leadershipTeam,
         userId,
         type,
       }),
@@ -1005,9 +1041,9 @@ const toolDefinitions = [
         .string()
         .optional()
         .describe(
-          "Team ID(s) to assign the rock to (REQUIRED unless forLeadershipTeam is true). Provide single team ID or comma-separated IDs for multiple teams (e.g., 'team-id-1,team-id-2')"
+          "Team ID(s) to assign the rock to (REQUIRED unless leadershipTeam is true). Provide single team ID or comma-separated IDs for multiple teams (e.g., 'team-id-1,team-id-2')"
         ),
-      forLeadershipTeam: z
+      leadershipTeam: z
         .boolean()
         .optional()
         .describe(
@@ -1056,12 +1092,12 @@ const toolDefinitions = [
   {
     name: "createHeadline",
     description:
-      "Create a new headline in Success.co. Use forLeadershipTeam=true to automatically associate with the leadership team. Perfect for queries like 'Add a headline: Won major client contract with ABC Corp'. Headlines are good news or updates shared during meetings. IMPORTANT: You must provide either 'teamId' or 'forLeadershipTeam=true'.",
+      "Create a new headline in Success.co. Use leadershipTeam=true to automatically associate with the leadership team. Perfect for queries like 'Add a headline: Won major client contract with ABC Corp'. Headlines are good news or updates shared during meetings. IMPORTANT: You must provide either 'teamId' or 'leadershipTeam=true'.",
     handler: async ({
       name,
       desc,
       teamId,
-      forLeadershipTeam,
+      leadershipTeam,
       userId,
       status,
       isCascadingMessage,
@@ -1070,7 +1106,7 @@ const toolDefinitions = [
         name,
         desc,
         teamId,
-        forLeadershipTeam,
+        leadershipTeam,
         userId,
         status,
         isCascadingMessage,
@@ -1089,9 +1125,9 @@ const toolDefinitions = [
         .string()
         .optional()
         .describe(
-          "Team ID to associate with (required if forLeadershipTeam is not true)"
+          "Team ID to associate with (required if leadershipTeam is not true)"
         ),
-      forLeadershipTeam: z
+      leadershipTeam: z
         .boolean()
         .optional()
         .describe(
@@ -1125,7 +1161,7 @@ const toolDefinitions = [
       meetingAgendaId,
       meetingAgendaType,
       teamId,
-      forLeadershipTeam,
+      leadershipTeam,
       name,
     }) =>
       await createMeeting({
@@ -1133,7 +1169,7 @@ const toolDefinitions = [
         meetingAgendaId,
         meetingAgendaType,
         teamId,
-        forLeadershipTeam,
+        leadershipTeam,
         name,
       }),
     schema: {
@@ -1165,9 +1201,9 @@ const toolDefinitions = [
         .string()
         .optional()
         .describe(
-          "Team ID (optional if forLeadershipTeam is true). The team for which to create the meeting."
+          "Team ID (optional if leadershipTeam is true). The team for which to create the meeting."
         ),
-      forLeadershipTeam: z
+      leadershipTeam: z
         .boolean()
         .optional()
         .describe(
@@ -1185,14 +1221,14 @@ const toolDefinitions = [
   {
     name: "updateIssue",
     description:
-      "Update an existing issue in Success.co. Use forLeadershipTeam=true to reassign to the leadership team. Perfect for queries like 'Close the issue about pricing inconsistencies' or 'Change the priority of the customer churn issue to High'. Use getIssues first to find the issue ID.",
+      "Update an existing issue in Success.co. Use leadershipTeam=true to reassign to the leadership team. Perfect for queries like 'Close the issue about pricing inconsistencies' or 'Change the priority of the customer churn issue to High'. Use getIssues first to find the issue ID.",
     handler: async ({
       issueId,
       name,
       desc,
       issueStatusId,
       teamId,
-      forLeadershipTeam,
+      leadershipTeam,
       userId,
       priority,
     }) =>
@@ -1202,7 +1238,7 @@ const toolDefinitions = [
         desc,
         issueStatusId,
         teamId,
-        forLeadershipTeam,
+        leadershipTeam,
         userId,
         priority,
       }),
@@ -1221,7 +1257,7 @@ const toolDefinitions = [
           "Update status: 'TODO' for open issues, 'COMPLETE' for completed/resolved issues"
         ),
       teamId: z.string().optional().describe("Reassign to a different team"),
-      forLeadershipTeam: z
+      leadershipTeam: z
         .boolean()
         .optional()
         .describe(
@@ -1286,14 +1322,14 @@ const toolDefinitions = [
   {
     name: "updateHeadline",
     description:
-      "Update an existing headline in Success.co. Use forLeadershipTeam=true to reassign to the leadership team. Perfect for queries like 'Edit the ABC Corp headline to add more details' or 'Change the headline status'. Use getHeadlines first to find the headline ID.",
+      "Update an existing headline in Success.co. Use leadershipTeam=true to reassign to the leadership team. Perfect for queries like 'Edit the ABC Corp headline to add more details' or 'Change the headline status'. Use getHeadlines first to find the headline ID.",
     handler: async ({
       headlineId,
       name,
       desc,
       status,
       teamId,
-      forLeadershipTeam,
+      leadershipTeam,
       userId,
       isCascadingMessage,
     }) =>
@@ -1303,7 +1339,7 @@ const toolDefinitions = [
         desc,
         status,
         teamId,
-        forLeadershipTeam,
+        leadershipTeam,
         userId,
         isCascadingMessage,
       }),
@@ -1320,7 +1356,7 @@ const toolDefinitions = [
         .optional()
         .describe("Update the headline status"),
       teamId: z.string().optional().describe("Update team association"),
-      forLeadershipTeam: z
+      leadershipTeam: z
         .boolean()
         .optional()
         .describe(
