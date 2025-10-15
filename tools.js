@@ -354,10 +354,11 @@ export function init(config) {
  * Log GraphQL request and response to debug file
  * @param {string} url - The GraphQL endpoint URL
  * @param {string} query - The GraphQL query
+ * @param {Object} variables - The GraphQL variables
  * @param {Object} response - The response object
  * @param {number} status - HTTP status code
  */
-function logGraphQLCall(url, query, response, status) {
+function logGraphQLCall(url, query, variables, response, status) {
   if (!isDevMode) return;
 
   try {
@@ -366,6 +367,7 @@ function logGraphQLCall(url, query, response, status) {
       timestamp,
       url,
       query: query.replace(/\s+/g, " ").trim(), // Clean up whitespace
+      variables: variables ? JSON.stringify(variables, null, 2) : null,
       status,
       response: response ? JSON.stringify(response, null, 2) : null,
     };
@@ -375,6 +377,7 @@ function logGraphQLCall(url, query, response, status) {
       `URL: ${logEntry.url}\n` +
       `Status: ${logEntry.status}\n` +
       `Query: ${logEntry.query}\n` +
+      (logEntry.variables ? `Variables: ${logEntry.variables}\n` : "") +
       `Response: ${logEntry.response}\n` +
       `=== End GraphQL Call ===\n`;
 
@@ -415,7 +418,7 @@ export async function callSuccessCoGraphQL(query, variables = null) {
 
   if (!response.ok) {
     // Log failed request
-    logGraphQLCall(url, query, null, response.status);
+    logGraphQLCall(url, query, variables, null, response.status);
     return {
       ok: false,
       error: `HTTP error! status: ${response.status}`,
@@ -425,7 +428,7 @@ export async function callSuccessCoGraphQL(query, variables = null) {
   const data = await response.json();
 
   // Log successful request
-  logGraphQLCall(url, query, data, response.status);
+  logGraphQLCall(url, query, variables, data, response.status);
 
   // Check for GraphQL errors in the response
   if (data.errors && data.errors.length > 0) {
@@ -4366,8 +4369,8 @@ export async function createIssue(args) {
  * @param {string} args.name - Rock name/title (required)
  * @param {string} [args.desc] - Rock description
  * @param {string} args.dueDate - Due date (YYYY-MM-DD format, required)
- * @param {string} [args.teamId] - Team ID to assign the rock to
- * @param {boolean} [args.forLeadershipTeam] - If true, automatically use the leadership team ID
+ * @param {string} [args.teamId] - Team ID to assign the rock to (REQUIRED unless forLeadershipTeam is true)
+ * @param {boolean} [args.forLeadershipTeam] - If true, automatically use the leadership team ID (REQUIRED unless teamId is provided)
  * @param {string} [args.userId] - User ID to assign the rock to
  * @param {string} [args.rockStatusId] - Rock status (defaults to 'ONTRACK')
  * @param {string} [args.type] - Rock type: 'Personal' or 'Company' (defaults to 'Company')
@@ -4402,6 +4405,18 @@ export async function createRock(args) {
         ],
       };
     }
+  }
+
+  // Validate that teamId is provided - rocks MUST be linked to a team
+  if (!teamId) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: "Error: Rock must be assigned to a team. Please provide either 'teamId' or set 'forLeadershipTeam' to true.",
+        },
+      ],
+    };
   }
 
   if (!name || name.trim() === "") {
@@ -4465,6 +4480,13 @@ export async function createRock(args) {
           rockStatusId
           dueDate
           type
+          userId
+          user {
+            id
+            firstName
+            lastName
+            email
+          }
           createdAt
           stateId
           companyId
@@ -4482,7 +4504,6 @@ export async function createRock(args) {
         rockStatusId,
         type,
         companyId,
-        ...(teamId && { teamId }),
         userId: finalUserId,
         stateId: "ACTIVE",
       },
@@ -4519,6 +4540,75 @@ export async function createRock(args) {
     };
   }
 
+  // If teamId is provided, create the teams_on_rocks link
+  if (teamId) {
+    if (isDevMode) {
+      console.error(
+        `[DEBUG] Creating teams_on_rocks link: teamId=${teamId}, rockId=${rock.id}`
+      );
+    }
+
+    const linkMutation = `
+      mutation CreateTeamsOnRock($input: CreateTeamsOnRockInput!) {
+        createTeamsOnRock(input: $input) {
+          teamsOnRock {
+            id
+            teamId
+            rockId
+            stateId
+          }
+        }
+      }
+    `;
+
+    const linkVariables = {
+      input: {
+        teamsOnRock: {
+          teamId,
+          rockId: rock.id,
+          companyId,
+          stateId: "ACTIVE",
+        },
+      },
+    };
+
+    const linkResult = await callSuccessCoGraphQL(linkMutation, linkVariables);
+
+    if (!linkResult.ok) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Warning: Rock created successfully but failed to link to team: ${
+              linkResult.error
+            }\n\nRock details: ${JSON.stringify(rock, null, 2)}`,
+          },
+        ],
+      };
+    }
+
+    if (!linkResult.data?.data?.createTeamsOnRock?.teamsOnRock) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Warning: Rock created successfully but failed to link to team.\n\nRock details: ${JSON.stringify(
+              rock,
+              null,
+              2
+            )}`,
+          },
+        ],
+      };
+    }
+  } else {
+    if (isDevMode) {
+      console.error(
+        `[DEBUG] No teamId provided - skipping teams_on_rocks link creation`
+      );
+    }
+  }
+
   return {
     content: [
       {
@@ -4526,7 +4616,9 @@ export async function createRock(args) {
         text: JSON.stringify(
           {
             success: true,
-            message: "Rock created successfully",
+            message:
+              "Rock created successfully" +
+              (teamId ? " and linked to team" : ""),
             rock: rock,
           },
           null,

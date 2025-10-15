@@ -921,7 +921,7 @@ const toolDefinitions = [
   {
     name: "createRock",
     description:
-      "Create a new Rock (90-day priority) in Success.co. Use forLeadershipTeam=true to automatically assign to the leadership team. Perfect for queries like 'Create a Rock for marketing to launch referral program due next quarter'.",
+      "Create a new Rock (90-day priority) in Success.co. IMPORTANT: Rocks MUST be assigned to a team - either provide 'teamId' or set 'forLeadershipTeam=true'. Perfect for queries like 'Create a Rock for marketing to launch referral program due next quarter'.",
     handler: async ({
       name,
       desc,
@@ -950,12 +950,17 @@ const toolDefinitions = [
         .describe(
           "Due date in YYYY-MM-DD format (required). For 'next quarter', calculate 90 days from today."
         ),
-      teamId: z.string().optional().describe("Team ID to assign the rock to"),
+      teamId: z
+        .string()
+        .optional()
+        .describe(
+          "Team ID to assign the rock to (REQUIRED unless forLeadershipTeam is true)"
+        ),
       forLeadershipTeam: z
         .boolean()
         .optional()
         .describe(
-          "If true, automatically assign to the leadership team (shortcut instead of calling getTeams first)"
+          "If true, automatically assign to the leadership team (REQUIRED unless teamId is provided). Use this shortcut instead of calling getTeams first."
         ),
       userId: z
         .string()
