@@ -44,6 +44,7 @@ import {
   updateRock,
   updateHeadline,
   updateMeeting,
+  logToolCall,
 } from "./tools.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -1749,6 +1750,10 @@ app.all("/mcp", async (req, res) => {
 
       try {
         const result = await toolHandler(args);
+
+        // Log the tool call to debug file
+        logToolCall(name, args, result);
+
         const response = {
           jsonrpc: "2.0",
           id: mcpRequest.id,
@@ -1758,6 +1763,10 @@ app.all("/mcp", async (req, res) => {
         res.json(response);
       } catch (error) {
         console.error(`[MCP] Tool call error:`, error);
+
+        // Log the tool call error to debug file
+        logToolCall(name, args, null, error.message);
+
         res.status(500).json({
           jsonrpc: "2.0",
           id: mcpRequest.id,

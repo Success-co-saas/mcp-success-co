@@ -15,7 +15,7 @@ import {
 import postgres from "postgres";
 
 // Logging - Debug
-const DEBUG_LOG_FILE = "/tmp/mcp-success-co-graphql-debug.log";
+const DEBUG_LOG_FILE = "/tmp/mcp-success-co-debug.log";
 let isDevMode = false;
 let envConfig = {};
 
@@ -337,6 +337,42 @@ function logGraphQLCall(url, query, variables, response, status) {
   } catch (error) {
     // Silently fail logging to avoid breaking the main functionality
     console.error("Failed to write GraphQL debug log:", error.message);
+  }
+}
+
+/**
+ * Log tool requests and responses for debugging
+ * @param {string} toolName - Name of the tool being called
+ * @param {Object} args - Arguments passed to the tool
+ * @param {Object} result - Result returned by the tool
+ * @param {string} [error] - Error message if the tool call failed
+ */
+export function logToolCall(toolName, args, result, error = null) {
+  if (!isDevMode) return;
+
+  try {
+    const timestamp = new Date().toISOString();
+    const logEntry = {
+      timestamp,
+      toolName,
+      args: args ? JSON.stringify(args, null, 2) : null,
+      result: result ? JSON.stringify(result, null, 2) : null,
+      error: error,
+    };
+
+    const logLine =
+      `\n=== Tool Call ${timestamp} ===\n` +
+      `Tool: ${logEntry.toolName}\n` +
+      (logEntry.args ? `Arguments: ${logEntry.args}\n` : "") +
+      (logEntry.error
+        ? `Error: ${logEntry.error}\n`
+        : `Result: ${logEntry.result}\n`) +
+      `=== End Tool Call ===\n`;
+
+    fs.appendFileSync(DEBUG_LOG_FILE, logLine, "utf8");
+  } catch (error) {
+    // Silently fail logging to avoid breaking the main functionality
+    console.error("Failed to write tool debug log:", error.message);
   }
 }
 
