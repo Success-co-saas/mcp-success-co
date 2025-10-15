@@ -34,7 +34,6 @@ import {
   getMeetingDetails,
   getPeopleAnalyzerSessions,
   getOrgCheckups,
-  getUsersOnTeams,
   createIssue,
   createRock,
   updateTodo,
@@ -160,11 +159,20 @@ const toolDefinitions = [
   },
   {
     name: "getUsers",
-    description: "List Success.co users",
-    handler: async ({ first, offset }) => await getUsers({ first, offset }),
+    description:
+      "List Success.co users. Use leadershipTeam=true to automatically filter by the leadership team. Filter by teamId to get users on a specific team.",
+    handler: async ({ first, offset, teamId, leadershipTeam }) =>
+      await getUsers({ first, offset, teamId, leadershipTeam }),
     schema: {
       first: z.number().int().optional().describe("Optional page size"),
       offset: z.number().int().optional().describe("Optional offset"),
+      teamId: z.string().optional().describe("Filter by team ID"),
+      leadershipTeam: z
+        .boolean()
+        .optional()
+        .describe(
+          "If true, automatically use the leadership team ID (shortcut instead of calling getTeams first)"
+        ),
     },
     required: [],
   },
@@ -916,32 +924,6 @@ const toolDefinitions = [
         .describe(
           "Filter checkups created before this date (ISO 8601 format, e.g., 2024-12-31T23:59:59Z)"
         ),
-    },
-    required: [],
-  },
-  {
-    name: "getUsersOnTeams",
-    description:
-      "Get team membership information showing which users are on which teams. Use leadershipTeam=true to automatically get the leadership team members. Perfect for queries like 'Who's on the Operations team?', 'Which teams is this user a member of?', or analyzing team composition and structure.",
-    handler: async ({ teamId, leadershipTeam, userId }) =>
-      await getUsersOnTeams({ teamId, leadershipTeam, userId }),
-    schema: {
-      teamId: z
-        .string()
-        .optional()
-        .describe(
-          "Filter by team ID to see all members of a specific team (e.g., Operations, Sales)"
-        ),
-      leadershipTeam: z
-        .boolean()
-        .optional()
-        .describe(
-          "If true, automatically use the leadership team ID (shortcut instead of calling getTeams first)"
-        ),
-      userId: z
-        .string()
-        .optional()
-        .describe("Filter by user ID to see which teams a user belongs to"),
     },
     required: [],
   },

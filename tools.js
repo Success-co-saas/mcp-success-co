@@ -671,10 +671,35 @@ export async function getTeams(args) {
  * @param {number} [args.first] - Optional page size
  * @param {number} [args.offset] - Optional offset
  * @param {string} [args.stateId] - User state filter (defaults to 'ACTIVE')
+ * @param {string} [args.teamId] - Filter by team ID
+ * @param {boolean} [args.leadershipTeam] - If true, automatically use the leadership team ID
  * @returns {Promise<{content: Array<{type: string, text: string}>}>}
  */
 export async function getUsers(args) {
-  const { first, offset, stateId = "ACTIVE" } = args;
+  const {
+    first,
+    offset,
+    stateId = "ACTIVE",
+    teamId: providedTeamId,
+    leadershipTeam = false,
+  } = args;
+
+  // Resolve teamId if leadershipTeam is true
+  let teamId = providedTeamId;
+  if (leadershipTeam && !providedTeamId) {
+    teamId = await getLeadershipTeamId();
+    if (!teamId) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: "Error: Could not find leadership team. Please ensure a team is marked as the leadership team.",
+          },
+        ],
+      };
+    }
+  }
+
   // Validate stateId
   const validation = validateStateId(stateId);
   if (!validation.isValid) {
@@ -682,6 +707,7 @@ export async function getUsers(args) {
       content: [{ type: "text", text: validation.error }],
     };
   }
+
   const filterStr = [
     `stateId: {equalTo: "${stateId}"}`,
     first !== undefined ? `first: ${first}` : "",
@@ -719,13 +745,42 @@ export async function getUsers(args) {
   }
 
   const data = result.data;
+  let users = data.data.users.nodes;
+
+  // If teamId filter is provided, get users associated with that team
+  if (teamId) {
+    const usersOnTeamsQuery = `
+      query {
+        usersOnTeams(filter: {teamId: {equalTo: "${teamId}"}, stateId: {equalTo: "${stateId}"}}) {
+          nodes {
+            userId
+          }
+        }
+      }
+    `;
+
+    const usersOnTeamsResult = await callSuccessCoGraphQL(usersOnTeamsQuery);
+    if (!usersOnTeamsResult.ok) {
+      return {
+        content: [{ type: "text", text: usersOnTeamsResult.error }],
+      };
+    }
+
+    const userIdsInTeam = usersOnTeamsResult.data.data.usersOnTeams.nodes.map(
+      (ut) => ut.userId
+    );
+
+    // Filter users to only include those in the team
+    users = users.filter((user) => userIdsInTeam.includes(user.id));
+  }
+
   return {
     content: [
       {
         type: "text",
         text: JSON.stringify({
-          totalCount: data.data.users.totalCount,
-          results: data.data.users.nodes.map((user) => ({
+          totalCount: users.length,
+          results: users.map((user) => ({
             id: user.id,
             name: `${user.firstName} ${user.lastName}`,
             email: user.email,
@@ -4342,161 +4397,6 @@ export async function getOrgCheckups(args) {
           {
             totalCount: result.data.data.orgCheckups.totalCount,
             checkups: checkupsWithAnswers,
-          },
-          null,
-          2
-        ),
-      },
-    ],
-  };
-}
-
-/**
- * Get users on teams (team membership)
- * @param {Object} args - Arguments object
- * @param {string} [args.teamId] - Filter by team ID
- * @param {boolean} [args.leadershipTeam] - If true, automatically use the leadership team ID
- * @param {string} [args.userId] - Filter by user ID
- * @param {string} [args.stateId] - State filter (defaults to 'ACTIVE')
- * @returns {Promise<{content: Array<{type: string, text: string}>}>}
- */
-export async function getUsersOnTeams(args) {
-  const {
-    teamId: providedTeamId,
-    leadershipTeam = false,
-    userId,
-    stateId = "ACTIVE",
-  } = args;
-
-  // Resolve teamId if leadershipTeam is true
-  let teamId = providedTeamId;
-  if (leadershipTeam && !providedTeamId) {
-    teamId = await getLeadershipTeamId();
-    if (!teamId) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: "Error: Could not find leadership team. Please ensure a team is marked as the leadership team.",
-          },
-        ],
-      };
-    }
-  }
-
-  const validation = validateStateId(stateId);
-  if (!validation.isValid) {
-    return {
-      content: [{ type: "text", text: validation.error }],
-    };
-  }
-
-  const filterItems = [`stateId: {equalTo: "${stateId}"}`];
-
-  if (teamId) {
-    filterItems.push(`teamId: {equalTo: "${teamId}"}`);
-  }
-  if (userId) {
-    filterItems.push(`userId: {equalTo: "${userId}"}`);
-  }
-
-  const filterStr = filterItems.join(", ");
-
-  const query = `
-    query {
-      usersOnTeams(filter: {${filterStr}}) {
-        nodes {
-          id
-          userId
-          teamId
-          createdAt
-          stateId
-          companyId
-        }
-        totalCount
-      }
-    }
-  `;
-
-  const result = await callSuccessCoGraphQL(query);
-  if (!result.ok) {
-    return { content: [{ type: "text", text: result.error }] };
-  }
-
-  const usersOnTeams = result.data.data.usersOnTeams.nodes;
-
-  // Get user and team details in parallel
-  const userIds = [...new Set(usersOnTeams.map((ut) => ut.userId))];
-  const teamIds = [...new Set(usersOnTeams.map((ut) => ut.teamId))];
-
-  const [usersResult, teamsResult] = await Promise.all([
-    userIds.length > 0
-      ? callSuccessCoGraphQL(`
-      query {
-        users(filter: {id: {in: [${userIds
-          .map((id) => `"${id}"`)
-          .join(", ")}]}}) {
-          nodes {
-            id
-            firstName
-            lastName
-            email
-            jobTitle
-          }
-        }
-      }
-    `)
-      : { ok: true, data: { data: { users: { nodes: [] } } } },
-    teamIds.length > 0
-      ? callSuccessCoGraphQL(`
-      query {
-        teams(filter: {id: {in: [${teamIds
-          .map((id) => `"${id}"`)
-          .join(", ")}]}}) {
-          nodes {
-            id
-            name
-            desc
-            isLeadership
-          }
-        }
-      }
-    `)
-      : { ok: true, data: { data: { teams: { nodes: [] } } } },
-  ]);
-
-  const usersMap = {};
-  const teamsMap = {};
-
-  if (usersResult.ok) {
-    usersResult.data.data.users.nodes.forEach((user) => {
-      usersMap[user.id] = user;
-    });
-  }
-
-  if (teamsResult.ok) {
-    teamsResult.data.data.teams.nodes.forEach((team) => {
-      teamsMap[team.id] = team;
-    });
-  }
-
-  const enrichedData = usersOnTeams.map((ut) => ({
-    id: ut.id,
-    userId: ut.userId,
-    teamId: ut.teamId,
-    user: usersMap[ut.userId] || null,
-    team: teamsMap[ut.teamId] || null,
-    createdAt: ut.createdAt,
-  }));
-
-  return {
-    content: [
-      {
-        type: "text",
-        text: JSON.stringify(
-          {
-            totalCount: result.data.data.usersOnTeams.totalCount,
-            memberships: enrichedData,
           },
           null,
           2
