@@ -243,9 +243,10 @@ const toolDefinitions = [
   },
   {
     name: "getRocks",
-    description: "List Success.co rocks",
-    handler: async ({ first, offset, status }) =>
-      await getRocks({ first, offset, rockStatusId: status }),
+    description:
+      "List Success.co rocks with ownership and team information. Returns userId (rock owner) and teamIds (associated teams) for each rock. Perfect for analyzing accountability and team execution.",
+    handler: async ({ first, offset, status, userId, teamId }) =>
+      await getRocks({ first, offset, rockStatusId: status, userId, teamId }),
     schema: {
       first: z.number().int().optional().describe("Optional page size"),
       offset: z.number().int().optional().describe("Optional offset"),
@@ -253,6 +254,16 @@ const toolDefinitions = [
         .enum(["ONTRACK", "OFFTRACK", "COMPLETE", "INCOMPLETE"])
         .optional()
         .describe("Rock status filter"),
+      userId: z
+        .string()
+        .optional()
+        .describe(
+          "Filter rocks by user ID (rock owner). Use getUsers to find user IDs."
+        ),
+      teamId: z
+        .string()
+        .optional()
+        .describe("Filter rocks by team ID. Use getTeams to find team IDs."),
     },
     required: [],
   },

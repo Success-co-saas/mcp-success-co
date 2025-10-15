@@ -930,10 +930,19 @@ export async function getTodos(args) {
  * @param {number} [args.offset] - Optional offset
  * @param {string} [args.stateId] - Rock state filter (defaults to 'ACTIVE')
  * @param {string} [args.rockStatusId] - Rock status filter (defaults to blank)
+ * @param {string} [args.userId] - Filter by user ID (rock owner)
+ * @param {string} [args.teamId] - Filter by team ID
  * @returns {Promise<{content: Array<{type: string, text: string}>}>}
  */
 export async function getRocks(args) {
-  const { first, offset, stateId = "ACTIVE", rockStatusId = "" } = args;
+  const {
+    first,
+    offset,
+    stateId = "ACTIVE",
+    rockStatusId = "",
+    userId,
+    teamId,
+  } = args;
   // Validate stateId
   const validation = validateStateId(stateId);
   if (!validation.isValid) {
@@ -955,9 +964,11 @@ export async function getRocks(args) {
       ],
     };
   }
+
   const filterStr = [
     `stateId: {equalTo: "${stateId}"}`,
     rockStatusId ? `rockStatusId: {equalTo: "${rockStatusId}"}` : "",
+    userId ? `userId: {equalTo: "${userId}"}` : "",
     first !== undefined ? `first: ${first}` : "",
     offset !== undefined ? `offset: ${offset}` : "",
   ]
@@ -978,6 +989,7 @@ export async function getRocks(args) {
           createdAt
           stateId
           companyId
+          userId
         }
         totalCount
       }
@@ -990,13 +1002,68 @@ export async function getRocks(args) {
   }
 
   const data = result.data;
+  let rocks = data.data.rocks.nodes;
+
+  // If teamId filter is provided, get rocks associated with that team
+  if (teamId) {
+    const teamsOnRocksQuery = `
+      query {
+        teamsOnRocks(filter: {teamId: {equalTo: "${teamId}"}, stateId: {equalTo: "${stateId}"}}) {
+          nodes {
+            rockId
+          }
+        }
+      }
+    `;
+
+    const teamsOnRocksResult = await callSuccessCoGraphQL(teamsOnRocksQuery);
+    if (teamsOnRocksResult.ok) {
+      const teamRockIds = new Set(
+        teamsOnRocksResult.data?.data?.teamsOnRocks?.nodes?.map(
+          (tr) => tr.rockId
+        ) || []
+      );
+      rocks = rocks.filter((rock) => teamRockIds.has(rock.id));
+    }
+  }
+
+  // For each rock, get its team associations
+  const rockIds = rocks.map((r) => r.id);
+  const teamsByRock = {};
+
+  if (rockIds.length > 0) {
+    const rockIdsStr = rockIds.map((id) => `"${id}"`).join(", ");
+    const teamsOnRocksQuery = `
+      query {
+        teamsOnRocks(filter: {rockId: {in: [${rockIdsStr}]}, stateId: {equalTo: "${stateId}"}}) {
+          nodes {
+            rockId
+            teamId
+          }
+        }
+      }
+    `;
+
+    const teamsOnRocksResult = await callSuccessCoGraphQL(teamsOnRocksQuery);
+    if (teamsOnRocksResult.ok) {
+      const teamsOnRocks =
+        teamsOnRocksResult.data?.data?.teamsOnRocks?.nodes || [];
+      teamsOnRocks.forEach((tor) => {
+        if (!teamsByRock[tor.rockId]) {
+          teamsByRock[tor.rockId] = [];
+        }
+        teamsByRock[tor.rockId].push(tor.teamId);
+      });
+    }
+  }
+
   return {
     content: [
       {
         type: "text",
         text: JSON.stringify({
-          totalCount: data.data.rocks.totalCount,
-          results: data.data.rocks.nodes.map((rock) => ({
+          totalCount: rocks.length,
+          results: rocks.map((rock) => ({
             id: rock.id,
             name: rock.name,
             description: rock.desc || "",
@@ -1005,6 +1072,8 @@ export async function getRocks(args) {
             dueDate: rock.dueDate,
             createdAt: rock.createdAt,
             statusUpdatedAt: rock.statusUpdatedAt,
+            userId: rock.userId,
+            teamIds: teamsByRock[rock.id] || [],
           })),
         }),
       },
