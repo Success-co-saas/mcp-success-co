@@ -785,57 +785,17 @@ const toolDefinitions = [
   {
     name: "getMeetingDetails",
     description:
-      "Get comprehensive meeting details including all related items (headlines, todos, issues, ratings). Use leadershipTeam=true to automatically filter by the leadership team. Perfect for queries like 'What were the headlines from our last leadership L10?', 'Summarize last week's meetings', or 'List all to-dos created in this week's meetings'. Returns meetings with their associated headlines, todos, and issues in a single call.",
-    handler: async ({
-      meetingId,
-      teamId,
-      leadershipTeam,
-      dateAfter,
-      dateBefore,
-      first,
-    }) =>
+      "Get comprehensive meeting details including all related items (headlines, todos, issues, ratings) for a specific meeting. Returns the meeting with its associated headlines, todos, and issues in a single call.",
+    handler: async ({ meetingId }) =>
       await getMeetingDetails({
         meetingId,
-        teamId,
-        leadershipTeam,
-        dateAfter,
-        dateBefore,
-        first,
       }),
     schema: {
       meetingId: z
         .string()
-        .optional()
-        .describe("Specific meeting ID to fetch details for"),
-      teamId: z
-        .string()
-        .optional()
-        .describe("Filter meetings by team ID (via meetingInfo)"),
-      leadershipTeam: z
-        .boolean()
-        .optional()
-        .describe(
-          "If true, automatically use the leadership team ID (shortcut instead of calling getTeams first)"
-        ),
-      dateAfter: z
-        .string()
-        .optional()
-        .describe(
-          "Filter meetings occurring on or after this date (YYYY-MM-DD format, e.g., 2024-01-01)"
-        ),
-      dateBefore: z
-        .string()
-        .optional()
-        .describe(
-          "Filter meetings occurring on or before this date (YYYY-MM-DD format, e.g., 2024-12-31)"
-        ),
-      first: z
-        .number()
-        .int()
-        .optional()
-        .describe("Number of meetings to return (defaults to 10)"),
+        .describe("Meeting ID to fetch details for (required)"),
     },
-    required: [],
+    required: ["meetingId"],
   },
   {
     name: "getPeopleAnalyzerSessions",

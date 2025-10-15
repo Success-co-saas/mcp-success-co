@@ -4426,63 +4426,32 @@ export async function getOrgCheckups(args) {
 
 /**
  * Get comprehensive meeting details including all related items (headlines, todos, issues, ratings)
- * This tool is useful for queries like "What were the headlines from our last leadership L10?"
- * or "Summarize last week's meetings"
+ * This tool is useful for getting detailed information about a specific meeting.
  *
  * @param {Object} args - Arguments object
- * @param {string} [args.meetingId] - Specific meeting ID to fetch details for
- * @param {string} [args.teamId] - Filter meetings by team (via meetingInfo)
- * @param {boolean} [args.leadershipTeam] - If true, automatically use the leadership team ID
- * @param {string} [args.dateAfter] - Filter meetings occurring on or after this date (YYYY-MM-DD)
- * @param {string} [args.dateBefore] - Filter meetings occurring on or before this date (YYYY-MM-DD)
- * @param {number} [args.first] - Optional page size (defaults to 10)
+ * @param {string} args.meetingId - Meeting ID to fetch details for (required)
  * @param {string} [args.stateId] - State filter (defaults to 'ACTIVE')
  * @returns {Promise<Object>} Meeting details with related items
  */
 export async function getMeetingDetails(args) {
-  const {
-    meetingId,
-    teamId: providedTeamId,
-    leadershipTeam = false,
-    dateAfter,
-    dateBefore,
-    first = 10,
-    stateId = "ACTIVE",
-  } = args;
+  const { meetingId, stateId = "ACTIVE" } = args;
 
-  // Resolve teamId if leadershipTeam is true
-  let teamId = providedTeamId;
-  if (leadershipTeam && !providedTeamId) {
-    teamId = await getLeadershipTeamId();
-    if (!teamId) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: "Error: Could not find leadership team. Please ensure a team is marked as the leadership team.",
-          },
-        ],
-      };
-    }
+  if (!meetingId) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: "Error: meetingId is required",
+        },
+      ],
+    };
   }
 
   try {
-    // Step 1: Get meetings based on filters
-    let meetingsQuery = `
+    // Step 1: Get the specific meeting
+    const meetingsQuery = `
       query {
-        meetings(first: ${first}, filter: {stateId: {equalTo: "${stateId}"}`;
-
-    if (meetingId) {
-      meetingsQuery += `, id: {equalTo: "${meetingId}"}`;
-    }
-    if (dateAfter) {
-      meetingsQuery += `, date: {greaterThanOrEqualTo: "${dateAfter}"}`;
-    }
-    if (dateBefore) {
-      meetingsQuery += `, date: {lessThanOrEqualTo: "${dateBefore}"}`;
-    }
-
-    meetingsQuery += `}, orderBy: DATE_DESC) {
+        meetings(first: 1, filter: {stateId: {equalTo: "${stateId}"}, id: {equalTo: "${meetingId}"}}) {
           nodes {
             id
             meetingInfoId
@@ -4505,31 +4474,7 @@ export async function getMeetingDetails(args) {
       };
     }
 
-    let meetings = meetingsResult.data.data.meetings.nodes;
-
-    // If teamId filter is provided, filter meetings by team
-    if (teamId && meetings.length > 0) {
-      // Get meetingInfos for the team
-      const meetingInfosQuery = `
-        query {
-          meetingInfos(filter: {teamId: {equalTo: "${teamId}"}, stateId: {equalTo: "${stateId}"}}) {
-            nodes {
-              id
-            }
-          }
-        }
-      `;
-
-      const meetingInfosResult = await callSuccessCoGraphQL(meetingInfosQuery);
-      if (meetingInfosResult.ok) {
-        const teamMeetingInfoIds = new Set(
-          meetingInfosResult.data.data.meetingInfos.nodes.map((mi) => mi.id)
-        );
-        meetings = meetings.filter((m) =>
-          teamMeetingInfoIds.has(m.meetingInfoId)
-        );
-      }
-    }
+    const meetings = meetingsResult.data.data.meetings.nodes;
 
     if (meetings.length === 0) {
       return {
@@ -4537,9 +4482,8 @@ export async function getMeetingDetails(args) {
           {
             type: "text",
             text: JSON.stringify({
-              meetings: [],
-              totalCount: 0,
-              message: "No meetings found matching the criteria",
+              error: "Meeting not found",
+              meetingId,
             }),
           },
         ],
@@ -4608,85 +4552,78 @@ export async function getMeetingDetails(args) {
       `),
     ]);
 
-    // Organize data by meeting
-    const meetingDetails = meetings.map((meeting) => {
-      const headlines = headlinesResult.ok
-        ? headlinesResult.data.data.headlines.nodes.filter(
-            (h) => h.meetingId === meeting.id
-          )
-        : [];
+    // Organize data by meeting (we only have one meeting since meetingId is required)
+    const meeting = meetings[0];
 
-      const todos = todosResult.ok
-        ? todosResult.data.data.todos.nodes.filter(
-            (t) => t.meetingId === meeting.id
-          )
-        : [];
+    const headlines = headlinesResult.ok
+      ? headlinesResult.data.data.headlines.nodes.filter(
+          (h) => h.meetingId === meeting.id
+        )
+      : [];
 
-      const issues = issuesResult.ok
-        ? issuesResult.data.data.issues.nodes.filter(
-            (i) => i.meetingId === meeting.id
-          )
-        : [];
+    const todos = todosResult.ok
+      ? todosResult.data.data.todos.nodes.filter(
+          (t) => t.meetingId === meeting.id
+        )
+      : [];
 
-      return {
-        meeting: {
-          id: meeting.id,
-          meetingInfoId: meeting.meetingInfoId,
-          date: meeting.date,
-          startTime: meeting.startTime,
-          endTime: meeting.endTime,
-          averageRating: meeting.averageRating,
-          status: meeting.meetingStatusId,
-          createdAt: meeting.createdAt,
-        },
-        headlines: headlines.map((h) => ({
-          id: h.id,
-          name: h.name,
-          description: h.desc || "",
-          status: h.headlineStatusId,
-          userId: h.userId,
-          teamId: h.teamId,
-          createdAt: h.createdAt,
-        })),
-        todos: todos.map((t) => ({
-          id: t.id,
-          name: t.name,
-          description: t.desc || "",
-          status: t.todoStatusId,
-          userId: t.userId,
-          teamId: t.teamId,
-          dueDate: t.dueDate,
-          createdAt: t.createdAt,
-        })),
-        issues: issues.map((i) => ({
-          id: i.id,
-          name: i.name,
-          description: i.desc || "",
-          status: i.issueStatusId,
-          userId: i.userId,
-          teamId: i.teamId,
-          createdAt: i.createdAt,
-        })),
-        summary: {
-          headlineCount: headlines.length,
-          todoCount: todos.length,
-          issueCount: issues.length,
-        },
-      };
-    });
+    const issues = issuesResult.ok
+      ? issuesResult.data.data.issues.nodes.filter(
+          (i) => i.meetingId === meeting.id
+        )
+      : [];
+
+    const meetingDetails = {
+      meeting: {
+        id: meeting.id,
+        meetingInfoId: meeting.meetingInfoId,
+        date: meeting.date,
+        startTime: meeting.startTime,
+        endTime: meeting.endTime,
+        averageRating: meeting.averageRating,
+        status: meeting.meetingStatusId,
+        createdAt: meeting.createdAt,
+      },
+      headlines: headlines.map((h) => ({
+        id: h.id,
+        name: h.name,
+        description: h.desc || "",
+        status: h.headlineStatusId,
+        userId: h.userId,
+        teamId: h.teamId,
+        createdAt: h.createdAt,
+      })),
+      todos: todos.map((t) => ({
+        id: t.id,
+        name: t.name,
+        description: t.desc || "",
+        status: t.todoStatusId,
+        userId: t.userId,
+        teamId: t.teamId,
+        dueDate: t.dueDate,
+        createdAt: t.createdAt,
+      })),
+      issues: issues.map((i) => ({
+        id: i.id,
+        name: i.name,
+        description: i.desc || "",
+        status: i.issueStatusId,
+        userId: i.userId,
+        teamId: i.teamId,
+        createdAt: i.createdAt,
+      })),
+      summary: {
+        headlineCount: headlines.length,
+        todoCount: todos.length,
+        issueCount: issues.length,
+      },
+    };
 
     return {
       content: [
         {
           type: "text",
-          text: JSON.stringify(
-            {
-              meetings: meetingDetails,
-              totalCount: meetingDetails.length,
-            },
-            null,
-            2
-          ),
+          text: JSON.stringify(meetingDetails, null, 2),
         },
       ],
     };
