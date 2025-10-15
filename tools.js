@@ -341,13 +341,11 @@ function logGraphQLCall(url, query, variables, response, status) {
 }
 
 /**
- * Log tool requests and responses for debugging
+ * Log the start of a tool call for debugging
  * @param {string} toolName - Name of the tool being called
  * @param {Object} args - Arguments passed to the tool
- * @param {Object} result - Result returned by the tool
- * @param {string} [error] - Error message if the tool call failed
  */
-export function logToolCall(toolName, args, result, error = null) {
+export function logToolCallStart(toolName, args) {
   if (!isDevMode) return;
 
   try {
@@ -356,23 +354,54 @@ export function logToolCall(toolName, args, result, error = null) {
       timestamp,
       toolName,
       args: args ? JSON.stringify(args, null, 2) : null,
+    };
+
+    const logLine =
+      `\n${"=".repeat(80)}\n` +
+      `>>> TOOL CALL START: ${logEntry.toolName} [${timestamp}]\n` +
+      `${"=".repeat(80)}\n` +
+      (logEntry.args
+        ? `Arguments:\n${logEntry.args}\n`
+        : "Arguments: (none)\n") +
+      `${"-".repeat(80)}\n`;
+
+    fs.appendFileSync(DEBUG_LOG_FILE, logLine, "utf8");
+  } catch (error) {
+    // Silently fail logging to avoid breaking the main functionality
+    console.error("Failed to write tool debug start log:", error.message);
+  }
+}
+
+/**
+ * Log the result/error of a tool call for debugging
+ * @param {string} toolName - Name of the tool being called
+ * @param {Object} result - Result returned by the tool
+ * @param {string} [error] - Error message if the tool call failed
+ */
+export function logToolCallEnd(toolName, result, error = null) {
+  if (!isDevMode) return;
+
+  try {
+    const timestamp = new Date().toISOString();
+    const logEntry = {
+      timestamp,
+      toolName,
       result: result ? JSON.stringify(result, null, 2) : null,
       error: error,
     };
 
     const logLine =
-      `\n=== Tool Call ${timestamp} ===\n` +
-      `Tool: ${logEntry.toolName}\n` +
-      (logEntry.args ? `Arguments: ${logEntry.args}\n` : "") +
+      `${"-".repeat(80)}\n` +
+      `<<< TOOL CALL END: ${logEntry.toolName} [${timestamp}]\n` +
       (logEntry.error
-        ? `Error: ${logEntry.error}\n`
-        : `Result: ${logEntry.result}\n`) +
-      `=== End Tool Call ===\n`;
+        ? `ERROR:\n${logEntry.error}\n`
+        : `Result:\n${logEntry.result}\n`) +
+      `${"=".repeat(80)}\n`;
 
     fs.appendFileSync(DEBUG_LOG_FILE, logLine, "utf8");
   } catch (error) {
     // Silently fail logging to avoid breaking the main functionality
-    console.error("Failed to write tool debug log:", error.message);
+    console.error("Failed to write tool debug end log:", error.message);
   }
 }
 
@@ -991,7 +1020,8 @@ export async function getRocks(args) {
  * @param {string} [args.stateId] - Meeting state filter (defaults to 'ACTIVE')
  * @param {string} [args.teamId] - Filter by team ID
  * @param {boolean} [args.forLeadershipTeam] - If true, automatically use the leadership team ID
- * @param {string} [args.meetingInfoId] - Filter by meeting info ID (recurring meeting series)
+ * @param {string} [args.meetingAgendaId] - Filter by meeting agenda ID (only one of meetingAgendaId or meetingAgendaType can be used)
+ * @param {string} [args.meetingAgendaType] - Filter by meeting agenda type (only one of meetingAgendaId or meetingAgendaType can be used)
  * @param {string} [args.dateAfter] - Filter meetings occurring on or after this date (YYYY-MM-DD)
  * @param {string} [args.dateBefore] - Filter meetings occurring on or before this date (YYYY-MM-DD)
  * @returns {Promise<{content: Array<{type: string, text: string}>}>}
@@ -1003,10 +1033,23 @@ export async function getMeetings(args) {
     stateId = "ACTIVE",
     teamId: providedTeamId,
     forLeadershipTeam = false,
-    meetingInfoId,
+    meetingAgendaId,
+    meetingAgendaType,
     dateAfter,
     dateBefore,
   } = args;
+
+  // Validate that only one of meetingAgendaId or meetingAgendaType is provided
+  if (meetingAgendaId && meetingAgendaType) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: "Error: Only one of meetingAgendaId or meetingAgendaType can be provided, not both.",
+        },
+      ],
+    };
+  }
 
   // Resolve teamId if forLeadershipTeam is true
   let teamId = providedTeamId;
@@ -1102,13 +1145,20 @@ export async function getMeetings(args) {
 
   const filterItems = [`stateId: {equalTo: "${stateId}"}`];
 
-  // Add meetingInfoId filter if provided
-  if (meetingInfoId) {
-    filterItems.push(`meetingInfoId: {equalTo: "${meetingInfoId}"}`);
-  } else if (meetingInfoIds && meetingInfoIds.length > 0) {
-    // Filter by the meetingInfoIds we found for the team
+  // Filter by the meetingInfoIds we found for the team
+  if (meetingInfoIds && meetingInfoIds.length > 0) {
     const meetingInfoIdsStr = meetingInfoIds.map((id) => `"${id}"`).join(", ");
     filterItems.push(`meetingInfoId: {in: [${meetingInfoIdsStr}]}`);
+  }
+
+  // Add meetingAgendaId filter if provided
+  if (meetingAgendaId) {
+    filterItems.push(`meetingAgendaId: {equalTo: "${meetingAgendaId}"}`);
+  }
+
+  // Add meetingAgendaType filter if provided
+  if (meetingAgendaType) {
+    filterItems.push(`meetingAgendaType: {equalTo: "${meetingAgendaType}"}`);
   }
 
   // Add date filters
@@ -1154,7 +1204,7 @@ export async function getMeetings(args) {
 
   const data = result.data;
 
-  // If we have meetings but no meetingInfo data yet (e.g., when querying by meetingInfoId directly),
+  // If we have meetings but no meetingInfo data yet (e.g., when querying by meetingAgendaId directly),
   // fetch the missing meetingInfo data
   const meetings = data.data.meetings.nodes;
   const missingMeetingInfoIds = meetings

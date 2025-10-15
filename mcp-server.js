@@ -44,7 +44,8 @@ import {
   updateRock,
   updateHeadline,
   updateMeeting,
-  logToolCall,
+  logToolCallStart,
+  logToolCallEnd,
 } from "./tools.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -258,13 +259,14 @@ const toolDefinitions = [
   {
     name: "getMeetings",
     description:
-      "List Success.co meetings. IMPORTANT: Either teamId or forLeadershipTeam is REQUIRED. Use forLeadershipTeam=true to automatically filter by the leadership team. Supports filtering by team, meeting series, and dates.",
+      "List Success.co meetings. IMPORTANT: Either teamId or forLeadershipTeam is REQUIRED. Use forLeadershipTeam=true to automatically filter by the leadership team. Supports filtering by team, meeting agenda, and dates. Note: Only one of meetingAgendaId or meetingAgendaType can be used.",
     handler: async ({
       first,
       offset,
       teamId,
       forLeadershipTeam,
-      meetingInfoId,
+      meetingAgendaId,
+      meetingAgendaType,
       dateAfter,
       dateBefore,
     }) =>
@@ -273,7 +275,8 @@ const toolDefinitions = [
         offset,
         teamId,
         forLeadershipTeam,
-        meetingInfoId,
+        meetingAgendaId,
+        meetingAgendaType,
         dateAfter,
         dateBefore,
       }),
@@ -292,11 +295,17 @@ const toolDefinitions = [
         .describe(
           "If true, automatically use the leadership team ID (shortcut instead of calling getTeams first; either this or teamId is required)"
         ),
-      meetingInfoId: z
+      meetingAgendaId: z
         .string()
         .optional()
         .describe(
-          "Filter by meeting info ID (recurring meeting series/configuration)"
+          "Filter by meeting agenda ID (only one of meetingAgendaId or meetingAgendaType can be used)"
+        ),
+      meetingAgendaType: z
+        .string()
+        .optional()
+        .describe(
+          "Filter by meeting agenda type (only one of meetingAgendaId or meetingAgendaType can be used)"
         ),
       dateAfter: z
         .string()
@@ -1749,10 +1758,13 @@ app.all("/mcp", async (req, res) => {
       }
 
       try {
+        // Log the start of the tool call to debug file
+        logToolCallStart(name, args);
+
         const result = await toolHandler(args);
 
-        // Log the tool call to debug file
-        logToolCall(name, args, result);
+        // Log the successful result to debug file
+        logToolCallEnd(name, result);
 
         const response = {
           jsonrpc: "2.0",
@@ -1765,7 +1777,7 @@ app.all("/mcp", async (req, res) => {
         console.error(`[MCP] Tool call error:`, error);
 
         // Log the tool call error to debug file
-        logToolCall(name, args, null, error.message);
+        logToolCallEnd(name, null, error.message);
 
         res.status(500).json({
           jsonrpc: "2.0",

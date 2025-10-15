@@ -13,50 +13,71 @@ Enhanced the debug logging system to capture both GraphQL calls and MCP tool req
 
 The new name reflects that the log now contains both GraphQL and tool call information.
 
-### 2. New Tool Logging Function (`tools.js`)
+### 2. New Tool Logging Functions (`tools.js`)
 
-Added `logToolCall()` function to log MCP tool invocations:
+Added two functions to log MCP tool invocations with better flow visibility:
 
 ```javascript
-export function logToolCall(toolName, args, result, error = null)
+export function logToolCallStart(toolName, args)
+export function logToolCallEnd(toolName, result, error = null)
 ```
 
 **Features**:
 
-- Logs tool name, arguments, and results
-- Handles both successful calls and errors
+- Logs tool request BEFORE execution (shows what's being called)
+- Logs GraphQL calls DURING execution (existing functionality)
+- Logs tool response/error AFTER execution (shows the result)
 - Only logs when `isDevMode` is enabled (NODE_ENV=development or DEBUG=true)
 - Appends to the same debug log file as GraphQL calls
+- Clear visual separation with borders for easy reading
 
-**Log Format**:
+**Log Format** (shows complete flow):
 
 ```
-=== Tool Call 2024-10-15T16:28:00.000Z ===
-Tool: getTeams
-Arguments: {
+================================================================================
+>>> TOOL CALL START: getTeams [2024-10-15T16:28:00.000Z]
+================================================================================
+Arguments:
+{
   "first": 10,
   "offset": 0
 }
-Result: {
+--------------------------------------------------------------------------------
+
+=== GraphQL Call 2024-10-15T16:28:00.100Z ===
+URL: https://api.success.co/graphql
+Status: 200
+Query: query { teams(first: 10) { nodes { id name } } }
+Response: {...}
+=== End GraphQL Call ===
+
+--------------------------------------------------------------------------------
+<<< TOOL CALL END: getTeams [2024-10-15T16:28:00.250Z]
+Result:
+{
   "content": [...]
 }
-=== End Tool Call ===
+================================================================================
 ```
 
 ### 3. MCP Server Integration (`mcp-server.js`)
 
-Updated the tool call handler to log all tool requests and responses:
+Updated the tool call handler to log the complete flow:
 
-- **Line 1755**: Logs successful tool calls with their results
-- **Line 1768**: Logs failed tool calls with error messages
-- Imported the new `logToolCall` function
+- **Line 1762**: Logs tool call START before execution begins
+- **Line 1767**: Logs tool call END with result after successful execution
+- **Line 1780**: Logs tool call END with error after failed execution
+- Imported both `logToolCallStart` and `logToolCallEnd` functions
 
 ### 4. Log Contents
 
-The debug log now contains:
+The debug log now contains a complete execution flow for each tool call:
 
-1. **GraphQL Calls**: All GraphQL API requests to Success.co
-2. **Tool Calls**: All MCP tool invocations (getTeams, getTodos, createIssue, etc.)
+1. **Tool Call START**: Shows the tool name and arguments being passed
+2. **GraphQL Calls** (during execution): All GraphQL API requests made by the tool
+3. **Tool Call END**: Shows the final result or error from the tool
+
+This three-phase logging makes it easy to trace the complete lifecycle of each tool invocation.
 
 ## Usage
 
@@ -88,11 +109,14 @@ Or programmatically using the `clearDebugLog()` helper function from `helpers.js
 
 ## Benefits
 
-1. **Unified Logging**: Both GraphQL and tool calls in one place
-2. **Better Debugging**: See complete request/response flow
-3. **Performance Analysis**: Track which tools are being called and how long they take
-4. **Error Tracking**: Capture both GraphQL and tool-level errors
-5. **Development Only**: No performance impact in production
+1. **Complete Flow Visibility**: See the entire lifecycle of each tool call from start to finish
+2. **Unified Logging**: Tool calls, GraphQL requests, and responses all in chronological order
+3. **Easy Debugging**: Clear visual separation with borders makes it easy to find and read each tool call
+4. **Request/Response Correlation**: Arguments logged before execution, results logged after
+5. **GraphQL Traceability**: See exactly which GraphQL calls were made during each tool execution
+6. **Performance Analysis**: Timestamps on START and END let you measure tool execution time
+7. **Error Tracking**: Capture both GraphQL and tool-level errors with full context
+8. **Development Only**: No performance impact in production
 
 ## Notes
 
