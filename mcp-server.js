@@ -144,7 +144,8 @@ const toolDefinitions = [
     name: "getTeams",
     description:
       "List Success.co teams. Each team includes an 'isLeadership' flag indicating if it's the leadership team. Use this to find the leadership team ID before querying for leadership-specific data. Supports keyword search.",
-    handler: async ({ first, offset, keyword }) => await getTeams({ first, offset, keyword }),
+    handler: async ({ first, offset, keyword }) =>
+      await getTeams({ first, offset, keyword }),
     schema: {
       first: z.number().int().optional().describe("Optional page size"),
       offset: z.number().int().optional().describe("Optional offset"),
@@ -261,7 +262,14 @@ const toolDefinitions = [
     description:
       "List Success.co rocks with ownership and team information. Returns userId (rock owner) and teamIds (associated teams) for each rock. Perfect for analyzing accountability and team execution. Supports keyword search.",
     handler: async ({ first, offset, status, userId, teamId, keyword }) =>
-      await getRocks({ first, offset, rockStatusId: status, userId, teamId, keyword }),
+      await getRocks({
+        first,
+        offset,
+        rockStatusId: status,
+        userId,
+        teamId,
+        keyword,
+      }),
     schema: {
       first: z.number().int().optional().describe("Optional page size"),
       offset: z.number().int().optional().describe("Optional offset"),
@@ -394,9 +402,12 @@ const toolDefinitions = [
         ),
       userId: z.string().optional().describe("Filter by user ID"),
       status: z
-        .string()
+        .enum(["TODO", "COMPLETE", "ALL"])
         .optional()
-        .describe('Filter by status (e.g., "OPEN", "CLOSED")'),
+        .default("TODO")
+        .describe(
+          'Filter by status: "TODO" for open issues (default), "COMPLETE" for completed/resolved issues, "ALL" for all issues regardless of status'
+        ),
       fromMeetings: z
         .boolean()
         .optional()
@@ -1021,7 +1032,7 @@ const toolDefinitions = [
           "Todo ID (required). Use getTodos with keyword search to find the ID."
         ),
       todoStatusId: z
-        .string()
+        .enum(["TODO", "COMPLETE"])
         .optional()
         .describe("New status: 'TODO' for open, 'COMPLETE' for completed"),
       name: z.string().optional().describe("Update the to-do name"),
@@ -1195,9 +1206,11 @@ const toolDefinitions = [
       name: z.string().optional().describe("Update the issue name/title"),
       desc: z.string().optional().describe("Update the issue description"),
       issueStatusId: z
-        .string()
+        .enum(["TODO", "COMPLETE"])
         .optional()
-        .describe("Update status: 'OPEN', 'CLOSED', or other valid status IDs"),
+        .describe(
+          "Update status: 'TODO' for open issues, 'COMPLETE' for completed/resolved issues"
+        ),
       teamId: z.string().optional().describe("Reassign to a different team"),
       forLeadershipTeam: z
         .boolean()
@@ -1364,36 +1377,50 @@ function getToolsAsJsonSchema() {
         properties: Object.keys(tool.schema).reduce((props, key) => {
           const zodSchema = tool.schema[key];
           // Convert Zod schema to JSON schema (simplified)
-          if (zodSchema._def?.typeName === "ZodString") {
+
+          // Handle ZodDefault (when .default() is chained)
+          let schemaToProcess = zodSchema;
+          let defaultValue = undefined;
+          if (zodSchema._def?.typeName === "ZodDefault") {
+            defaultValue = zodSchema._def.defaultValue();
+            schemaToProcess = zodSchema._def.innerType;
+          }
+
+          if (schemaToProcess._def?.typeName === "ZodString") {
             props[key] = {
               type: "string",
-              description: zodSchema.description || "",
+              description: schemaToProcess.description || "",
             };
-          } else if (zodSchema._def?.typeName === "ZodNumber") {
+            if (defaultValue !== undefined) props[key].default = defaultValue;
+          } else if (schemaToProcess._def?.typeName === "ZodNumber") {
             props[key] = {
-              type: zodSchema._def?.checks?.some((c) => c.kind === "int")
+              type: schemaToProcess._def?.checks?.some((c) => c.kind === "int")
                 ? "integer"
                 : "number",
-              description: zodSchema.description || "",
+              description: schemaToProcess.description || "",
             };
-          } else if (zodSchema._def?.typeName === "ZodBoolean") {
+            if (defaultValue !== undefined) props[key].default = defaultValue;
+          } else if (schemaToProcess._def?.typeName === "ZodBoolean") {
             props[key] = {
               type: "boolean",
-              description: zodSchema.description || "",
+              description: schemaToProcess.description || "",
             };
-          } else if (zodSchema._def?.typeName === "ZodEnum") {
+            if (defaultValue !== undefined) props[key].default = defaultValue;
+          } else if (schemaToProcess._def?.typeName === "ZodEnum") {
             props[key] = {
               type: "string",
-              enum: zodSchema._def.values,
-              description: zodSchema.description || "",
+              enum: schemaToProcess._def.values,
+              description: schemaToProcess.description || "",
             };
-          } else if (zodSchema._def?.typeName === "ZodOptional") {
-            const innerSchema = zodSchema._def.innerType;
+            if (defaultValue !== undefined) props[key].default = defaultValue;
+          } else if (schemaToProcess._def?.typeName === "ZodOptional") {
+            const innerSchema = schemaToProcess._def.innerType;
             if (innerSchema._def?.typeName === "ZodString") {
               props[key] = {
                 type: "string",
                 description: innerSchema.description || "",
               };
+              if (defaultValue !== undefined) props[key].default = defaultValue;
             } else if (innerSchema._def?.typeName === "ZodNumber") {
               props[key] = {
                 type: innerSchema._def?.checks?.some((c) => c.kind === "int")
@@ -1401,17 +1428,20 @@ function getToolsAsJsonSchema() {
                   : "number",
                 description: innerSchema.description || "",
               };
+              if (defaultValue !== undefined) props[key].default = defaultValue;
             } else if (innerSchema._def?.typeName === "ZodBoolean") {
               props[key] = {
                 type: "boolean",
                 description: innerSchema.description || "",
               };
+              if (defaultValue !== undefined) props[key].default = defaultValue;
             } else if (innerSchema._def?.typeName === "ZodEnum") {
               props[key] = {
                 type: "string",
                 enum: innerSchema._def.values,
                 description: innerSchema.description || "",
               };
+              if (defaultValue !== undefined) props[key].default = defaultValue;
             }
           }
           return props;

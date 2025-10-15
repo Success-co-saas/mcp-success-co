@@ -607,11 +607,11 @@ export async function getTeams(args) {
     };
   }
   const filterItems = [`stateId: {equalTo: "${stateId}"}`];
-  
+
   if (keyword) {
     filterItems.push(`name: {includesInsensitive: "${keyword}"}`);
   }
-  
+
   const filterStr = [
     filterItems.length > 0 ? `filter: {${filterItems.join(", ")}}` : "",
     first !== undefined ? `first: ${first}` : "",
@@ -1366,7 +1366,7 @@ export async function getMeetings(args) {
  * @param {string} [args.teamId] - Filter by team ID
  * @param {boolean} [args.forLeadershipTeam] - If true, automatically use the leadership team ID
  * @param {string} [args.userId] - Filter by user ID
- * @param {string} [args.status] - Filter by status (e.g., "OPEN", "CLOSED")
+ * @param {string} [args.status] - Filter by status: "TODO" (default), "COMPLETE", or "ALL"
  * @param {boolean} [args.fromMeetings] - If true, only return issues linked to meetings
  * @param {string} [args.keyword] - Search for issues with names containing this keyword (case-insensitive)
  * @param {string} [args.createdAfter] - Filter issues created after this date (ISO 8601 format)
@@ -1382,7 +1382,7 @@ export async function getIssues(args) {
     teamId: providedTeamId,
     forLeadershipTeam = false,
     userId,
-    status,
+    status = "TODO",
     fromMeetings = false,
     keyword,
     createdAfter,
@@ -1413,6 +1413,18 @@ export async function getIssues(args) {
     };
   }
 
+  // Validate status if provided
+  if (status && !["TODO", "COMPLETE", "ALL"].includes(status)) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: 'Invalid status - must be "TODO", "COMPLETE", or "ALL"',
+        },
+      ],
+    };
+  }
+
   const filterItems = [`stateId: {equalTo: "${stateId}"}`];
 
   // Add teamId filter if provided
@@ -1430,8 +1442,8 @@ export async function getIssues(args) {
     filterItems.push(`name: {includesInsensitive: "${keyword}"}`);
   }
 
-  // Add status filter if provided
-  if (status) {
+  // Add status filter if provided (skip if "ALL")
+  if (status && status !== "ALL") {
     filterItems.push(`issueStatusId: {equalTo: "${status}"}`);
   }
 
@@ -1718,7 +1730,15 @@ export async function getHeadlines(args) {
  * @returns {Promise<{content: Array<{type: string, text: string}>}>}
  */
 export async function getMilestones(args) {
-  const { first, offset, stateId = "ACTIVE", rockId, userId, teamId, keyword } = args;
+  const {
+    first,
+    offset,
+    stateId = "ACTIVE",
+    rockId,
+    userId,
+    teamId,
+    keyword,
+  } = args;
   // Validate stateId
   const validation = validateStateId(stateId);
   if (!validation.isValid) {
@@ -5222,7 +5242,7 @@ export async function createRock(args) {
  * @param {string} args.issueId - Issue ID (required)
  * @param {string} [args.name] - Update issue name
  * @param {string} [args.desc] - Update issue description
- * @param {string} [args.issueStatusId] - Update status (e.g., 'OPEN', 'CLOSED')
+ * @param {string} [args.issueStatusId] - Update status: 'TODO' or 'COMPLETE'
  * @param {string} [args.teamId] - Update team assignment
  * @param {boolean} [args.forLeadershipTeam] - If true, automatically use the leadership team ID for assignment
  * @param {string} [args.userId] - Update user assignment
