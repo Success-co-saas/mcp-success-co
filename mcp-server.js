@@ -919,7 +919,7 @@ const toolDefinitions = [
   {
     name: "createRock",
     description:
-      "Create a new Rock (90-day priority) in Success.co. IMPORTANT: Rocks MUST be assigned to a team - either provide 'teamId' or set 'forLeadershipTeam=true'. New rocks always start with status 'ONTRACK'. Perfect for queries like 'Create a Rock for marketing to launch referral program due next quarter'.",
+      "Create a new Rock (90-day priority) in Success.co. IMPORTANT: Rocks MUST be assigned to at least one team - either provide 'teamId' or set 'forLeadershipTeam=true'. Supports assigning to multiple teams with comma-separated IDs. New rocks always start with status 'ONTRACK'. Perfect for queries like 'Create a Rock for marketing and sales teams to launch referral program due next quarter'.",
     handler: async ({
       name,
       desc,
@@ -951,7 +951,7 @@ const toolDefinitions = [
         .string()
         .optional()
         .describe(
-          "Team ID to assign the rock to (REQUIRED unless forLeadershipTeam is true)"
+          "Team ID(s) to assign the rock to (REQUIRED unless forLeadershipTeam is true). Provide single team ID or comma-separated IDs for multiple teams (e.g., 'team-id-1,team-id-2')"
         ),
       forLeadershipTeam: z
         .boolean()
@@ -1164,8 +1164,8 @@ const toolDefinitions = [
   {
     name: "updateRock",
     description:
-      "Update an existing Rock in Success.co. Perfect for queries like 'Mark the referral program rock as complete' or 'Change the due date for the marketing rock to next month'. Use getRocks first to find the rock ID. Note: Team assignment cannot be changed after creation.",
-    handler: async ({ rockId, name, desc, status, dueDate, userId }) =>
+      "Update an existing Rock in Success.co. Perfect for queries like 'Mark the referral program rock as complete', 'Change the due date for the marketing rock to next month', or 'Reassign this rock to the Sales and Marketing teams'. Use getRocks first to find the rock ID. IMPORTANT: When updating team assignments, the teamId parameter REPLACES all existing team assignments - any teams not listed will be removed. Omit teamId to leave team assignments unchanged.",
+    handler: async ({ rockId, name, desc, status, dueDate, userId, teamId }) =>
       await updateRock({
         rockId,
         name,
@@ -1173,6 +1173,7 @@ const toolDefinitions = [
         status,
         dueDate,
         userId,
+        teamId,
       }),
     schema: {
       rockId: z
@@ -1194,6 +1195,12 @@ const toolDefinitions = [
         .string()
         .optional()
         .describe("Reassign to a different user (use getUsers to find ID)"),
+      teamId: z
+        .string()
+        .optional()
+        .describe(
+          "REPLACES all team assignments. Provide single team ID or comma-separated IDs for multiple teams (e.g., 'team-id-1,team-id-2'). Teams not listed will be removed. Omit this field to keep existing team assignments unchanged."
+        ),
     },
     required: ["rockId"],
   },

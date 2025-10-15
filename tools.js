@@ -4549,11 +4549,19 @@ export async function createRock(args) {
     };
   }
 
-  // If teamId is provided, create the teams_on_rocks link
+  // If teamId is provided, create the teams_on_rocks links (supports multiple teams)
   if (teamId) {
+    // Parse comma-separated teamIds
+    const teamIds = teamId
+      .split(",")
+      .map((id) => id.trim())
+      .filter((id) => id);
+
     if (isDevMode) {
       console.error(
-        `[DEBUG] Creating teams_on_rocks link: teamId=${teamId}, rockId=${rock.id}`
+        `[DEBUG] Creating teams_on_rocks links for ${
+          teamIds.length
+        } team(s): ${teamIds.join(", ")}`
       );
     }
 
@@ -4570,42 +4578,55 @@ export async function createRock(args) {
       }
     `;
 
-    const linkVariables = {
-      input: {
-        teamsOnRock: {
-          teamId,
-          rockId: rock.id,
-          companyId,
-          stateId: "ACTIVE",
-        },
-      },
-    };
+    const linkResults = [];
+    const failedLinks = [];
 
-    const linkResult = await callSuccessCoGraphQL(linkMutation, linkVariables);
-
-    if (!linkResult.ok) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Warning: Rock created successfully but failed to link to team: ${
-              linkResult.error
-            }\n\nRock details: ${JSON.stringify(rock, null, 2)}`,
+    // Create a link for each team
+    for (const singleTeamId of teamIds) {
+      const linkVariables = {
+        input: {
+          teamsOnRock: {
+            teamId: singleTeamId,
+            rockId: rock.id,
+            companyId,
+            stateId: "ACTIVE",
           },
-        ],
+        },
       };
+
+      const linkResult = await callSuccessCoGraphQL(
+        linkMutation,
+        linkVariables
+      );
+
+      if (
+        linkResult.ok &&
+        linkResult.data?.data?.createTeamsOnRock?.teamsOnRock
+      ) {
+        linkResults.push(singleTeamId);
+      } else {
+        failedLinks.push({
+          teamId: singleTeamId,
+          error: linkResult.error || "Unknown error",
+        });
+      }
     }
 
-    if (!linkResult.data?.data?.createTeamsOnRock?.teamsOnRock) {
+    // Report results
+    if (failedLinks.length > 0) {
+      const warningMessage =
+        `Rock created successfully but some team assignments failed:\n` +
+        `- Successfully linked to: ${linkResults.join(", ")}\n` +
+        `- Failed to link to: ${failedLinks
+          .map((f) => `${f.teamId} (${f.error})`)
+          .join(", ")}\n\n` +
+        `Rock details: ${JSON.stringify(rock, null, 2)}`;
+
       return {
         content: [
           {
             type: "text",
-            text: `Warning: Rock created successfully but failed to link to team.\n\nRock details: ${JSON.stringify(
-              rock,
-              null,
-              2
-            )}`,
+            text: warningMessage,
           },
         ],
       };
@@ -4618,6 +4639,19 @@ export async function createRock(args) {
     }
   }
 
+  // Build success message
+  let message = "Rock created successfully";
+  if (teamId) {
+    const teamIds = teamId
+      .split(",")
+      .map((id) => id.trim())
+      .filter((id) => id);
+    message +=
+      teamIds.length > 1
+        ? ` and linked to ${teamIds.length} teams (${teamIds.join(", ")})`
+        : ` and linked to team ${teamIds[0]}`;
+  }
+
   return {
     content: [
       {
@@ -4625,9 +4659,7 @@ export async function createRock(args) {
         text: JSON.stringify(
           {
             success: true,
-            message:
-              "Rock created successfully" +
-              (teamId ? " and linked to team" : ""),
+            message,
             rock: {
               id: rock.id,
               name: rock.name,
@@ -4818,10 +4850,11 @@ export async function updateIssue(args) {
  * @param {string} [args.status] - Update status ('ONTRACK', 'OFFTRACK', 'COMPLETE', 'INCOMPLETE')
  * @param {string} [args.dueDate] - Update due date
  * @param {string} [args.userId] - Update user assignment
+ * @param {string} [args.teamId] - Update team assignment (comma-separated for multiple teams)
  * @returns {Promise<{content: Array<{type: string, text: string}>}>}
  */
 export async function updateRock(args) {
-  const { rockId, name, desc, status, dueDate, userId } = args;
+  const { rockId, name, desc, status, dueDate, userId, teamId } = args;
 
   if (!rockId) {
     return {
@@ -4868,11 +4901,10 @@ export async function updateRock(args) {
   if (desc !== undefined) updates.desc = desc;
   if (status) updates.rockStatusId = status;
   if (dueDate) updates.dueDate = dueDate;
-  // Note: teamId is managed through teams_on_rocks junction table, not directly on Rock
-  // Team assignment changes would require separate logic to update teams_on_rocks
   if (userId) updates.userId = userId;
 
-  if (Object.keys(updates).length === 0) {
+  // Check if any updates were specified (including teamId)
+  if (Object.keys(updates).length === 0 && !teamId) {
     return {
       content: [
         {
@@ -4883,41 +4915,371 @@ export async function updateRock(args) {
     };
   }
 
-  const variables = {
-    input: {
-      id: rockId,
-      patch: updates,
-    },
-  };
-
-  const result = await callSuccessCoGraphQL(mutation, variables);
-
-  if (!result.ok) {
-    return {
-      content: [
-        {
-          type: "text",
-          text: `Error updating rock: ${result.error}`,
-        },
-      ],
+  // Update rock properties if any were provided
+  let rock = null;
+  if (Object.keys(updates).length > 0) {
+    const variables = {
+      input: {
+        id: rockId,
+        patch: updates,
+      },
     };
+
+    const result = await callSuccessCoGraphQL(mutation, variables);
+
+    if (!result.ok) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error updating rock: ${result.error}`,
+          },
+        ],
+      };
+    }
+
+    rock = result.data?.data?.updateRock?.rock;
+
+    if (!rock) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error: Rock update failed. ${JSON.stringify(
+              result.data,
+              null,
+              2
+            )}`,
+          },
+        ],
+      };
+    }
   }
 
-  const rock = result.data?.data?.updateRock?.rock;
+  // Track team assignment changes for reporting
+  let reactivatedLinks = [];
 
-  if (!rock) {
-    return {
-      content: [
-        {
-          type: "text",
-          text: `Error: Rock update failed. ${JSON.stringify(
-            result.data,
-            null,
-            2
-          )}`,
+  // Handle team assignment updates if teamId is provided
+  if (teamId) {
+    if (isDevMode) {
+      console.error(
+        `[DEBUG] Starting team assignment update for rock ${rockId} with teamId: ${teamId}`
+      );
+    }
+
+    // Get company ID for team operations
+    const context = await getContextForApiKey(apiKey);
+    if (!context) {
+      if (isDevMode) {
+        console.error(`[DEBUG] Failed to get context for API key`);
+      }
+      return {
+        content: [
+          {
+            type: "text",
+            text: "Error: Could not determine company context for team assignment update.",
+          },
+        ],
+      };
+    }
+    const companyId = context.companyId;
+
+    if (isDevMode) {
+      console.error(`[DEBUG] Got company ID: ${companyId}`);
+    }
+
+    // Parse comma-separated teamIds
+    const teamIds = teamId
+      .split(",")
+      .map((id) => id.trim())
+      .filter((id) => id);
+
+    if (isDevMode) {
+      console.error(
+        `[DEBUG] Parsed ${teamIds.length} team IDs: ${teamIds.join(", ")}`
+      );
+    }
+
+    // First, get all existing teams_on_rocks links for this rock (including deleted ones)
+    const existingQuery = `
+      query GetTeamsOnRocks($rockId: UUID!) {
+        teamsOnRocks(filter: {rockId: {equalTo: $rockId}}) {
+          nodes {
+            id
+            teamId
+            stateId
+          }
+        }
+      }
+    `;
+
+    const existingLinks = await callSuccessCoGraphQL(existingQuery, { rockId });
+
+    if (!existingLinks.ok) {
+      if (isDevMode) {
+        console.error(
+          `[DEBUG] Failed to query existing teams_on_rocks: ${existingLinks.error}`
+        );
+      }
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error querying existing team assignments: ${existingLinks.error}`,
+          },
+        ],
+      };
+    }
+
+    // Build a map of existing links by teamId
+    const existingLinksMap = new Map();
+    if (existingLinks.data?.data?.teamsOnRocks?.nodes) {
+      existingLinks.data.data.teamsOnRocks.nodes.forEach((node) => {
+        existingLinksMap.set(node.teamId, {
+          id: node.id,
+          stateId: node.stateId,
+        });
+      });
+
+      if (isDevMode) {
+        console.error(
+          `[DEBUG] Found ${existingLinksMap.size} existing team links`
+        );
+      }
+    }
+
+    // Soft delete (mark as DELETED) any existing ACTIVE links that are not in the new teamIds list
+    const updateMutation = `
+      mutation UpdateTeamsOnRock($input: UpdateTeamsOnRockInput!) {
+        updateTeamsOnRock(input: $input) {
+          teamsOnRock {
+            id
+            teamId
+            stateId
+          }
+        }
+      }
+    `;
+
+    for (const [existingTeamId, linkInfo] of existingLinksMap.entries()) {
+      // If this team is not in the new list and is currently ACTIVE, mark as DELETED
+      if (!teamIds.includes(existingTeamId) && linkInfo.stateId === "ACTIVE") {
+        if (isDevMode) {
+          console.error(
+            `[DEBUG] Soft deleting team link for team ${existingTeamId} (id: ${linkInfo.id})`
+          );
+        }
+
+        const softDeleteResult = await callSuccessCoGraphQL(updateMutation, {
+          input: {
+            id: linkInfo.id,
+            patch: { stateId: "DELETED" },
+          },
+        });
+
+        if (!softDeleteResult.ok) {
+          if (isDevMode) {
+            console.error(
+              `[DEBUG] Failed to soft delete team link ${linkInfo.id}: ${softDeleteResult.error}`
+            );
+          }
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Error soft deleting existing team assignment: ${softDeleteResult.error}`,
+              },
+            ],
+          };
+        }
+
+        if (isDevMode) {
+          console.error(
+            `[DEBUG] Successfully soft deleted team link ${linkInfo.id}`
+          );
+        }
+      }
+    }
+
+    // Create new team assignments
+    const createMutation = `
+      mutation CreateTeamsOnRock($input: CreateTeamsOnRockInput!) {
+        createTeamsOnRock(input: $input) {
+          teamsOnRock {
+            id
+            teamId
+            rockId
+            stateId
+          }
+        }
+      }
+    `;
+
+    const linkResults = [];
+    const failedLinks = [];
+
+    for (const singleTeamId of teamIds) {
+      const existingLink = existingLinksMap.get(singleTeamId);
+
+      // If link already exists and is ACTIVE, skip it
+      if (existingLink && existingLink.stateId === "ACTIVE") {
+        if (isDevMode) {
+          console.error(
+            `[DEBUG] Team link for ${singleTeamId} is already ACTIVE, skipping`
+          );
+        }
+        linkResults.push(singleTeamId);
+        continue;
+      }
+
+      // If link exists but is DELETED, reactivate it
+      if (existingLink && existingLink.stateId === "DELETED") {
+        if (isDevMode) {
+          console.error(
+            `[DEBUG] Reactivating team link for team: ${singleTeamId} (id: ${existingLink.id})`
+          );
+        }
+
+        const reactivateResult = await callSuccessCoGraphQL(updateMutation, {
+          input: {
+            id: existingLink.id,
+            patch: { stateId: "ACTIVE" },
+          },
+        });
+
+        if (
+          reactivateResult.ok &&
+          reactivateResult.data?.data?.updateTeamsOnRock?.teamsOnRock
+        ) {
+          linkResults.push(singleTeamId);
+          reactivatedLinks.push(singleTeamId);
+          if (isDevMode) {
+            console.error(
+              `[DEBUG] Successfully reactivated team link for ${singleTeamId}`
+            );
+          }
+        } else {
+          const error = reactivateResult.error || "Unknown error";
+          failedLinks.push({
+            teamId: singleTeamId,
+            error,
+          });
+          if (isDevMode) {
+            console.error(
+              `[DEBUG] Failed to reactivate team link for ${singleTeamId}: ${error}`
+            );
+          }
+        }
+        continue;
+      }
+
+      // Link doesn't exist, create a new one
+      if (isDevMode) {
+        console.error(
+          `[DEBUG] Creating new team link for team: ${singleTeamId}`
+        );
+      }
+
+      const linkVariables = {
+        input: {
+          teamsOnRock: {
+            teamId: singleTeamId,
+            rockId: rockId,
+            companyId,
+            stateId: "ACTIVE",
+          },
         },
-      ],
-    };
+      };
+
+      const linkResult = await callSuccessCoGraphQL(
+        createMutation,
+        linkVariables
+      );
+
+      if (
+        linkResult.ok &&
+        linkResult.data?.data?.createTeamsOnRock?.teamsOnRock
+      ) {
+        linkResults.push(singleTeamId);
+        if (isDevMode) {
+          console.error(
+            `[DEBUG] Successfully created team link for ${singleTeamId}`
+          );
+        }
+      } else {
+        const error = linkResult.error || "Unknown error";
+        failedLinks.push({
+          teamId: singleTeamId,
+          error,
+        });
+        if (isDevMode) {
+          console.error(
+            `[DEBUG] Failed to create team link for ${singleTeamId}: ${error}`
+          );
+        }
+      }
+    }
+
+    if (isDevMode) {
+      console.error(
+        `[DEBUG] Team assignment complete: ${linkResults.length} succeeded, ${failedLinks.length} failed`
+      );
+    }
+
+    // Report partial failures
+    if (failedLinks.length > 0 && linkResults.length > 0) {
+      const warningMessage =
+        `Rock updated but some team assignments failed:\n` +
+        `- Successfully linked to: ${linkResults.join(", ")}\n` +
+        `- Failed to link to: ${failedLinks
+          .map((f) => `${f.teamId} (${f.error})`)
+          .join(", ")}`;
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: warningMessage,
+          },
+        ],
+      };
+    } else if (failedLinks.length === teamIds.length) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error: Rock updated but all team assignments failed: ${failedLinks
+              .map((f) => `${f.teamId} (${f.error})`)
+              .join(", ")}`,
+          },
+        ],
+      };
+    }
+  }
+
+  // Build success message
+  let message = "Rock updated successfully";
+  if (teamId) {
+    const teamIds = teamId
+      .split(",")
+      .map((id) => id.trim())
+      .filter((id) => id);
+
+    // Add detail about what happened with teams
+    const details = [];
+    if (teamIds.length > 1) {
+      details.push(`reassigned to ${teamIds.length} teams`);
+    } else {
+      details.push(`reassigned to team ${teamIds[0]}`);
+    }
+
+    if (reactivatedLinks && reactivatedLinks.length > 0) {
+      details.push(
+        `${reactivatedLinks.length} team link(s) reactivated from DELETED`
+      );
+    }
+
+    message += ` (${details.join(", ")})`;
   }
 
   return {
@@ -4927,17 +5289,19 @@ export async function updateRock(args) {
         text: JSON.stringify(
           {
             success: true,
-            message: "Rock updated successfully",
-            rock: {
-              id: rock.id,
-              name: rock.name,
-              desc: rock.desc,
-              status: rock.rockStatusId,
-              dueDate: rock.dueDate,
-              userId: rock.userId,
-              statusUpdatedAt: rock.statusUpdatedAt,
-              stateId: rock.stateId,
-            },
+            message,
+            rock: rock
+              ? {
+                  id: rock.id,
+                  name: rock.name,
+                  desc: rock.desc,
+                  status: rock.rockStatusId,
+                  dueDate: rock.dueDate,
+                  userId: rock.userId,
+                  statusUpdatedAt: rock.statusUpdatedAt,
+                  stateId: rock.stateId,
+                }
+              : { id: rockId },
           },
           null,
           2
