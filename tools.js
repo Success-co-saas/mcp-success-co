@@ -5441,7 +5441,7 @@ export async function updateTodo(args) {
  * @param {string} args.headlineId - Headline ID (required)
  * @param {string} [args.name] - Update headline text
  * @param {string} [args.desc] - Update headline description
- * @param {string} [args.headlineStatusId] - Update status
+ * @param {string} [args.status] - Update headline status: 'DISCUSS' or 'DISCUSSED'
  * @param {string} [args.teamId] - Update team association
  * @param {boolean} [args.forLeadershipTeam] - If true, automatically use the leadership team ID for association
  * @param {string} [args.userId] - Update user association
@@ -5453,7 +5453,7 @@ export async function updateHeadline(args) {
     headlineId,
     name,
     desc,
-    headlineStatusId,
+    status,
     teamId: providedTeamId,
     forLeadershipTeam = false,
     userId,
@@ -5520,7 +5520,7 @@ export async function updateHeadline(args) {
   const updates = {};
   if (name) updates.name = name;
   if (desc !== undefined) updates.desc = desc;
-  if (headlineStatusId) updates.headlineStatusId = headlineStatusId;
+  if (status) updates.headlineStatusId = status;
   if (teamId) updates.teamId = teamId;
   if (userId) updates.userId = userId;
   if (isCascadingMessage !== undefined)
@@ -5597,10 +5597,10 @@ export async function updateHeadline(args) {
  * @param {Object} args - Arguments object
  * @param {string} args.name - Headline text (required)
  * @param {string} [args.desc] - Headline description/details
- * @param {string} [args.teamId] - Team ID to associate with
- * @param {boolean} [args.forLeadershipTeam] - If true, automatically use the leadership team ID
+ * @param {string} [args.teamId] - Team ID to associate with (required if forLeadershipTeam is false)
+ * @param {boolean} [args.forLeadershipTeam] - If true, automatically use the leadership team ID (required if teamId not provided)
  * @param {string} [args.userId] - User ID to associate with
- * @param {string} [args.headlineStatusId] - Headline status (defaults to 'ACTIVE')
+ * @param {string} [args.status] - Headline status: 'DISCUSS' or 'DISCUSSED' (defaults to 'DISCUSS')
  * @param {boolean} [args.isCascadingMessage] - Whether this is a cascading message (defaults to false)
  * @returns {Promise<{content: Array<{type: string, text: string}>}>}
  */
@@ -5611,9 +5611,12 @@ export async function createHeadline(args) {
     teamId: providedTeamId,
     forLeadershipTeam = false,
     userId,
-    headlineStatusId = "ACTIVE",
+    status = "DISCUSS",
     isCascadingMessage = false,
   } = args;
+
+  // Map status to headlineStatusId for GraphQL
+  const headlineStatusId = status;
 
   // Resolve teamId if forLeadershipTeam is true
   let teamId = providedTeamId;
@@ -5629,6 +5632,18 @@ export async function createHeadline(args) {
         ],
       };
     }
+  }
+
+  // Validate that teamId is provided - headlines MUST be linked to a team
+  if (!teamId) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: "Error: Headline must be assigned to a team. Please provide either 'teamId' or set 'forLeadershipTeam' to true.",
+        },
+      ],
+    };
   }
 
   if (!name || name.trim() === "") {

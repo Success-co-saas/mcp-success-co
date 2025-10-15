@@ -1002,14 +1002,14 @@ const toolDefinitions = [
   {
     name: "createHeadline",
     description:
-      "Create a new headline in Success.co. Use forLeadershipTeam=true to automatically associate with the leadership team. Perfect for queries like 'Add a headline: Won major client contract with ABC Corp'. Headlines are good news or updates shared during meetings.",
+      "Create a new headline in Success.co. Use forLeadershipTeam=true to automatically associate with the leadership team. Perfect for queries like 'Add a headline: Won major client contract with ABC Corp'. Headlines are good news or updates shared during meetings. IMPORTANT: You must provide either 'teamId' or 'forLeadershipTeam=true'.",
     handler: async ({
       name,
       desc,
       teamId,
       forLeadershipTeam,
       userId,
-      headlineStatusId,
+      status,
       isCascadingMessage,
     }) =>
       await createHeadline({
@@ -1018,7 +1018,7 @@ const toolDefinitions = [
         teamId,
         forLeadershipTeam,
         userId,
-        headlineStatusId,
+        status,
         isCascadingMessage,
       }),
     schema: {
@@ -1031,12 +1031,17 @@ const toolDefinitions = [
         .string()
         .optional()
         .describe("Additional details or description for the headline"),
-      teamId: z.string().optional().describe("Team ID to associate with"),
+      teamId: z
+        .string()
+        .optional()
+        .describe(
+          "Team ID to associate with (required if forLeadershipTeam is not true)"
+        ),
       forLeadershipTeam: z
         .boolean()
         .optional()
         .describe(
-          "If true, automatically associate with the leadership team (shortcut instead of calling getTeams first)"
+          "If true, automatically associate with the leadership team (required if teamId not provided)"
         ),
       userId: z
         .string()
@@ -1044,10 +1049,10 @@ const toolDefinitions = [
         .describe(
           "User ID to associate with (use getUsers to find the user ID)"
         ),
-      headlineStatusId: z
-        .string()
+      status: z
+        .enum(["DISCUSS", "DISCUSSED"])
         .optional()
-        .describe("Headline status (defaults to 'ACTIVE')"),
+        .describe("Headline status (defaults to 'DISCUSS')"),
       isCascadingMessage: z
         .boolean()
         .optional()
@@ -1212,7 +1217,7 @@ const toolDefinitions = [
       headlineId,
       name,
       desc,
-      headlineStatusId,
+      status,
       teamId,
       forLeadershipTeam,
       userId,
@@ -1222,7 +1227,7 @@ const toolDefinitions = [
         headlineId,
         name,
         desc,
-        headlineStatusId,
+        status,
         teamId,
         forLeadershipTeam,
         userId,
@@ -1236,8 +1241,8 @@ const toolDefinitions = [
         ),
       name: z.string().optional().describe("Update the headline text"),
       desc: z.string().optional().describe("Update the headline description"),
-      headlineStatusId: z
-        .string()
+      status: z
+        .enum(["DISCUSS", "DISCUSSED"])
         .optional()
         .describe("Update the headline status"),
       teamId: z.string().optional().describe("Update team association"),
