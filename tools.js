@@ -169,11 +169,11 @@ async function getLeadershipTeamId() {
 }
 
 /**
- * Get company ID for the current API key
+ * Get user and company info for the current API key
  * @param {string} apiKey - The API key to lookup (with or without suc_api_ prefix)
- * @returns {Promise<string|null>} - Company ID or null
+ * @returns {Promise<{companyId: string, userId: string}|null>} - User and company info or null
  */
-async function getCompanyIdForApiKey(apiKey) {
+async function getUserAndCompanyInfoForApiKey(apiKey) {
   if (!apiKey) {
     return null;
   }
@@ -182,14 +182,16 @@ async function getCompanyIdForApiKey(apiKey) {
   if (companyIdCache.has(apiKey)) {
     const cached = companyIdCache.get(apiKey);
     // Handle both old string format and new object format
-    return typeof cached === "string" ? cached : cached.companyId;
+    if (typeof cached === "object" && cached.companyId && cached.userId) {
+      return cached;
+    }
   }
 
   const db = getDatabase();
   if (!db) {
     if (isDevMode) {
       console.error(
-        "[DEBUG] Database not configured - cannot lookup company ID"
+        "[DEBUG] Database not configured - cannot lookup user and company info"
       );
     }
     return null;
@@ -204,7 +206,7 @@ async function getCompanyIdForApiKey(apiKey) {
 
     if (isDevMode) {
       console.error(
-        `[DEBUG] Looking up company ID for key: ${keyWithoutPrefix.substring(
+        `[DEBUG] Looking up user and company info for key: ${keyWithoutPrefix.substring(
           0,
           8
         )}...`
@@ -235,15 +237,17 @@ async function getCompanyIdForApiKey(apiKey) {
         );
       }
 
-      return context.companyId;
+      return context;
     }
 
     if (isDevMode) {
-      console.error("[DEBUG] No company ID found for API key");
+      console.error("[DEBUG] No user and company info found for API key");
     }
     return null;
   } catch (error) {
-    console.error(`[ERROR] Failed to lookup company ID: ${error.message}`);
+    console.error(
+      `[ERROR] Failed to lookup user and company info: ${error.message}`
+    );
     return null;
   }
 }
@@ -254,32 +258,7 @@ async function getCompanyIdForApiKey(apiKey) {
  * @returns {Promise<{companyId: string, userId: string}|null>} - Context or null
  */
 async function getContextForApiKey(apiKey) {
-  if (!apiKey) {
-    return null;
-  }
-
-  // Check cache first
-  if (companyIdCache.has(apiKey)) {
-    const cached = companyIdCache.get(apiKey);
-    // If cached value is object with both fields, return it
-    if (typeof cached === "object" && cached.companyId && cached.userId) {
-      return cached;
-    }
-  }
-
-  // If not cached or incomplete, fetch it
-  const companyId = await getCompanyIdForApiKey(apiKey);
-  if (!companyId) {
-    return null;
-  }
-
-  // The getCompanyIdForApiKey should have cached the full context
-  const cached = companyIdCache.get(apiKey);
-  if (typeof cached === "object" && cached.companyId && cached.userId) {
-    return cached;
-  }
-
-  return null;
+  return await getUserAndCompanyInfoForApiKey(apiKey);
 }
 
 /**
@@ -4459,18 +4438,22 @@ export async function createRock(args) {
     };
   }
 
-  // Get company ID from the API key
-  const companyId = await getCompanyIdForApiKey(apiKey);
-  if (!companyId) {
+  // Get user and company info from the API key
+  const context = await getUserAndCompanyInfoForApiKey(apiKey);
+  if (!context) {
     return {
       content: [
         {
           type: "text",
-          text: "Error: Could not determine company ID. Please ensure database connection is configured.",
+          text: "Error: Could not determine user and company info. Please ensure database connection is configured.",
         },
       ],
     };
   }
+
+  const companyId = context.companyId;
+  // Use provided userId or default to current user from API key
+  const finalUserId = userId || context.userId;
 
   const mutation = `
     mutation CreateRock($input: CreateRockInput!) {
@@ -4500,7 +4483,7 @@ export async function createRock(args) {
         type,
         companyId,
         ...(teamId && { teamId }),
-        ...(userId && { userId }),
+        userId: finalUserId,
         stateId: "ACTIVE",
       },
     },
@@ -5213,18 +5196,22 @@ export async function createHeadline(args) {
     };
   }
 
-  // Get company ID from the API key
-  const companyId = await getCompanyIdForApiKey(apiKey);
-  if (!companyId) {
+  // Get user and company info from the API key
+  const context = await getUserAndCompanyInfoForApiKey(apiKey);
+  if (!context) {
     return {
       content: [
         {
           type: "text",
-          text: "Error: Could not determine company ID. Please ensure database connection is configured.",
+          text: "Error: Could not determine user and company info. Please ensure database connection is configured.",
         },
       ],
     };
   }
+
+  const companyId = context.companyId;
+  // Use provided userId or default to current user from API key
+  const finalUserId = userId || context.userId;
 
   const mutation = `
     mutation CreateHeadline($input: CreateHeadlineInput!) {
@@ -5254,7 +5241,7 @@ export async function createHeadline(args) {
         isCascadingMessage,
         companyId,
         ...(teamId && { teamId }),
-        ...(userId && { userId }),
+        userId: finalUserId,
         stateId: "ACTIVE",
       },
     },
@@ -5495,18 +5482,20 @@ export async function createMeeting(args) {
     };
   }
 
-  // Get company ID from the API key
-  const companyId = await getCompanyIdForApiKey(apiKey);
-  if (!companyId) {
+  // Get user and company info from the API key
+  const context = await getUserAndCompanyInfoForApiKey(apiKey);
+  if (!context) {
     return {
       content: [
         {
           type: "text",
-          text: "Error: Could not determine company ID. Please ensure database connection is configured.",
+          text: "Error: Could not determine user and company info. Please ensure database connection is configured.",
         },
       ],
     };
   }
+
+  const companyId = context.companyId;
 
   const mutation = `
     mutation CreateMeeting($input: CreateMeetingInput!) {
