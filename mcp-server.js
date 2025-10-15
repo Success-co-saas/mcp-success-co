@@ -257,8 +257,8 @@ const toolDefinitions = [
   {
     name: "getRocks",
     description: "List Success.co rocks",
-    handler: async ({ first, offset, stateId, rockStatusId }) =>
-      await getRocks({ first, offset, stateId, rockStatusId }),
+    handler: async ({ first, offset, stateId, status }) =>
+      await getRocks({ first, offset, stateId, rockStatusId: status }),
     schema: {
       first: z.number().int().optional().describe("Optional page size"),
       offset: z.number().int().optional().describe("Optional offset"),
@@ -266,12 +266,10 @@ const toolDefinitions = [
         .string()
         .optional()
         .describe("Rock state filter (defaults to 'ACTIVE')"),
-      rockStatusId: z
-        .string()
+      status: z
+        .enum(["ONTRACK", "OFFTRACK", "COMPLETE", "INCOMPLETE"])
         .optional()
-        .describe(
-          "Rock status filter (defaults to blank. Can be 'ONTRACK', 'OFFTRACK', 'COMPLETE', 'INCOMPLETE')"
-        ),
+        .describe("Rock status filter"),
     },
     required: [],
   },
@@ -1166,25 +1164,14 @@ const toolDefinitions = [
   {
     name: "updateRock",
     description:
-      "Update an existing Rock in Success.co. Use forLeadershipTeam=true to reassign to the leadership team. Perfect for queries like 'Mark the referral program rock as complete' or 'Change the due date for the marketing rock to next month'. Use getRocks first to find the rock ID.",
-    handler: async ({
-      rockId,
-      name,
-      desc,
-      rockStatusId,
-      dueDate,
-      teamId,
-      forLeadershipTeam,
-      userId,
-    }) =>
+      "Update an existing Rock in Success.co. Perfect for queries like 'Mark the referral program rock as complete' or 'Change the due date for the marketing rock to next month'. Use getRocks first to find the rock ID. Note: Team assignment cannot be changed after creation.",
+    handler: async ({ rockId, name, desc, status, dueDate, userId }) =>
       await updateRock({
         rockId,
         name,
         desc,
-        rockStatusId,
+        status,
         dueDate,
-        teamId,
-        forLeadershipTeam,
         userId,
       }),
     schema: {
@@ -1195,23 +1182,14 @@ const toolDefinitions = [
         ),
       name: z.string().optional().describe("Update the rock name/title"),
       desc: z.string().optional().describe("Update the rock description"),
-      rockStatusId: z
-        .string()
+      status: z
+        .enum(["ONTRACK", "OFFTRACK", "COMPLETE", "INCOMPLETE"])
         .optional()
-        .describe(
-          "Update status: 'ONTRACK', 'OFFTRACK', 'COMPLETE', or 'INCOMPLETE'"
-        ),
+        .describe("Update rock status"),
       dueDate: z
         .string()
         .optional()
         .describe("Update due date (YYYY-MM-DD format)"),
-      teamId: z.string().optional().describe("Reassign to a different team"),
-      forLeadershipTeam: z
-        .boolean()
-        .optional()
-        .describe(
-          "If true, reassign to the leadership team (shortcut instead of calling getTeams first)"
-        ),
       userId: z
         .string()
         .optional()

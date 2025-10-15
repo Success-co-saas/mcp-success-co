@@ -368,19 +368,44 @@ export async function callSuccessCoGraphQL(query, variables = null) {
     body: JSON.stringify(body),
   });
 
-  if (!response.ok) {
-    // Log failed request
-    logGraphQLCall(url, query, variables, null, response.status);
+  // Always try to read the response body
+  let data = null;
+  let responseText = "";
+  try {
+    responseText = await response.text();
+    if (responseText) {
+      data = JSON.parse(responseText);
+    }
+  } catch (parseError) {
+    // If we can't parse JSON, include the raw text in the error
+    logGraphQLCall(
+      url,
+      query,
+      variables,
+      { error: responseText || "Unable to read response" },
+      response.status
+    );
     return {
       ok: false,
-      error: `HTTP error! status: ${response.status}`,
+      error: `HTTP error! status: ${response.status}, response: ${
+        responseText || "Unable to parse response"
+      }`,
     };
   }
 
-  const data = await response.json();
-
-  // Log successful request
+  // Log the request (both success and failure)
   logGraphQLCall(url, query, variables, data, response.status);
+
+  if (!response.ok) {
+    // Include detailed error information
+    const errorDetails = data?.errors
+      ? data.errors.map((err) => err.message).join("; ")
+      : data?.error || JSON.stringify(data);
+    return {
+      ok: false,
+      error: `HTTP error! status: ${response.status}, details: ${errorDetails}`,
+    };
+  }
 
   // Check for GraphQL errors in the response
   if (data.errors && data.errors.length > 0) {
@@ -910,7 +935,7 @@ export async function getRocks(args) {
             id: rock.id,
             name: rock.name,
             description: rock.desc || "",
-            rockStatusId: rock.rockStatusId,
+            status: rock.rockStatusId,
             type: rock.type,
             dueDate: rock.dueDate,
             createdAt: rock.createdAt,
@@ -2223,8 +2248,25 @@ export async function fetch(args) {
 
     const result = await makeGraphQLRequest(gql, { id: rawId });
     if (result?.data?.rock) {
+      const rock = result.data.rock;
       return {
-        content: [{ type: "text", text: JSON.stringify(result.data.rock) }],
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              id: rock.id,
+              status: rock.rockStatusId,
+              name: rock.name,
+              desc: rock.desc,
+              statusUpdatedAt: rock.statusUpdatedAt,
+              type: rock.type,
+              dueDate: rock.dueDate,
+              createdAt: rock.createdAt,
+              stateId: rock.stateId,
+              companyId: rock.companyId,
+            }),
+          },
+        ],
       };
     }
   }
@@ -4415,7 +4457,11 @@ export async function createRock(args) {
   // If dueDate is not provided, calculate the last date of the current quarter
   let dueDate = providedDueDate;
   if (!dueDate) {
-    dueDate = await getLastDateOfCurrentQuarter(companyId);
+    dueDate = await getLastDateOfCurrentQuarter(
+      companyId,
+      getDatabase(),
+      isDevMode
+    );
     if (!dueDate) {
       return {
         content: [
@@ -4582,7 +4628,18 @@ export async function createRock(args) {
             message:
               "Rock created successfully" +
               (teamId ? " and linked to team" : ""),
-            rock: rock,
+            rock: {
+              id: rock.id,
+              name: rock.name,
+              desc: rock.desc,
+              status: rock.rockStatusId,
+              dueDate: rock.dueDate,
+              type: rock.type,
+              userId: rock.userId,
+              createdAt: rock.createdAt,
+              stateId: rock.stateId,
+              companyId: rock.companyId,
+            },
           },
           null,
           2
@@ -4700,7 +4757,7 @@ export async function updateIssue(args) {
   const variables = {
     input: {
       id: issueId,
-      issuePatch: updates,
+      patch: updates,
     },
   };
 
@@ -4758,40 +4815,13 @@ export async function updateIssue(args) {
  * @param {string} args.rockId - Rock ID (required)
  * @param {string} [args.name] - Update rock name
  * @param {string} [args.desc] - Update rock description
- * @param {string} [args.rockStatusId] - Update status ('ONTRACK', 'OFFTRACK', 'COMPLETE', 'INCOMPLETE')
+ * @param {string} [args.status] - Update status ('ONTRACK', 'OFFTRACK', 'COMPLETE', 'INCOMPLETE')
  * @param {string} [args.dueDate] - Update due date
- * @param {string} [args.teamId] - Update team assignment
- * @param {boolean} [args.forLeadershipTeam] - If true, automatically use the leadership team ID for assignment
  * @param {string} [args.userId] - Update user assignment
  * @returns {Promise<{content: Array<{type: string, text: string}>}>}
  */
 export async function updateRock(args) {
-  const {
-    rockId,
-    name,
-    desc,
-    rockStatusId,
-    dueDate,
-    teamId: providedTeamId,
-    forLeadershipTeam = false,
-    userId,
-  } = args;
-
-  // Resolve teamId if forLeadershipTeam is true
-  let teamId = providedTeamId;
-  if (forLeadershipTeam && !providedTeamId) {
-    teamId = await getLeadershipTeamId();
-    if (!teamId) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: "Error: Could not find leadership team. Please ensure a team is marked as the leadership team.",
-          },
-        ],
-      };
-    }
-  }
+  const { rockId, name, desc, status, dueDate, userId } = args;
 
   if (!rockId) {
     return {
@@ -4825,7 +4855,6 @@ export async function updateRock(args) {
           desc
           rockStatusId
           dueDate
-          teamId
           userId
           statusUpdatedAt
           stateId
@@ -4837,9 +4866,10 @@ export async function updateRock(args) {
   const updates = {};
   if (name) updates.name = name;
   if (desc !== undefined) updates.desc = desc;
-  if (rockStatusId) updates.rockStatusId = rockStatusId;
+  if (status) updates.rockStatusId = status;
   if (dueDate) updates.dueDate = dueDate;
-  if (teamId) updates.teamId = teamId;
+  // Note: teamId is managed through teams_on_rocks junction table, not directly on Rock
+  // Team assignment changes would require separate logic to update teams_on_rocks
   if (userId) updates.userId = userId;
 
   if (Object.keys(updates).length === 0) {
@@ -4856,7 +4886,7 @@ export async function updateRock(args) {
   const variables = {
     input: {
       id: rockId,
-      rockPatch: updates,
+      patch: updates,
     },
   };
 
@@ -4898,7 +4928,16 @@ export async function updateRock(args) {
           {
             success: true,
             message: "Rock updated successfully",
-            rock: rock,
+            rock: {
+              id: rock.id,
+              name: rock.name,
+              desc: rock.desc,
+              status: rock.rockStatusId,
+              dueDate: rock.dueDate,
+              userId: rock.userId,
+              statusUpdatedAt: rock.statusUpdatedAt,
+              stateId: rock.stateId,
+            },
           },
           null,
           2
@@ -4980,7 +5019,7 @@ export async function updateTodo(args) {
   const variables = {
     input: {
       id: todoId,
-      todoPatch: updates,
+      patch: updates,
     },
   };
 
@@ -5137,7 +5176,7 @@ export async function updateHeadline(args) {
   const variables = {
     input: {
       id: headlineId,
-      headlinePatch: updates,
+      patch: updates,
     },
   };
 
@@ -5432,7 +5471,7 @@ export async function updateMeeting(args) {
   const variables = {
     input: {
       id: meetingId,
-      meetingPatch: updates,
+      patch: updates,
     },
   };
 
