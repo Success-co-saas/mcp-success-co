@@ -398,11 +398,10 @@ const toolDefinitions = [
   {
     name: "getHeadlines",
     description:
-      "List Success.co headlines. Use forLeadershipTeam=true to automatically filter by the leadership team. Supports filtering by date, keyword, team, user, and meeting linkage. Perfect for queries like 'Show me all people headlines from this week' or 'List company headlines related to hiring'.",
+      "List Success.co headlines. Use forLeadershipTeam=true to automatically filter by the leadership team. Supports filtering by date, keyword, status, team, user, and meeting linkage. Perfect for queries like 'Show me all people headlines from this week' or 'List company headlines related to hiring'.",
     handler: async ({
       first,
       offset,
-      stateId,
       teamId,
       forLeadershipTeam,
       userId,
@@ -410,11 +409,12 @@ const toolDefinitions = [
       createdAfter,
       createdBefore,
       keyword,
+      status,
     }) =>
       await getHeadlines({
         first,
         offset,
-        stateId,
+        stateId: "ACTIVE",
         teamId,
         forLeadershipTeam,
         userId,
@@ -422,14 +422,11 @@ const toolDefinitions = [
         createdAfter,
         createdBefore,
         keyword,
+        status,
       }),
     schema: {
       first: z.number().int().optional().describe("Optional page size"),
       offset: z.number().int().optional().describe("Optional offset"),
-      stateId: z
-        .string()
-        .optional()
-        .describe("Headline state filter (defaults to 'ACTIVE')"),
       teamId: z.string().optional().describe("Filter by team ID"),
       forLeadershipTeam: z
         .boolean()
@@ -438,6 +435,10 @@ const toolDefinitions = [
           "If true, automatically use the leadership team ID (shortcut instead of calling getTeams first)"
         ),
       userId: z.string().optional().describe("Filter by user ID"),
+      status: z
+        .enum(["Not shared", "Shared"])
+        .optional()
+        .describe("Filter by headline status (defaults to 'Not shared')"),
       fromMeetings: z
         .boolean()
         .optional()
@@ -1050,9 +1051,9 @@ const toolDefinitions = [
           "User ID to associate with (use getUsers to find the user ID)"
         ),
       status: z
-        .enum(["DISCUSS", "DISCUSSED"])
+        .enum(["Shared", "Not shared"])
         .optional()
-        .describe("Headline status (defaults to 'DISCUSS')"),
+        .describe("Headline status (defaults to 'Not shared')"),
       isCascadingMessage: z
         .boolean()
         .optional()
@@ -1242,7 +1243,7 @@ const toolDefinitions = [
       name: z.string().optional().describe("Update the headline text"),
       desc: z.string().optional().describe("Update the headline description"),
       status: z
-        .enum(["DISCUSS", "DISCUSSED"])
+        .enum(["Shared", "Not shared"])
         .optional()
         .describe("Update the headline status"),
       teamId: z.string().optional().describe("Update team association"),

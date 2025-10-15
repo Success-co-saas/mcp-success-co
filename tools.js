@@ -1204,10 +1204,10 @@ export async function getIssues(args) {
  * @param {Object} args - Arguments object
  * @param {number} [args.first] - Optional page size
  * @param {number} [args.offset] - Optional offset
- * @param {string} [args.stateId] - Headline state filter (defaults to 'ACTIVE')
  * @param {string} [args.teamId] - Filter by team ID
  * @param {boolean} [args.forLeadershipTeam] - If true, automatically use the leadership team ID
  * @param {string} [args.userId] - Filter by user ID
+ * @param {string} [args.status] - Filter by headline status: 'Shared' or 'Not shared' (defaults to 'Not shared')
  * @param {boolean} [args.fromMeetings] - If true, only return headlines from meetings
  * @param {string} [args.createdAfter] - Filter headlines created after this date (ISO 8601 format)
  * @param {string} [args.createdBefore] - Filter headlines created before this date (ISO 8601 format)
@@ -1226,7 +1226,15 @@ export async function getHeadlines(args) {
     createdAfter,
     createdBefore,
     keyword,
+    status = "Not shared",
   } = args;
+
+  // Map external status values to internal database values
+  const statusMapping = {
+    Shared: "DISCUSSED",
+    "Not shared": "DISCUSS",
+  };
+  const internalStatus = statusMapping[status];
 
   // Resolve teamId if forLeadershipTeam is true
   let teamId = providedTeamId;
@@ -1261,6 +1269,11 @@ export async function getHeadlines(args) {
   // Add userId filter if provided
   if (userId) {
     filterItems.push(`userId: {equalTo: "${userId}"}`);
+  }
+
+  // Add status filter if provided
+  if (internalStatus) {
+    filterItems.push(`headlineStatusId: {equalTo: "${internalStatus}"}`);
   }
 
   // Add meetingId filter if fromMeetings is true
@@ -1329,6 +1342,12 @@ export async function getHeadlines(args) {
     headlines = headlines.slice(start, end);
   }
 
+  // Map internal status values back to external values
+  const externalStatusMapping = {
+    DISCUSSED: "Shared",
+    DISCUSS: "Not shared",
+  };
+
   return {
     content: [
       {
@@ -1339,7 +1358,9 @@ export async function getHeadlines(args) {
             id: headline.id,
             name: headline.name,
             description: headline.desc || "",
-            status: headline.headlineStatusId,
+            status:
+              externalStatusMapping[headline.headlineStatusId] ||
+              headline.headlineStatusId,
             teamId: headline.teamId,
             userId: headline.userId,
             meetingId: headline.meetingId,
@@ -5441,7 +5462,7 @@ export async function updateTodo(args) {
  * @param {string} args.headlineId - Headline ID (required)
  * @param {string} [args.name] - Update headline text
  * @param {string} [args.desc] - Update headline description
- * @param {string} [args.status] - Update headline status: 'DISCUSS' or 'DISCUSSED'
+ * @param {string} [args.status] - Update headline status: 'Shared' or 'Not shared'
  * @param {string} [args.teamId] - Update team association
  * @param {boolean} [args.forLeadershipTeam] - If true, automatically use the leadership team ID for association
  * @param {string} [args.userId] - Update user association
@@ -5459,6 +5480,13 @@ export async function updateHeadline(args) {
     userId,
     isCascadingMessage,
   } = args;
+
+  // Map external status values to internal database values
+  const statusMapping = {
+    Shared: "DISCUSSED",
+    "Not shared": "DISCUSS",
+  };
+  const internalStatus = status ? statusMapping[status] : undefined;
 
   // Resolve teamId if forLeadershipTeam is true
   let teamId = providedTeamId;
@@ -5520,7 +5548,7 @@ export async function updateHeadline(args) {
   const updates = {};
   if (name) updates.name = name;
   if (desc !== undefined) updates.desc = desc;
-  if (status) updates.headlineStatusId = status;
+  if (internalStatus) updates.headlineStatusId = internalStatus;
   if (teamId) updates.teamId = teamId;
   if (userId) updates.userId = userId;
   if (isCascadingMessage !== undefined)
@@ -5574,6 +5602,12 @@ export async function updateHeadline(args) {
     };
   }
 
+  // Map internal status back to external value
+  const externalStatusMapping = {
+    DISCUSSED: "Shared",
+    DISCUSS: "Not shared",
+  };
+
   return {
     content: [
       {
@@ -5582,7 +5616,12 @@ export async function updateHeadline(args) {
           {
             success: true,
             message: "Headline updated successfully",
-            headline: headline,
+            headline: {
+              ...headline,
+              headlineStatusId:
+                externalStatusMapping[headline.headlineStatusId] ||
+                headline.headlineStatusId,
+            },
           },
           null,
           2
@@ -5600,7 +5639,7 @@ export async function updateHeadline(args) {
  * @param {string} [args.teamId] - Team ID to associate with (required if forLeadershipTeam is false)
  * @param {boolean} [args.forLeadershipTeam] - If true, automatically use the leadership team ID (required if teamId not provided)
  * @param {string} [args.userId] - User ID to associate with
- * @param {string} [args.status] - Headline status: 'DISCUSS' or 'DISCUSSED' (defaults to 'DISCUSS')
+ * @param {string} [args.status] - Headline status: 'Shared' or 'Not shared' (defaults to 'Not shared')
  * @param {boolean} [args.isCascadingMessage] - Whether this is a cascading message (defaults to false)
  * @returns {Promise<{content: Array<{type: string, text: string}>}>}
  */
@@ -5611,12 +5650,16 @@ export async function createHeadline(args) {
     teamId: providedTeamId,
     forLeadershipTeam = false,
     userId,
-    status = "DISCUSS",
+    status = "Not shared",
     isCascadingMessage = false,
   } = args;
 
-  // Map status to headlineStatusId for GraphQL
-  const headlineStatusId = status;
+  // Map external status values to internal database values
+  const statusMapping = {
+    Shared: "DISCUSSED",
+    "Not shared": "DISCUSS",
+  };
+  const headlineStatusId = statusMapping[status] || "DISCUSS";
 
   // Resolve teamId if forLeadershipTeam is true
   let teamId = providedTeamId;
@@ -5750,6 +5793,12 @@ export async function createHeadline(args) {
     };
   }
 
+  // Map internal status back to external value
+  const externalStatusMapping = {
+    DISCUSSED: "Shared",
+    DISCUSS: "Not shared",
+  };
+
   return {
     content: [
       {
@@ -5758,7 +5807,12 @@ export async function createHeadline(args) {
           {
             success: true,
             message: "Headline created successfully",
-            headline: headline,
+            headline: {
+              ...headline,
+              headlineStatusId:
+                externalStatusMapping[headline.headlineStatusId] ||
+                headline.headlineStatusId,
+            },
           },
           null,
           2
