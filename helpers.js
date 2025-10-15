@@ -42,6 +42,22 @@ export function mapPriorityToNumber(priority) {
 }
 
 /**
+ * Map priority numeric values to string values from GraphQL
+ * @param {number} priorityNo - Numeric priority value
+ * @returns {string} - Priority level: 'High', 'Medium', 'Low', or 'No priority'
+ */
+export function mapPriorityToText(priorityNo) {
+  const priorityMap = {
+    1: "High",
+    2: "Medium",
+    3: "Low",
+    999: "No priority",
+  };
+
+  return priorityMap[priorityNo] ?? "Medium"; // Default to Medium if invalid value
+}
+
+/**
  * Map issue type to lowercase for GraphQL
  * @param {string} type - Issue type: 'Short-term' or 'Long-term'
  * @returns {string} - Lowercase type value

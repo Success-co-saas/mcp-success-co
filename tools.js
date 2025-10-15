@@ -7,6 +7,7 @@ import { fileURLToPath } from "url";
 import {
   validateStateId,
   mapPriorityToNumber,
+  mapPriorityToText,
   mapIssueTypeToLowercase,
   mapRockTypeToLowercase,
   clearDebugLog,
@@ -1607,7 +1608,7 @@ export async function getIssues(args) {
             type: issue.type
               ? issue.type.charAt(0).toUpperCase() + issue.type.slice(1)
               : null,
-            priority: issue.priorityNo,
+            priority: mapPriorityToText(issue.priorityNo),
             priorityOrder: issue.priorityOrder,
             teamId: issue.teamId,
             userId: issue.userId,
