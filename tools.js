@@ -5821,6 +5821,184 @@ export async function updateRock(args) {
 }
 
 /**
+ * Create a new todo
+ * @param {Object} args - Arguments object
+ * @param {string} args.name - Todo name/title (required)
+ * @param {string} [args.desc] - Todo description
+ * @param {string} [args.teamId] - Team ID to assign the todo to (REQUIRED unless leadershipTeam is true)
+ * @param {boolean} [args.leadershipTeam] - If true, automatically use the leadership team ID (REQUIRED unless teamId is provided)
+ * @param {string} [args.userId] - User ID to assign the todo to (defaults to current user from API key)
+ * @param {string} [args.dueDate] - Due date in YYYY-MM-DD format
+ * @returns {Promise<{content: Array<{type: string, text: string}>}>}
+ */
+export async function createTodo(args) {
+  const {
+    name,
+    teamId: providedTeamId,
+    leadershipTeam = false,
+    desc = "",
+    userId: providedUserId,
+    dueDate,
+  } = args;
+
+  // Always set todoStatusId to TODO for new todos
+  const todoStatusId = "TODO";
+
+  if (!name || name.trim() === "") {
+    return {
+      content: [
+        {
+          type: "text",
+          text: "Error: Todo name is required",
+        },
+      ],
+    };
+  }
+
+  // Resolve teamId if leadershipTeam is true
+  let teamId = providedTeamId;
+  if (leadershipTeam && !providedTeamId) {
+    teamId = await getLeadershipTeamId();
+    if (!teamId) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: "Error: Could not find leadership team. Please ensure a team is marked as the leadership team.",
+          },
+        ],
+      };
+    }
+  }
+
+  if (!teamId) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: "Error: Team ID is required. Either provide teamId or set leadershipTeam to true.",
+        },
+      ],
+    };
+  }
+
+  const apiKey = getSuccessCoApiKey();
+  if (!apiKey) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: "Error: Success.co API key not set. Use setSuccessCoApiKey first.",
+        },
+      ],
+    };
+  }
+
+  // Get context (company ID and user ID) from the API key
+  const context = await getContextForApiKey(apiKey);
+  if (!context) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: "Error: Could not determine context from API key. Please ensure database connection is configured.",
+        },
+      ],
+    };
+  }
+
+  const companyId = context.companyId;
+  const userId = providedUserId || context.userId; // Use provided userId or default to current user
+
+  const mutation = `
+    mutation CreateTodo($input: CreateTodoInput!) {
+      createTodo(input: $input) {
+        todo {
+          id
+          name
+          desc
+          todoStatusId
+          teamId
+          userId
+          dueDate
+          createdAt
+          stateId
+          companyId
+        }
+      }
+    }
+  `;
+
+  const todoInput = {
+    name,
+    desc,
+    todoStatusId,
+    teamId,
+    userId,
+    companyId,
+    stateId: "ACTIVE",
+  };
+
+  // Add optional dueDate if provided
+  if (dueDate) {
+    todoInput.dueDate = dueDate;
+  }
+
+  const variables = {
+    input: {
+      todo: todoInput,
+    },
+  };
+
+  const result = await callSuccessCoGraphQL(mutation, variables);
+
+  if (!result.ok) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error creating todo: ${result.error}`,
+        },
+      ],
+    };
+  }
+
+  const todo = result.data?.data?.createTodo?.todo;
+
+  if (!todo) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error: Todo creation failed. ${JSON.stringify(
+            result.data,
+            null,
+            2
+          )}`,
+        },
+      ],
+    };
+  }
+
+  return {
+    content: [
+      {
+        type: "text",
+        text: JSON.stringify(
+          {
+            success: true,
+            message: "Todo created successfully",
+            todo: todo,
+          },
+          null,
+          2
+        ),
+      },
+    ],
+  };
+}
+
+/**
  * Update a todo (e.g., mark as complete)
  * @param {Object} args - Arguments object
  * @param {string} args.todoId - Todo ID (required)

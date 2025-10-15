@@ -36,6 +36,7 @@ import {
   getOrgCheckups,
   createIssue,
   createRock,
+  createTodo,
   updateTodo,
   createHeadline,
   createMeeting,
@@ -1043,6 +1044,43 @@ const toolDefinitions = [
         .describe(
           "Rock type: 'Personal' for individual rocks or 'Company' for company-wide rocks (defaults to 'Company')"
         ),
+    },
+    required: ["name"],
+  },
+  {
+    name: "createTodo",
+    description:
+      "Create a new to-do in Success.co. Use leadershipTeam=true to automatically assign to the leadership team. Perfect for queries like 'Add a to-do to follow up with vendor' or 'Create a to-do for the leadership team to review Q4 budget'. Either teamId or leadershipTeam is REQUIRED.",
+    handler: async ({ name, desc, teamId, leadershipTeam, userId, dueDate }) =>
+      await createTodo({ name, desc, teamId, leadershipTeam, userId, dueDate }),
+    schema: {
+      name: z.string().describe("Todo name/title (required)"),
+      desc: z
+        .string()
+        .optional()
+        .describe("Todo description or additional details"),
+      teamId: z
+        .string()
+        .optional()
+        .describe(
+          "Team ID to assign the todo to (either this or leadershipTeam is required)"
+        ),
+      leadershipTeam: z
+        .boolean()
+        .optional()
+        .describe(
+          "If true, automatically assign to the leadership team (shortcut instead of calling getTeams first)"
+        ),
+      userId: z
+        .string()
+        .optional()
+        .describe(
+          "User ID to assign the todo to (optional - defaults to current user from API key)"
+        ),
+      dueDate: z
+        .string()
+        .optional()
+        .describe("Due date in YYYY-MM-DD format (e.g., 2024-12-31)"),
     },
     required: ["name"],
   },
