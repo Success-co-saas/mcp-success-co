@@ -910,10 +910,10 @@ const toolDefinitions = [
           "Priority level: 'High' (most urgent), 'Medium', 'Low', or 'No priority' (defaults to 'Medium')"
         ),
       type: z
-        .enum(["short-term", "long-term"])
+        .enum(["Short-term", "Long-term"])
         .optional()
         .describe(
-          "Issue type: 'short-term' for immediate issues or 'long-term' for strategic issues (defaults to 'short-term')"
+          "Issue type: 'Short-term' for immediate issues or 'Long-term' for strategic issues (defaults to 'Short-term')"
         ),
     },
     required: ["name"],
@@ -970,10 +970,10 @@ const toolDefinitions = [
           "Rock status: 'ONTRACK', 'OFFTRACK', 'COMPLETE', or 'INCOMPLETE' (defaults to 'ONTRACK')"
         ),
       type: z
-        .string()
+        .enum(["Personal", "Company"])
         .optional()
         .describe(
-          "Rock type: 'COMPANY', 'LEADERSHIP', or 'DEPARTMENTAL' (defaults to 'COMPANY')"
+          "Rock type: 'Personal' for individual rocks or 'Company' for company-wide rocks (defaults to 'Company')"
         ),
     },
     required: ["name", "dueDate"],

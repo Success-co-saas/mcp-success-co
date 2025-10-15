@@ -30,6 +30,30 @@ function mapPriorityToNumber(priority) {
   return priorityMap[priority] ?? 2; // Default to Medium if invalid value
 }
 
+// Helper function to map issue type to lowercase for GraphQL
+function mapIssueTypeToLowercase(type) {
+  if (!type) return "short-term"; // Default to short-term
+
+  const typeMap = {
+    "Short-term": "short-term",
+    "Long-term": "long-term",
+  };
+
+  return typeMap[type] ?? "short-term"; // Default to short-term if invalid value
+}
+
+// Helper function to map rock type to lowercase for GraphQL
+function mapRockTypeToLowercase(type) {
+  if (!type) return "company"; // Default to company
+
+  const typeMap = {
+    Personal: "personal",
+    Company: "company",
+  };
+
+  return typeMap[type] ?? "company"; // Default to company if invalid value
+}
+
 /**
  * Clear the GraphQL debug log file if it exists
  * @param {boolean} devMode - Whether we're in development mode
@@ -4184,7 +4208,7 @@ export async function getMeetingDetails(args) {
  * @param {string} [args.desc] - Issue description
  * @param {string} [args.userId] - User ID to assign the issue to (defaults to current user from API key)
  * @param {string} [args.priority] - Priority level: 'High', 'Medium', 'Low', or 'No priority' (defaults to 'Medium')
- * @param {string} [args.type] - Issue type: 'short-term' or 'long-term' (defaults to 'short-term')
+ * @param {string} [args.type] - Issue type: 'Short-term' or 'Long-term' (defaults to 'Short-term')
  * @returns {Promise<{content: Array<{type: string, text: string}>}>}
  */
 export async function createIssue(args) {
@@ -4195,11 +4219,14 @@ export async function createIssue(args) {
     desc = "",
     userId: providedUserId,
     priority = "Medium",
-    type = "short-term",
+    type: providedType = "Short-term",
   } = args;
 
   // Map priority string to numeric value for GraphQL
   const priorityNo = mapPriorityToNumber(priority);
+
+  // Map type to lowercase for GraphQL
+  const type = mapIssueTypeToLowercase(providedType);
 
   // Always set issueStatusId to TODO for new issues
   const issueStatusId = "TODO";
@@ -4364,7 +4391,7 @@ export async function createIssue(args) {
  * @param {boolean} [args.forLeadershipTeam] - If true, automatically use the leadership team ID
  * @param {string} [args.userId] - User ID to assign the rock to
  * @param {string} [args.rockStatusId] - Rock status (defaults to 'ONTRACK')
- * @param {string} [args.type] - Rock type (e.g., 'COMPANY', 'LEADERSHIP', 'DEPARTMENTAL')
+ * @param {string} [args.type] - Rock type: 'Personal' or 'Company' (defaults to 'Company')
  * @returns {Promise<{content: Array<{type: string, text: string}>}>}
  */
 export async function createRock(args) {
@@ -4376,8 +4403,11 @@ export async function createRock(args) {
     forLeadershipTeam = false,
     userId,
     rockStatusId = "ONTRACK",
-    type = "COMPANY",
+    type: providedType = "Company",
   } = args;
+
+  // Map type to lowercase for GraphQL
+  const type = mapRockTypeToLowercase(providedType);
 
   // Resolve teamId if forLeadershipTeam is true
   let teamId = providedTeamId;
