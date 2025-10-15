@@ -593,11 +593,12 @@ export async function getSuccessCoApiKeyTool(args) {
  * @param {number} [args.first] - Optional page size
  * @param {number} [args.offset] - Optional offset
  * @param {string} [args.stateId] - Team state filter (defaults to 'ACTIVE')
+ * @param {string} [args.keyword] - Search for teams with names containing this keyword (case-insensitive)
  * @returns {Promise<{content: Array<{type: string, text: string}>}>}
  * @description Returns teams with isLeadership flag to identify the leadership team
  */
 export async function getTeams(args) {
-  const { first, offset, stateId = "ACTIVE" } = args;
+  const { first, offset, stateId = "ACTIVE", keyword } = args;
   // Validate stateId
   const validation = validateStateId(stateId);
   if (!validation.isValid) {
@@ -605,8 +606,14 @@ export async function getTeams(args) {
       content: [{ type: "text", text: validation.error }],
     };
   }
+  const filterItems = [`stateId: {equalTo: "${stateId}"}`];
+  
+  if (keyword) {
+    filterItems.push(`name: {includesInsensitive: "${keyword}"}`);
+  }
+  
   const filterStr = [
-    `stateId: {equalTo: "${stateId}"}`,
+    filterItems.length > 0 ? `filter: {${filterItems.join(", ")}}` : "",
     first !== undefined ? `first: ${first}` : "",
     offset !== undefined ? `offset: ${offset}` : "",
   ]
@@ -746,7 +753,8 @@ export async function getUsers(args) {
  * @param {string} [args.teamId] - Filter by team ID
  * @param {boolean} [args.forLeadershipTeam] - If true, automatically use the leadership team ID
  * @param {string} [args.userId] - Filter by user ID
- * @param {string} [args.status] - Filter by status: "TODO", "COMPLETE", or "OVERDUE"
+ * @param {string} [args.status] - Filter by status: "TODO" (default), "COMPLETE", "OVERDUE", or "ALL"
+ * @param {string} [args.keyword] - Search for todos with names containing this keyword (case-insensitive)
  * @param {string} [args.createdAfter] - Filter todos created after this date (ISO 8601 format)
  * @param {string} [args.createdBefore] - Filter todos created before this date (ISO 8601 format)
  * @param {string} [args.completedAfter] - Filter todos completed after this date (ISO 8601 format)
@@ -762,7 +770,8 @@ export async function getTodos(args) {
     teamId: providedTeamId,
     forLeadershipTeam = false,
     userId,
-    status,
+    status = "TODO",
+    keyword,
     createdAfter,
     createdBefore,
     completedAfter,
@@ -793,12 +802,12 @@ export async function getTodos(args) {
   }
 
   // Validate status if provided
-  if (status && !["TODO", "COMPLETE", "OVERDUE"].includes(status)) {
+  if (status && !["TODO", "COMPLETE", "OVERDUE", "ALL"].includes(status)) {
     return {
       content: [
         {
           type: "text",
-          text: 'Invalid status - must be "TODO", "COMPLETE", or "OVERDUE"',
+          text: 'Invalid status - must be "TODO", "COMPLETE", "OVERDUE", or "ALL"',
         },
       ],
     };
@@ -821,7 +830,12 @@ export async function getTodos(args) {
     filterItems.push(`userId: {equalTo: "${userId}"}`);
   }
 
-  // Add status filter if provided
+  // Add keyword filter if provided
+  if (keyword) {
+    filterItems.push(`name: {includesInsensitive: "${keyword}"}`);
+  }
+
+  // Add status filter if provided (skip if "ALL")
   if (status === "TODO") {
     filterItems.push(`todoStatusId: {equalTo: "TODO"}`);
   } else if (status === "COMPLETE") {
@@ -832,6 +846,7 @@ export async function getTodos(args) {
     filterItems.push(`todoStatusId: {equalTo: "TODO"}`);
     filterItems.push(`dueDate: {lessThan: "${now}"}`);
   }
+  // If status is "ALL", don't add any status filter
 
   // Add date filters for creation
   if (createdAfter) {
@@ -854,7 +869,7 @@ export async function getTodos(args) {
       );
     }
     // Only include completed todos when using completion date filters
-    if (!status) {
+    if (!status || status === "ALL") {
       filterItems.push(`todoStatusId: {equalTo: "COMPLETE"}`);
     }
   }
@@ -932,6 +947,7 @@ export async function getTodos(args) {
  * @param {string} [args.rockStatusId] - Rock status filter (defaults to blank)
  * @param {string} [args.userId] - Filter by user ID (rock owner)
  * @param {string} [args.teamId] - Filter by team ID
+ * @param {string} [args.keyword] - Search for rocks with names containing this keyword (case-insensitive)
  * @returns {Promise<{content: Array<{type: string, text: string}>}>}
  */
 export async function getRocks(args) {
@@ -942,6 +958,7 @@ export async function getRocks(args) {
     rockStatusId = "",
     userId,
     teamId,
+    keyword,
   } = args;
   // Validate stateId
   const validation = validateStateId(stateId);
@@ -969,6 +986,7 @@ export async function getRocks(args) {
     `stateId: {equalTo: "${stateId}"}`,
     rockStatusId ? `rockStatusId: {equalTo: "${rockStatusId}"}` : "",
     userId ? `userId: {equalTo: "${userId}"}` : "",
+    keyword ? `name: {includesInsensitive: "${keyword}"}` : "",
     first !== undefined ? `first: ${first}` : "",
     offset !== undefined ? `offset: ${offset}` : "",
   ]
@@ -1350,6 +1368,7 @@ export async function getMeetings(args) {
  * @param {string} [args.userId] - Filter by user ID
  * @param {string} [args.status] - Filter by status (e.g., "OPEN", "CLOSED")
  * @param {boolean} [args.fromMeetings] - If true, only return issues linked to meetings
+ * @param {string} [args.keyword] - Search for issues with names containing this keyword (case-insensitive)
  * @param {string} [args.createdAfter] - Filter issues created after this date (ISO 8601 format)
  * @param {string} [args.createdBefore] - Filter issues created before this date (ISO 8601 format)
  * @param {string} [args.statusUpdatedBefore] - Filter issues where status was last updated before this date
@@ -1365,6 +1384,7 @@ export async function getIssues(args) {
     userId,
     status,
     fromMeetings = false,
+    keyword,
     createdAfter,
     createdBefore,
     statusUpdatedBefore,
@@ -1403,6 +1423,11 @@ export async function getIssues(args) {
   // Add userId filter if provided
   if (userId) {
     filterItems.push(`userId: {equalTo: "${userId}"}`);
+  }
+
+  // Add keyword filter if provided
+  if (keyword) {
+    filterItems.push(`name: {includesInsensitive: "${keyword}"}`);
   }
 
   // Add status filter if provided
@@ -1689,10 +1714,11 @@ export async function getHeadlines(args) {
  * @param {string} [args.rockId] - Filter by rock ID
  * @param {string} [args.userId] - Filter by user ID
  * @param {string} [args.teamId] - Filter by team ID
+ * @param {string} [args.keyword] - Search for milestones with names containing this keyword (case-insensitive)
  * @returns {Promise<{content: Array<{type: string, text: string}>}>}
  */
 export async function getMilestones(args) {
-  const { first, offset, stateId = "ACTIVE", rockId, userId, teamId } = args;
+  const { first, offset, stateId = "ACTIVE", rockId, userId, teamId, keyword } = args;
   // Validate stateId
   const validation = validateStateId(stateId);
   if (!validation.isValid) {
@@ -1705,6 +1731,7 @@ export async function getMilestones(args) {
   if (rockId) filterParts.push(`rockId: {equalTo: "${rockId}"}`);
   if (userId) filterParts.push(`userId: {equalTo: "${userId}"}`);
   if (teamId) filterParts.push(`teamId: {equalTo: "${teamId}"}`);
+  if (keyword) filterParts.push(`name: {includesInsensitive: "${keyword}"}`);
   if (first !== undefined) filterParts.push(`first: ${first}`);
   if (offset !== undefined) filterParts.push(`offset: ${offset}`);
 
@@ -3016,6 +3043,23 @@ export async function fetch(args) {
 
 // ---------- Scorecard Measurables tool (Combined Data Fields + Values) ----------
 
+/**
+ * List Success.co scorecard measurables (KPIs with values)
+ * @param {Object} args - Arguments object
+ * @param {number} [args.first] - Optional page size (default: 50)
+ * @param {number} [args.offset] - Optional offset (default: 0)
+ * @param {string} [args.stateId] - State filter (defaults to 'ACTIVE')
+ * @param {string} [args.teamId] - Filter by team ID
+ * @param {boolean} [args.forLeadershipTeam] - If true, automatically use the leadership team ID
+ * @param {string} [args.userId] - Filter by user ID
+ * @param {string} [args.type] - Filter by measurable type
+ * @param {string} [args.dataFieldId] - Filter by specific data field ID
+ * @param {string} [args.keyword] - Search for measurables with names containing this keyword (case-insensitive)
+ * @param {string} [args.startDate] - Start date for values
+ * @param {string} [args.endDate] - End date for values
+ * @param {number} [args.periods] - Number of periods to return (default: 13)
+ * @returns {Promise<{content: Array<{type: string, text: string}>}>}
+ */
 export async function getScorecardMeasurables(args) {
   const {
     first = 50,
@@ -3026,6 +3070,7 @@ export async function getScorecardMeasurables(args) {
     userId,
     type,
     dataFieldId,
+    keyword,
     startDate,
     endDate,
     periods = 13,
@@ -3131,6 +3176,11 @@ export async function getScorecardMeasurables(args) {
     // If userId is provided, filter by it at the GraphQL level
     if (userId) {
       filterParts.push(`userId: {equalTo: "${userId}"}`);
+    }
+
+    // If keyword is provided, filter by it at the GraphQL level
+    if (keyword) {
+      filterParts.push(`name: {includesInsensitive: "${keyword}"}`);
     }
 
     const filterStr = filterParts.join(", ");

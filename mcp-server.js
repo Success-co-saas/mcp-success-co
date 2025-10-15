@@ -143,11 +143,17 @@ const toolDefinitions = [
   {
     name: "getTeams",
     description:
-      "List Success.co teams. Each team includes an 'isLeadership' flag indicating if it's the leadership team. Use this to find the leadership team ID before querying for leadership-specific data.",
-    handler: async ({ first, offset }) => await getTeams({ first, offset }),
+      "List Success.co teams. Each team includes an 'isLeadership' flag indicating if it's the leadership team. Use this to find the leadership team ID before querying for leadership-specific data. Supports keyword search.",
+    handler: async ({ first, offset, keyword }) => await getTeams({ first, offset, keyword }),
     schema: {
       first: z.number().int().optional().describe("Optional page size"),
       offset: z.number().int().optional().describe("Optional offset"),
+      keyword: z
+        .string()
+        .optional()
+        .describe(
+          "Search for teams with names containing this keyword (case-insensitive)"
+        ),
     },
     required: [],
   },
@@ -164,7 +170,7 @@ const toolDefinitions = [
   {
     name: "getTodos",
     description:
-      "List Success.co todos. Use forLeadershipTeam=true to automatically filter by the leadership team. Use fromMeetings=true to get only todos from Level 10 meetings. Filter by teamId, userId, or status (TODO, COMPLETE, OVERDUE). Supports date filtering for creation and completion dates.",
+      "List Success.co todos. Use forLeadershipTeam=true to automatically filter by the leadership team. Use fromMeetings=true to get only todos from Level 10 meetings. Filter by teamId, userId, status (TODO, COMPLETE, OVERDUE, ALL), or keyword. Supports date filtering for creation and completion dates.",
     handler: async ({
       first,
       offset,
@@ -173,6 +179,7 @@ const toolDefinitions = [
       forLeadershipTeam,
       userId,
       status,
+      keyword,
       createdAfter,
       createdBefore,
       completedAfter,
@@ -186,6 +193,7 @@ const toolDefinitions = [
         forLeadershipTeam,
         userId,
         status,
+        keyword,
         createdAfter,
         createdBefore,
         completedAfter,
@@ -209,10 +217,17 @@ const toolDefinitions = [
         ),
       userId: z.string().optional().describe("Filter by user ID"),
       status: z
-        .enum(["TODO", "COMPLETE", "OVERDUE"])
+        .enum(["TODO", "COMPLETE", "OVERDUE", "ALL"])
+        .optional()
+        .default("TODO")
+        .describe(
+          'Filter by status: "TODO" for active todos (default), "COMPLETE" for completed todos, "OVERDUE" for todos past their due date, "ALL" for all todos regardless of status'
+        ),
+      keyword: z
+        .string()
         .optional()
         .describe(
-          'Filter by status: "TODO" for active todos, "COMPLETE" for completed todos, "OVERDUE" for todos past their due date'
+          "Search for todos with names containing this keyword (case-insensitive)"
         ),
       createdAfter: z
         .string()
@@ -244,9 +259,9 @@ const toolDefinitions = [
   {
     name: "getRocks",
     description:
-      "List Success.co rocks with ownership and team information. Returns userId (rock owner) and teamIds (associated teams) for each rock. Perfect for analyzing accountability and team execution.",
-    handler: async ({ first, offset, status, userId, teamId }) =>
-      await getRocks({ first, offset, rockStatusId: status, userId, teamId }),
+      "List Success.co rocks with ownership and team information. Returns userId (rock owner) and teamIds (associated teams) for each rock. Perfect for analyzing accountability and team execution. Supports keyword search.",
+    handler: async ({ first, offset, status, userId, teamId, keyword }) =>
+      await getRocks({ first, offset, rockStatusId: status, userId, teamId, keyword }),
     schema: {
       first: z.number().int().optional().describe("Optional page size"),
       offset: z.number().int().optional().describe("Optional offset"),
@@ -264,6 +279,12 @@ const toolDefinitions = [
         .string()
         .optional()
         .describe("Filter rocks by team ID. Use getTeams to find team IDs."),
+      keyword: z
+        .string()
+        .optional()
+        .describe(
+          "Search for rocks with names containing this keyword (case-insensitive)"
+        ),
     },
     required: [],
   },
