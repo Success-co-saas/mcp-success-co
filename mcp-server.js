@@ -1067,7 +1067,7 @@ const toolDefinitions = [
   {
     name: "createMeeting",
     description:
-      "Create a new meeting instance in Success.co. Perfect for queries like 'Schedule a Level 10 meeting for the leadership team next Monday'. Provide either meetingAgendaId or meetingAgendaType (e.g., 'WEEKLY-L10', 'QUARTERLY-PULSING-AGENDA'). The tool will create a meeting info and then the meeting automatically.",
+      "Create a new meeting instance in Success.co. Perfect for queries like 'Schedule a Level 10 meeting for the leadership team next Monday'. Provide either meetingAgendaId or meetingAgendaType (e.g., 'WEEKLY-L10', 'QUARTERLY-PULSING-AGENDA'). The tool will create a meeting info and then the meeting automatically. Meeting status defaults to 'NOT-STARTED', and start/end times are set when the meeting is started/ended.",
     handler: async ({
       date,
       meetingAgendaId,
@@ -1075,9 +1075,6 @@ const toolDefinitions = [
       teamId,
       forLeadershipTeam,
       name,
-      startTime,
-      endTime,
-      meetingStatusId,
     }) =>
       await createMeeting({
         date,
@@ -1086,9 +1083,6 @@ const toolDefinitions = [
         teamId,
         forLeadershipTeam,
         name,
-        startTime,
-        endTime,
-        meetingStatusId,
       }),
     schema: {
       date: z
@@ -1133,22 +1127,6 @@ const toolDefinitions = [
         .describe(
           "Optional name for the meeting (defaults to the agenda name)"
         ),
-      startTime: z
-        .string()
-        .optional()
-        .describe(
-          "Meeting start time in HH:MM format, 24-hour clock (defaults to '09:00')"
-        ),
-      endTime: z
-        .string()
-        .optional()
-        .describe(
-          "Meeting end time in HH:MM format, 24-hour clock (defaults to '10:00')"
-        ),
-      meetingStatusId: z
-        .string()
-        .optional()
-        .describe("Meeting status (defaults to 'SCHEDULED')"),
     },
     required: ["date"],
   },
@@ -1308,22 +1286,12 @@ const toolDefinitions = [
   {
     name: "updateMeeting",
     description:
-      "Update an existing meeting in Success.co. Perfect for queries like 'Reschedule next Monday's L10 to 2pm' or 'Cancel tomorrow's meeting'. Use getMeetings or getMeetingDetails first to find the meeting ID.",
-    handler: async ({
-      meetingId,
-      date,
-      startTime,
-      endTime,
-      meetingStatusId,
-      averageRating,
-    }) =>
+      "Update an existing meeting in Success.co. Perfect for queries like 'Reschedule next Monday's L10 to Tuesday' or 'Cancel tomorrow's meeting'. Use getMeetings or getMeetingDetails first to find the meeting ID. To cancel a meeting, set state to 'DELETED'.",
+    handler: async ({ meetingId, date, state }) =>
       await updateMeeting({
         meetingId,
         date,
-        startTime,
-        endTime,
-        meetingStatusId,
-        averageRating,
+        state,
       }),
     schema: {
       meetingId: z
@@ -1335,26 +1303,12 @@ const toolDefinitions = [
         .string()
         .optional()
         .describe("Update meeting date (YYYY-MM-DD format)"),
-      startTime: z
-        .string()
+      state: z
+        .enum(["ACTIVE", "DELETED"])
         .optional()
         .describe(
-          "Update start time (HH:MM format, 24-hour clock, e.g., '14:00' for 2pm)"
+          "Meeting state. Set to 'DELETED' to cancel a meeting, 'ACTIVE' to restore it."
         ),
-      endTime: z
-        .string()
-        .optional()
-        .describe("Update end time (HH:MM format, 24-hour clock)"),
-      meetingStatusId: z
-        .string()
-        .optional()
-        .describe(
-          "Update meeting status (e.g., 'SCHEDULED', 'COMPLETED', 'CANCELLED')"
-        ),
-      averageRating: z
-        .number()
-        .optional()
-        .describe("Update the average meeting rating"),
     },
     required: ["meetingId"],
   },
@@ -1369,69 +1323,71 @@ function registerToolsOnServer(server) {
 
 // Helper function to convert tool definitions to JSON schema format
 function getToolsAsJsonSchema() {
-  return toolDefinitions.map((tool) => ({
-    name: tool.name,
-    description: tool.description,
-    inputSchema: {
-      type: "object",
-      properties: Object.keys(tool.schema).reduce((props, key) => {
-        const zodSchema = tool.schema[key];
-        // Convert Zod schema to JSON schema (simplified)
-        if (zodSchema._def?.typeName === "ZodString") {
-          props[key] = {
-            type: "string",
-            description: zodSchema.description || "",
-          };
-        } else if (zodSchema._def?.typeName === "ZodNumber") {
-          props[key] = {
-            type: zodSchema._def?.checks?.some((c) => c.kind === "int")
-              ? "integer"
-              : "number",
-            description: zodSchema.description || "",
-          };
-        } else if (zodSchema._def?.typeName === "ZodBoolean") {
-          props[key] = {
-            type: "boolean",
-            description: zodSchema.description || "",
-          };
-        } else if (zodSchema._def?.typeName === "ZodEnum") {
-          props[key] = {
-            type: "string",
-            enum: zodSchema._def.values,
-            description: zodSchema.description || "",
-          };
-        } else if (zodSchema._def?.typeName === "ZodOptional") {
-          const innerSchema = zodSchema._def.innerType;
-          if (innerSchema._def?.typeName === "ZodString") {
+  return toolDefinitions
+    .map((tool) => ({
+      name: tool.name,
+      description: tool.description,
+      inputSchema: {
+        type: "object",
+        properties: Object.keys(tool.schema).reduce((props, key) => {
+          const zodSchema = tool.schema[key];
+          // Convert Zod schema to JSON schema (simplified)
+          if (zodSchema._def?.typeName === "ZodString") {
             props[key] = {
               type: "string",
-              description: innerSchema.description || "",
+              description: zodSchema.description || "",
             };
-          } else if (innerSchema._def?.typeName === "ZodNumber") {
+          } else if (zodSchema._def?.typeName === "ZodNumber") {
             props[key] = {
-              type: innerSchema._def?.checks?.some((c) => c.kind === "int")
+              type: zodSchema._def?.checks?.some((c) => c.kind === "int")
                 ? "integer"
                 : "number",
-              description: innerSchema.description || "",
+              description: zodSchema.description || "",
             };
-          } else if (innerSchema._def?.typeName === "ZodBoolean") {
+          } else if (zodSchema._def?.typeName === "ZodBoolean") {
             props[key] = {
               type: "boolean",
-              description: innerSchema.description || "",
+              description: zodSchema.description || "",
             };
-          } else if (innerSchema._def?.typeName === "ZodEnum") {
+          } else if (zodSchema._def?.typeName === "ZodEnum") {
             props[key] = {
               type: "string",
-              enum: innerSchema._def.values,
-              description: innerSchema.description || "",
+              enum: zodSchema._def.values,
+              description: zodSchema.description || "",
             };
+          } else if (zodSchema._def?.typeName === "ZodOptional") {
+            const innerSchema = zodSchema._def.innerType;
+            if (innerSchema._def?.typeName === "ZodString") {
+              props[key] = {
+                type: "string",
+                description: innerSchema.description || "",
+              };
+            } else if (innerSchema._def?.typeName === "ZodNumber") {
+              props[key] = {
+                type: innerSchema._def?.checks?.some((c) => c.kind === "int")
+                  ? "integer"
+                  : "number",
+                description: innerSchema.description || "",
+              };
+            } else if (innerSchema._def?.typeName === "ZodBoolean") {
+              props[key] = {
+                type: "boolean",
+                description: innerSchema.description || "",
+              };
+            } else if (innerSchema._def?.typeName === "ZodEnum") {
+              props[key] = {
+                type: "string",
+                enum: innerSchema._def.values,
+                description: innerSchema.description || "",
+              };
+            }
           }
-        }
-        return props;
-      }, {}),
-      required: tool.required,
-    },
-  }));
+          return props;
+        }, {}),
+        required: tool.required,
+      },
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
 }
 
 // Helper function to create tool handlers map

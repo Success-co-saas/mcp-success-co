@@ -6222,21 +6222,12 @@ export async function createHeadline(args) {
  * @param {Object} args - Arguments object
  * @param {string} args.meetingId - Meeting ID (required)
  * @param {string} [args.date] - Update meeting date (YYYY-MM-DD format)
- * @param {string} [args.startTime] - Update start time (HH:MM format)
- * @param {string} [args.endTime] - Update end time (HH:MM format)
- * @param {string} [args.meetingStatusId] - Update meeting status
- * @param {number} [args.averageRating] - Update average rating
+ * @param {string} [args.state] - Meeting state: "ACTIVE" or "DELETED"
  * @returns {Promise<{content: Array<{type: string, text: string}>}>}
+ * @note To cancel a meeting, set state to "DELETED". Start/end times and status are managed by the meeting lifecycle.
  */
 export async function updateMeeting(args) {
-  const {
-    meetingId,
-    date,
-    startTime,
-    endTime,
-    meetingStatusId,
-    averageRating,
-  } = args;
+  const { meetingId, date, state } = args;
 
   if (!meetingId) {
     return {
@@ -6261,16 +6252,29 @@ export async function updateMeeting(args) {
     };
   }
 
+  // Validate date is not in the past if date is being updated
+  if (date) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Reset to start of day for comparison
+    const meetingDate = new Date(date);
+    if (meetingDate < today) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: "Error: Cannot update a meeting to a date in the past. Please use a current or future date.",
+          },
+        ],
+      };
+    }
+  }
+
   const mutation = `
     mutation UpdateMeeting($input: UpdateMeetingInput!) {
       updateMeeting(input: $input) {
         meeting {
           id
           date
-          startTime
-          endTime
-          meetingStatusId
-          averageRating
           meetingInfoId
           stateId
         }
@@ -6280,10 +6284,7 @@ export async function updateMeeting(args) {
 
   const updates = {};
   if (date) updates.date = date;
-  if (startTime) updates.startTime = startTime;
-  if (endTime) updates.endTime = endTime;
-  if (meetingStatusId) updates.meetingStatusId = meetingStatusId;
-  if (averageRating !== undefined) updates.averageRating = averageRating;
+  if (state) updates.stateId = state;
 
   if (Object.keys(updates).length === 0) {
     return {
@@ -6360,10 +6361,8 @@ export async function updateMeeting(args) {
  * @param {string} [args.teamId] - Team ID (provide either this or forLeadershipTeam)
  * @param {boolean} [args.forLeadershipTeam] - If true, use the leadership team
  * @param {string} [args.name] - Optional name for the meeting info (defaults to agenda name)
- * @param {string} [args.startTime] - Start time (HH:MM format)
- * @param {string} [args.endTime] - End time (HH:MM format)
- * @param {string} [args.meetingStatusId] - Meeting status (defaults to 'SCHEDULED')
  * @returns {Promise<{content: Array<{type: string, text: string}>}>}
+ * @note Meeting status defaults to 'NOT-STARTED'. Start and end times are set when the meeting is started/ended.
  */
 export async function createMeeting(args) {
   const {
@@ -6373,9 +6372,6 @@ export async function createMeeting(args) {
     teamId: providedTeamId,
     forLeadershipTeam = false,
     name,
-    startTime = "09:00",
-    endTime = "10:00",
-    meetingStatusId = "SCHEDULED",
   } = args;
 
   // Validate required parameters
@@ -6385,6 +6381,21 @@ export async function createMeeting(args) {
         {
           type: "text",
           text: "Error: Meeting date is required (format: YYYY-MM-DD)",
+        },
+      ],
+    };
+  }
+
+  // Validate date is not in the past
+  const today = new Date();
+  today.setHours(0, 0, 0, 0); // Reset to start of day for comparison
+  const meetingDate = new Date(date);
+  if (meetingDate < today) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: "Error: Cannot create a meeting with a date in the past. Please use a current or future date.",
         },
       ],
     };
@@ -6601,9 +6612,7 @@ export async function createMeeting(args) {
       meeting: {
         date,
         meetingInfoId: meetingInfo.id,
-        startTime,
-        endTime,
-        meetingStatusId,
+        meetingStatusId: "NOT-STARTED",
         companyId,
         stateId: "ACTIVE",
       },
