@@ -953,6 +953,8 @@ export async function getRocks(args) {
  * @param {number} [args.first] - Optional page size
  * @param {number} [args.offset] - Optional offset
  * @param {string} [args.stateId] - Meeting state filter (defaults to 'ACTIVE')
+ * @param {string} [args.teamId] - Filter by team ID
+ * @param {boolean} [args.forLeadershipTeam] - If true, automatically use the leadership team ID
  * @param {string} [args.meetingInfoId] - Filter by meeting info ID (recurring meeting series)
  * @param {string} [args.dateAfter] - Filter meetings occurring on or after this date (YYYY-MM-DD)
  * @param {string} [args.dateBefore] - Filter meetings occurring on or before this date (YYYY-MM-DD)
@@ -963,10 +965,40 @@ export async function getMeetings(args) {
     first,
     offset,
     stateId = "ACTIVE",
+    teamId: providedTeamId,
+    forLeadershipTeam = false,
     meetingInfoId,
     dateAfter,
     dateBefore,
   } = args;
+
+  // Resolve teamId if forLeadershipTeam is true
+  let teamId = providedTeamId;
+  if (forLeadershipTeam && !providedTeamId) {
+    teamId = await getLeadershipTeamId();
+    if (!teamId) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: "Error: Could not find leadership team. Please ensure a team is marked as the leadership team.",
+          },
+        ],
+      };
+    }
+  }
+
+  if (!teamId) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: "Error: Team ID is required. Either provide teamId or set forLeadershipTeam to true.",
+        },
+      ],
+    };
+  }
+
   // Validate stateId
   const validation = validateStateId(stateId);
   if (!validation.isValid) {
@@ -975,11 +1007,72 @@ export async function getMeetings(args) {
     };
   }
 
+  // If teamId is provided, first get the meetingInfoIds for that team
+  let meetingInfoIds = null;
+  let meetingInfosMap = new Map();
+  if (teamId) {
+    const meetingInfosQuery = `
+      query {
+        meetingInfos(filter: {teamId: {equalTo: "${teamId}"}, stateId: {equalTo: "ACTIVE"}}) {
+          nodes {
+            id
+            name
+            teamId
+            team {
+              id
+              name
+            }
+          }
+        }
+      }
+    `;
+
+    const meetingInfosResult = await callSuccessCoGraphQL(meetingInfosQuery);
+    if (!meetingInfosResult.ok) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error fetching meeting infos: ${meetingInfosResult.error}`,
+          },
+        ],
+      };
+    }
+
+    const meetingInfoNodes =
+      meetingInfosResult.data?.data?.meetingInfos?.nodes || [];
+    meetingInfoIds = meetingInfoNodes.map((mi) => mi.id);
+
+    // Store meetingInfo data in a map for later lookup
+    meetingInfoNodes.forEach((mi) => {
+      meetingInfosMap.set(mi.id, mi);
+    });
+
+    if (meetingInfoIds.length === 0) {
+      // No meeting infos found for this team, return empty result
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              totalCount: 0,
+              results: [],
+            }),
+          },
+        ],
+      };
+    }
+  }
+
   const filterItems = [`stateId: {equalTo: "${stateId}"}`];
 
   // Add meetingInfoId filter if provided
   if (meetingInfoId) {
     filterItems.push(`meetingInfoId: {equalTo: "${meetingInfoId}"}`);
+  } else if (meetingInfoIds && meetingInfoIds.length > 0) {
+    // Filter by the meetingInfoIds we found for the team
+    const meetingInfoIdsStr = meetingInfoIds.map((id) => `"${id}"`).join(", ");
+    filterItems.push(`meetingInfoId: {in: [${meetingInfoIdsStr}]}`);
   }
 
   // Add date filters
@@ -1000,7 +1093,7 @@ export async function getMeetings(args) {
 
   const query = `
     query {
-      meetings(${filterStr}) {
+      meetings(${filterStr}, orderBy: DATE_DESC) {
         nodes {
           id
           meetingInfoId
@@ -1024,22 +1117,67 @@ export async function getMeetings(args) {
   }
 
   const data = result.data;
+
+  // If we have meetings but no meetingInfo data yet (e.g., when querying by meetingInfoId directly),
+  // fetch the missing meetingInfo data
+  const meetings = data.data.meetings.nodes;
+  const missingMeetingInfoIds = meetings
+    .map((m) => m.meetingInfoId)
+    .filter((id) => id && !meetingInfosMap.has(id));
+
+  if (missingMeetingInfoIds.length > 0) {
+    const uniqueIds = [...new Set(missingMeetingInfoIds)];
+    const meetingInfoIdsStr = uniqueIds.map((id) => `"${id}"`).join(", ");
+    const additionalMeetingInfosQuery = `
+      query {
+        meetingInfos(filter: {id: {in: [${meetingInfoIdsStr}]}}) {
+          nodes {
+            id
+            name
+            teamId
+            team {
+              id
+              name
+            }
+          }
+        }
+      }
+    `;
+
+    const additionalResult = await callSuccessCoGraphQL(
+      additionalMeetingInfosQuery
+    );
+    if (additionalResult.ok) {
+      const additionalNodes =
+        additionalResult.data?.data?.meetingInfos?.nodes || [];
+      additionalNodes.forEach((mi) => {
+        meetingInfosMap.set(mi.id, mi);
+      });
+    }
+  }
+
   return {
     content: [
       {
         type: "text",
         text: JSON.stringify({
           totalCount: data.data.meetings.totalCount,
-          results: data.data.meetings.nodes.map((meeting) => ({
-            id: meeting.id,
-            meetingInfoId: meeting.meetingInfoId,
-            date: meeting.date,
-            startTime: meeting.startTime,
-            endTime: meeting.endTime,
-            averageRating: meeting.averageRating,
-            status: meeting.meetingStatusId,
-            createdAt: meeting.createdAt,
-          })),
+          results: meetings.map((meeting) => {
+            const meetingInfo = meetingInfosMap.get(meeting.meetingInfoId);
+            return {
+              id: meeting.id,
+              meetingInfoId: meeting.meetingInfoId,
+              meetingInfoName: meetingInfo?.name,
+              teamId: meetingInfo?.teamId,
+              teamName: meetingInfo?.team?.name,
+              date: meeting.date,
+              startTime: meeting.startTime,
+              endTime: meeting.endTime,
+              averageRating: meeting.averageRating,
+              status: meeting.meetingStatusId,
+              createdAt: meeting.createdAt,
+            };
+          }),
         }),
       },
     ],

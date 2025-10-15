@@ -257,11 +257,21 @@ const toolDefinitions = [
   {
     name: "getMeetings",
     description:
-      "List Success.co meetings with optional date filtering and meeting series filtering",
-    handler: async ({ first, offset, meetingInfoId, dateAfter, dateBefore }) =>
+      "List Success.co meetings. IMPORTANT: Either teamId or forLeadershipTeam is REQUIRED. Use forLeadershipTeam=true to automatically filter by the leadership team. Supports filtering by team, meeting series, and dates.",
+    handler: async ({
+      first,
+      offset,
+      teamId,
+      forLeadershipTeam,
+      meetingInfoId,
+      dateAfter,
+      dateBefore,
+    }) =>
       await getMeetings({
         first,
         offset,
+        teamId,
+        forLeadershipTeam,
         meetingInfoId,
         dateAfter,
         dateBefore,
@@ -269,6 +279,18 @@ const toolDefinitions = [
     schema: {
       first: z.number().int().optional().describe("Optional page size"),
       offset: z.number().int().optional().describe("Optional offset"),
+      teamId: z
+        .string()
+        .optional()
+        .describe(
+          "Filter by team ID (either this or forLeadershipTeam is required)"
+        ),
+      forLeadershipTeam: z
+        .boolean()
+        .optional()
+        .describe(
+          "If true, automatically use the leadership team ID (shortcut instead of calling getTeams first; either this or teamId is required)"
+        ),
       meetingInfoId: z
         .string()
         .optional()
