@@ -3197,12 +3197,13 @@ export async function getScorecardMeasurables(args) {
     teamId: providedTeamId,
     leadershipTeam = false,
     userId,
-    type,
+    type = "weekly",
     dataFieldId,
     keyword,
     startDate,
     endDate,
     periods = 13,
+    status = "ACTIVE",
   } = args;
 
   // Resolve teamId if leadershipTeam is true
@@ -3289,6 +3290,11 @@ export async function getScorecardMeasurables(args) {
 
     // Get data fields (KPIs) directly with GraphQL query
     const filterParts = [`stateId: {equalTo: "${stateId}"}`];
+
+    // If status is provided and not "ALL", filter by dataFieldStatusId
+    if (status && status !== "ALL") {
+      filterParts.push(`dataFieldStatusId: {equalTo: "${status}"}`);
+    }
 
     // If specific dataFieldId is provided, filter by it
     if (dataFieldId) {
@@ -3519,11 +3525,23 @@ export async function getScorecardMeasurables(args) {
       // Sort values by date (most recent first)
       const sortedValues = sortValuesByDate(fieldValues);
 
+      // Rename dataFieldStatusId to status
+      const { dataFieldStatusId, ...fieldWithoutStatusId } = field;
+
+      // Calculate timeframe based on the field's actual type
+      const fieldTypeMapping = {
+        WEEKLY: "weeks",
+        MONTHLY: "months",
+        QUARTERLY: "quarters",
+        ANNUALLY: "years",
+      };
+      const fieldTimeframe = fieldTypeMapping[field.type] || "weeks";
+
       return {
-        ...field,
+        ...fieldWithoutStatusId,
+        status: dataFieldStatusId,
         values: sortedValues,
-        type,
-        timeframe,
+        timeframe: fieldTimeframe,
       };
     });
 

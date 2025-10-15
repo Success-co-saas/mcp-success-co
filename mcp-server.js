@@ -601,7 +601,7 @@ const toolDefinitions = [
   {
     name: "getScorecardMeasurables",
     description:
-      "Get scorecard data (KPIs) with their values. Use leadershipTeam=true to automatically filter by the leadership team. Provides comprehensive scorecard analysis with data fields and their corresponding values. Supports flexible date filtering: use startDate/endDate for precise ranges, or use periods/type for relative periods (e.g., 'last 13 weeks', 'last 6 months'). Defaults to last 13 weeks of data when no date parameters are provided.",
+      "Get scorecard data (KPIs) with their values. Use leadershipTeam=true to automatically filter by the leadership team. Provides comprehensive scorecard analysis with data fields and their corresponding values. Supports flexible date filtering: use startDate/endDate for precise ranges, or use periods/type for relative periods (e.g., 'last 13 weeks', 'last 6 months'). Defaults to last 13 weeks of data when no date parameters are provided. Use status to filter by ACTIVE (default), ARCHIVED, or ALL measurables.",
     handler: async ({
       first,
       offset,
@@ -613,6 +613,7 @@ const toolDefinitions = [
       startDate,
       endDate,
       periods,
+      status,
     }) =>
       await getScorecardMeasurables({
         first,
@@ -625,6 +626,7 @@ const toolDefinitions = [
         startDate,
         endDate,
         periods,
+        status,
       }),
     schema: {
       first: z.number().int().optional().describe("Optional page size"),
@@ -641,7 +643,7 @@ const toolDefinitions = [
         .enum(["weekly", "monthly", "quarterly", "annually"])
         .optional()
         .describe(
-          "Data field type filter (WEEKLY, MONTHLY, QUARTERLY, ANNUALLY). Used with periods parameter when startDate/endDate are not provided."
+          "Data field type filter (defaults to 'weekly'). Used with periods parameter when startDate/endDate are not provided to calculate date ranges."
         ),
       dataFieldId: z
         .string()
@@ -665,6 +667,12 @@ const toolDefinitions = [
         .optional()
         .describe(
           "Number of periods to analyze (defaults to 13). Only used when startDate and endDate are not provided. The actual time span depends on the type parameter (e.g., periods=13 with type='monthly' = 13 months of data)."
+        ),
+      status: z
+        .enum(["ACTIVE", "ARCHIVED", "ALL"])
+        .optional()
+        .describe(
+          "Filter by measurable status (defaults to ACTIVE). Use ACTIVE for active measurables, ARCHIVED for archived measurables, or ALL to include both."
         ),
     },
     required: [],
