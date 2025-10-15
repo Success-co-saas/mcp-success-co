@@ -365,7 +365,7 @@ const toolDefinitions = [
   {
     name: "getIssues",
     description:
-      "List Success.co issues. Use forLeadershipTeam=true to automatically filter by the leadership team. Supports filtering by team, user, status, meeting linkage, and dates.",
+      "List Success.co issues. Use forLeadershipTeam=true to automatically filter by the leadership team. Supports filtering by team, user, status, type, meeting linkage, and dates.",
     handler: async ({
       first,
       offset,
@@ -373,6 +373,7 @@ const toolDefinitions = [
       forLeadershipTeam,
       userId,
       status,
+      type,
       fromMeetings,
       createdAfter,
       createdBefore,
@@ -385,6 +386,7 @@ const toolDefinitions = [
         forLeadershipTeam,
         userId,
         status,
+        type,
         fromMeetings,
         createdAfter,
         createdBefore,
@@ -407,6 +409,13 @@ const toolDefinitions = [
         .default("TODO")
         .describe(
           'Filter by status: "TODO" for open issues (default), "COMPLETE" for completed/resolved issues, "ALL" for all issues regardless of status'
+        ),
+      type: z
+        .enum(["Short-term", "Long-term", "ALL"])
+        .optional()
+        .default("Short-term")
+        .describe(
+          'Filter by type: "Short-term" for immediate issues (default), "Long-term" for strategic issues, "ALL" for all types'
         ),
       fromMeetings: z
         .boolean()

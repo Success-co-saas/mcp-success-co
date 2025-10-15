@@ -1383,6 +1383,7 @@ export async function getIssues(args) {
     forLeadershipTeam = false,
     userId,
     status = "TODO",
+    type = "Short-term",
     fromMeetings = false,
     keyword,
     createdAfter,
@@ -1425,6 +1426,18 @@ export async function getIssues(args) {
     };
   }
 
+  // Validate type if provided
+  if (type && !["Short-term", "Long-term", "ALL"].includes(type)) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: 'Invalid type - must be "Short-term", "Long-term", or "ALL"',
+        },
+      ],
+    };
+  }
+
   const filterItems = [`stateId: {equalTo: "${stateId}"}`];
 
   // Add teamId filter if provided
@@ -1445,6 +1458,11 @@ export async function getIssues(args) {
   // Add status filter if provided (skip if "ALL")
   if (status && status !== "ALL") {
     filterItems.push(`issueStatusId: {equalTo: "${status}"}`);
+  }
+
+  // Add type filter if provided (skip if "ALL")
+  if (type && type !== "ALL") {
+    filterItems.push(`type: {equalTo: "${type.toLowerCase()}"}`);
   }
 
   // Add meetingId filter if fromMeetings is true
@@ -1514,7 +1532,9 @@ export async function getIssues(args) {
             name: issue.name,
             description: issue.desc || "",
             status: issue.issueStatusId,
-            type: issue.type,
+            type: issue.type
+              ? issue.type.charAt(0).toUpperCase() + issue.type.slice(1)
+              : null,
             priority: issue.priorityNo,
             priorityOrder: issue.priorityOrder,
             teamId: issue.teamId,
