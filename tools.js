@@ -7299,10 +7299,11 @@ export async function getAccountabilityChart({
  * @param {string} args.value - The value to record (required)
  * @param {string} args.startDate - Optional start date (YYYY-MM-DD format). If not provided, defaults to current period.
  * @param {string} args.note - Optional note for the entry
- * @returns {Promise<Object>} The created measurable entry
+ * @param {boolean} args.overwrite - If true, will update existing entry for the same period instead of erroring (optional)
+ * @returns {Promise<Object>} The created or updated measurable entry
  */
 export async function createScorecardMeasurableEntry(args) {
-  const { dataFieldId, value, startDate, note } = args;
+  const { dataFieldId, value, startDate, note, overwrite } = args;
 
   try {
     // Validate required parameters
@@ -7473,7 +7474,7 @@ export async function createScorecardMeasurableEntry(args) {
 
     // Check if an entry already exists for this data field and start date
     const existingEntry = await db`
-      SELECT id, value
+      SELECT id, value, note
       FROM data_values
       WHERE data_field_id = ${dataFieldId}
         AND start_date = ${calculatedStartDate}
@@ -7482,11 +7483,66 @@ export async function createScorecardMeasurableEntry(args) {
     `;
 
     if (existingEntry.length > 0) {
+      // If overwrite is true, update the existing entry
+      if (overwrite) {
+        if (isDevMode) {
+          console.error(
+            `[DEBUG] Existing entry found, overwriting with new value (overwrite flag is true)`
+          );
+        }
+
+        const updateResult = await db`
+          UPDATE data_values
+          SET ${db({ value: String(value), note: note || "" })}
+          WHERE id = ${existingEntry[0].id}
+            AND company_id = ${companyId}
+            AND state_id = 'ACTIVE'
+          RETURNING id, data_field_id, start_date, value, note, updated_at
+        `;
+
+        const updatedEntry = updateResult[0];
+
+        if (isDevMode) {
+          console.error(
+            `[DEBUG] Updated existing measurable entry with ID: ${updatedEntry.id}`
+          );
+        }
+
+        // Format the response for update
+        const response = {
+          success: true,
+          message: `Successfully updated measurable entry for "${dataField.name}" (entry already existed for this period)`,
+          entry: {
+            id: updatedEntry.id,
+            dataFieldId: updatedEntry.data_field_id,
+            dataFieldName: dataField.name,
+            dataFieldType: dataField.type,
+            unitType: dataField.unit_type,
+            startDate: updatedEntry.start_date,
+            value: updatedEntry.value,
+            note: updatedEntry.note || "",
+            updatedAt: updatedEntry.updated_at,
+          },
+          wasUpdated: true,
+          previousValue: existingEntry[0].value,
+        };
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(response, null, 2),
+            },
+          ],
+        };
+      }
+
+      // If overwrite is false, return error
       return {
         content: [
           {
             type: "text",
-            text: `Error: A measurable entry already exists for data field "${dataField.name}" with start date ${calculatedStartDate}. Current value: ${existingEntry[0].value}. Use updateMeasurableEntry to modify existing values.`,
+            text: `Error: A measurable entry already exists for data field "${dataField.name}" with start date ${calculatedStartDate}. Current value: ${existingEntry[0].value}. Use overwrite=true to update it, or use updateScorecardMeasurableEntry to modify existing values.`,
           },
         ],
       };
@@ -7536,6 +7592,7 @@ export async function createScorecardMeasurableEntry(args) {
         note: createdEntry.note || "",
         createdAt: createdEntry.created_at,
       },
+      wasUpdated: false,
     };
 
     return {

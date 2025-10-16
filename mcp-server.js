@@ -1395,19 +1395,20 @@ const toolDefinitions = [
   {
     name: "createScorecardMeasurableEntry",
     description:
-      "Create a new measurable entry (data value) for a scorecard metric. Perfect for queries like 'Add 250 to this week's Revenue metric' or 'Record 15 new leads for October'. The start date is automatically calculated based on the metric's frequency (weekly=Monday, monthly=1st of month, quarterly=quarter start, annually=Jan 1). Use getScorecardMeasurables to find the dataFieldId.",
-    handler: async ({ dataFieldId, value, startDate, note }) =>
+      "Create or update a scorecard measurable entry. Perfect for natural language commands like 'Set Bugs reported by customers to 15' or 'Set Revenue to 5000'. The start date is automatically calculated based on the metric's frequency (weekly=Monday, monthly=1st of month, quarterly=quarter start, annually=Jan 1). With overwrite=true, it will update existing entries for the same period instead of erroring. Use getScorecardMeasurables to find the dataFieldId, or search by metric name.",
+    handler: async ({ dataFieldId, value, startDate, note, overwrite }) =>
       await createScorecardMeasurableEntry({
         dataFieldId,
         value,
         startDate,
         note,
+        overwrite,
       }),
     schema: {
       dataFieldId: z
         .string()
         .describe(
-          "Data field (measurable) ID (required). Use getScorecardMeasurables to find available metrics and their IDs."
+          "Data field (measurable) ID (required). Use getScorecardMeasurables to find available metrics and their IDs, or search by metric name."
         ),
       value: z
         .string()
@@ -1425,6 +1426,12 @@ const toolDefinitions = [
         .optional()
         .describe(
           "Optional note to attach to this entry (e.g., explanation of the value, context, etc.)"
+        ),
+      overwrite: z
+        .boolean()
+        .optional()
+        .describe(
+          "If true, will update any existing entry for the same period instead of returning an error. Perfect for 'Set X to Y' commands where you want to ensure the value is set regardless of whether an entry exists. Defaults to false."
         ),
     },
     required: ["dataFieldId", "value"],
