@@ -57,9 +57,7 @@ export async function getOrgCheckups(args) {
       orgCheckups(${filterStr}) {
         nodes {
           id
-          name
           orgCheckupStatusId
-          score
           createdAt
           updatedAt
           stateId
@@ -87,7 +85,7 @@ export async function getOrgCheckups(args) {
               id
               orgCheckupId
               questionNumber
-              answer
+              answerValue
               createdAt
               updatedAt
             }

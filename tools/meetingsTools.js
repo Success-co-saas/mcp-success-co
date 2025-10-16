@@ -64,17 +64,6 @@ export async function getMeetings(args) {
     }
   }
 
-  if (!teamId) {
-    return {
-      content: [
-        {
-          type: "text",
-          text: "Error: Team ID is required. Either provide teamId or set leadershipTeam to true.",
-        },
-      ],
-    };
-  }
-
   // Validate stateId
   const validation = validateStateId(stateId);
   if (!validation.isValid) {
@@ -304,82 +293,91 @@ export async function getMeetingInfos(args) {
     }
   }
 
+  // Validate stateId
+  const validation = validateStateId(stateId);
+  if (!validation.isValid) {
+    return {
+      content: [{ type: "text", text: validation.error }],
+    };
+  }
+
+  // Build filter
+  const filterItems = [`stateId: {equalTo: "${stateId}"}`];
+  if (teamId) {
+    filterItems.push(`teamId: {equalTo: "${teamId}"}`);
+  }
+  if (meetingInfoStatusId) {
+    filterItems.push(
+      `meetingInfoStatusId: {equalTo: "${meetingInfoStatusId}"}`
+    );
+  }
+
+  const filterStr = filterItems.join(", ");
+
   const query = `
-    query GetMeetingInfos($first: Int, $offset: Int, $stateId: String, $teamId: String, $meetingInfoStatusId: String) {
-      meetingInfos(
-        first: $first
-        offset: $offset
-        where: {
-          stateId: { equals: $stateId }
-          ${teamId ? "teamId: { equals: $teamId }" : ""}
-          ${
-            meetingInfoStatusId
-              ? "meetingInfoStatusId: { equals: $meetingInfoStatusId }"
-              : ""
+    query {
+      meetingInfos(filter: {${filterStr}}, first: ${first}, offset: ${offset}, orderBy: CREATED_AT_DESC) {
+        nodes {
+          id
+          name
+          desc
+          meetingAgendaId
+          teamId
+          meetingInfoStatusId
+          meetingRepeatsId
+          createdAt
+          isBulkUpdate
+          stateId
+          companyId
+          ownerUserId
+          repeatInterval
+          repeatUnit
+          selectedDays
+          team {
+            id
+            name
+            desc
+            color
+            isLeadership
+          }
+          meetingAgenda {
+            id
+            name
+            desc
+            meetingAgendaStatusId
+            meetingRepeatsId
+            builtIn
+            meetingAgendaTypeId
+            facilitatorUserId
+            scribeUserId
           }
         }
-        orderBy: { createdAt: desc }
-      ) {
-        id
-        name
-        desc
-        meetingAgendaId
-        teamId
-        meetingInfoStatusId
-        meetingRepeatsId
-        createdAt
-        isBulkUpdate
-        stateId
-        companyId
-        ownerUserId
-        repeatInterval
-        repeatUnit
-        selectedDays
-        team {
-          id
-          name
-          desc
-          color
-          isLeadership
-        }
-        meetingAgenda {
-          id
-          name
-          desc
-          meetingAgendaStatusId
-          meetingRepeatsId
-          builtIn
-          meetingAgendaTypeId
-          facilitatorUserId
-          scribeUserId
-        }
-        owner {
-          id
-          firstName
-          lastName
-          email
-          jobTitle
-        }
-        meetingInfoStatus {
-          id
-          name
-          color
-          type
-          order
-        }
+        totalCount
       }
     }
   `;
 
-  const variables = {
-    first,
-    offset,
-    stateId,
-    ...(teamId && { teamId }),
-    ...(meetingInfoStatusId && { meetingInfoStatusId }),
-  };
+  const result = await callSuccessCoGraphQL(query);
+  if (!result.ok) {
+    return { content: [{ type: "text", text: result.error }] };
+  }
 
-  return await callSuccessCoGraphQL(query, variables);
+  const data = result.data;
+  return {
+    content: [
+      {
+        type: "text",
+        text: JSON.stringify(
+          {
+            totalCount: data.data.meetingInfos.totalCount,
+            results: data.data.meetingInfos.nodes,
+          },
+          null,
+          2
+        ),
+      },
+    ],
+  };
 }
 
 /**
@@ -1091,7 +1089,7 @@ export async function createMeeting(args) {
  * @returns {Promise<{content: Array<{type: string, text: string}>}>}
  */
 export async function updateMeeting(args) {
-  const { meetingId, date, state } = args;
+  const { meetingId, date, state, name, meetingStatusId } = args;
 
   if (!meetingId) {
     return {
@@ -1140,6 +1138,7 @@ export async function updateMeeting(args) {
           id
           date
           meetingInfoId
+          meetingStatusId
           stateId
         }
       }
@@ -1149,6 +1148,7 @@ export async function updateMeeting(args) {
   const updates = {};
   if (date) updates.date = date;
   if (state) updates.stateId = state;
+  if (meetingStatusId) updates.meetingStatusId = meetingStatusId;
 
   if (Object.keys(updates).length === 0) {
     return {

@@ -54,9 +54,7 @@ export async function getPeopleAnalyzerSessions(args) {
 
   const filterItems = [`stateId: {equalTo: "${stateId}"}`];
 
-  if (teamId) {
-    filterItems.push(`teamId: {equalTo: "${teamId}"}`);
-  }
+  // Note: teamId field doesn't exist on PeopleAnalyzerSession
   if (sessionId) {
     filterItems.push(`id: {equalTo: "${sessionId}"}`);
   }
@@ -81,7 +79,6 @@ export async function getPeopleAnalyzerSessions(args) {
         nodes {
           id
           name
-          teamId
           peopleAnalyzerSessionStatusId
           createdAt
           updatedAt
@@ -103,22 +100,9 @@ export async function getPeopleAnalyzerSessions(args) {
   // For each session, get the user scores
   const sessionsWithScores = await Promise.all(
     sessions.map(async (session) => {
-      const scoresQuery = `
+      // First get the session users
+      const usersQuery = `
         query {
-          peopleAnalyzerSessionUsersScores(filter: {peopleAnalyzerSessionId: {equalTo: "${session.id}"}}) {
-            nodes {
-              id
-              peopleAnalyzerSessionUserId
-              peopleAnalyzerSessionId
-              rightPerson
-              rightSeat
-              getsIt
-              wantsIt
-              capacityToDoIt
-              createdAt
-              updatedAt
-            }
-          }
           peopleAnalyzerSessionUsers(filter: {peopleAnalyzerSessionId: {equalTo: "${session.id}"}}) {
             nodes {
               id
@@ -130,15 +114,46 @@ export async function getPeopleAnalyzerSessions(args) {
         }
       `;
 
-      const scoresResult = await callSuccessCoGraphQL(scoresQuery);
-      if (!scoresResult.ok) {
+      const usersResult = await callSuccessCoGraphQL(usersQuery);
+      if (!usersResult.ok) {
         return { ...session, users: [], scores: [] };
       }
 
+      const users = usersResult.data.data.peopleAnalyzerSessionUsers.nodes;
+
+      // Then get scores for each user
+      const scoresPromises = users.map(async (user) => {
+        const scoresQuery = `
+          query {
+            peopleAnalyzerSessionUsersScores(filter: {peopleAnalyzerSessionUserId: {equalTo: "${user.id}"}}) {
+              nodes {
+                id
+                peopleAnalyzerSessionUserId
+                rightPerson
+                rightSeat
+                getsIt
+                wantsIt
+                capacityToDoIt
+                createdAt
+                updatedAt
+              }
+            }
+          }
+        `;
+
+        const scoresResult = await callSuccessCoGraphQL(scoresQuery);
+        return scoresResult.ok
+          ? scoresResult.data.data.peopleAnalyzerSessionUsersScores.nodes
+          : [];
+      });
+
+      const allScores = await Promise.all(scoresPromises);
+      const flatScores = allScores.flat();
+
       return {
         ...session,
-        users: scoresResult.data.data.peopleAnalyzerSessionUsers.nodes,
-        scores: scoresResult.data.data.peopleAnalyzerSessionUsersScores.nodes,
+        users: users,
+        scores: flatScores,
       };
     })
   );

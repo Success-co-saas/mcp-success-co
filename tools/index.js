@@ -20,6 +20,12 @@ export {
   getIsDevMode,
 } from "./core.js";
 
+// Error handling
+export * from "./errors.js";
+
+// Common helpers
+export * from "./commonHelpers.js";
+
 // Teams
 export { getTeams } from "./teamsTools.js";
 

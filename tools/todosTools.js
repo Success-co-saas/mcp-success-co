@@ -7,7 +7,11 @@ import {
   getSuccessCoApiKey,
   getContextForApiKey,
 } from "./core.js";
-import { validateStateId } from "../helpers.js";
+import {
+  validateStateId,
+  mapPriorityToNumber,
+  mapPriorityToText,
+} from "../helpers.js";
 
 /**
  * List Success.co todos
@@ -223,6 +227,7 @@ export async function createTodo(args) {
     desc = "",
     userId: providedUserId,
     dueDate,
+    priority = "Medium",
   } = args;
 
   // Always set todoStatusId to TODO for new todos
@@ -317,6 +322,7 @@ export async function createTodo(args) {
     name,
     desc,
     todoStatusId,
+    priorityNo: mapPriorityToNumber(priority),
     teamId,
     userId,
     companyId,

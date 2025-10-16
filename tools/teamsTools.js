@@ -39,7 +39,7 @@ export async function getTeams(args) {
 
   const query = `
     query {
-      teams(${filterStr ? `filter: {${filterStr}}` : ""}) {
+      teams(${filterStr}) {
         nodes {
           id
           badgeUrl
