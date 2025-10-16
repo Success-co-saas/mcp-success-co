@@ -119,3 +119,32 @@ for (let i = 0; i < items.length; i += batchSize) {
 5. **Use proper GraphQL response structure**
 6. **Handle errors gracefully with meaningful messages**
 7. **Log queries and responses for debugging (in dev mode)**
+
+## Documentation Guidelines
+
+### ❌ DO NOT Create Documentation Files Unless Explicitly Asked
+
+**IMPORTANT**: Do not proactively create .md files (README, summaries, feature docs, etc.) unless the user specifically requests documentation.
+
+**Why:**
+
+- Creates unnecessary clutter in the repository
+- User may not want or need all documentation
+- Let the user decide what documentation is valuable
+
+**Exceptions:**
+
+- User explicitly asks for documentation: "Create a README for this"
+- User asks for a summary: "Write up a summary of what we did"
+- Critical technical notes that affect future development (add to this AI_NOTES.md file instead)
+
+**What to do instead:**
+
+- Provide verbal summaries in the chat
+- Update existing documentation if it already exists
+- Ask the user if they want documentation created
+
+**Example:**
+
+- ❌ "I've created FEATURE_NAME.md to document this change"
+- ✅ "The feature is complete. Would you like me to create documentation for it?"
