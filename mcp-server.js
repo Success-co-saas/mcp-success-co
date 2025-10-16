@@ -44,6 +44,8 @@ import {
   updateRock,
   updateHeadline,
   updateMeeting,
+  createScorecardMeasurableEntry,
+  updateScorecardMeasurableEntry,
   logToolCallStart,
   logToolCallEnd,
 } from "./tools.js";
@@ -1389,6 +1391,81 @@ const toolDefinitions = [
         ),
     },
     required: ["meetingId"],
+  },
+  {
+    name: "createScorecardMeasurableEntry",
+    description:
+      "Create a new measurable entry (data value) for a scorecard metric. Perfect for queries like 'Add 250 to this week's Revenue metric' or 'Record 15 new leads for October'. The start date is automatically calculated based on the metric's frequency (weekly=Monday, monthly=1st of month, quarterly=quarter start, annually=Jan 1). Use getScorecardMeasurables to find the dataFieldId.",
+    handler: async ({ dataFieldId, value, startDate, note }) =>
+      await createScorecardMeasurableEntry({
+        dataFieldId,
+        value,
+        startDate,
+        note,
+      }),
+    schema: {
+      dataFieldId: z
+        .string()
+        .describe(
+          "Data field (measurable) ID (required). Use getScorecardMeasurables to find available metrics and their IDs."
+        ),
+      value: z
+        .string()
+        .describe(
+          "The value to record (required). Can be a number, currency amount, percentage, etc. depending on the metric's unit type."
+        ),
+      startDate: z
+        .string()
+        .optional()
+        .describe(
+          "Optional start date in YYYY-MM-DD format. If not provided, defaults to current period (this week's Monday for weekly metrics, first of this month for monthly metrics, current quarter start for quarterly metrics, Jan 1 of this year for annual metrics)."
+        ),
+      note: z
+        .string()
+        .optional()
+        .describe(
+          "Optional note to attach to this entry (e.g., explanation of the value, context, etc.)"
+        ),
+    },
+    required: ["dataFieldId", "value"],
+  },
+  {
+    name: "updateScorecardMeasurableEntry",
+    description:
+      "Update an existing scorecard measurable entry (data value). Perfect for queries like 'Change the Revenue entry from last week to 300' or 'Update the note on this month's leads entry'. The start date will be automatically aligned if changed. Use getScorecardMeasurables to find entries and their IDs.",
+    handler: async ({ entryId, value, startDate, note }) =>
+      await updateScorecardMeasurableEntry({
+        entryId,
+        value,
+        startDate,
+        note,
+      }),
+    schema: {
+      entryId: z
+        .string()
+        .describe(
+          "Entry ID (required). This is the ID of the data_values record to update. Use getScorecardMeasurables to find entry IDs."
+        ),
+      value: z
+        .string()
+        .optional()
+        .describe(
+          "The new value to record. Can be a number, currency amount, percentage, etc. depending on the metric's unit type."
+        ),
+      startDate: z
+        .string()
+        .optional()
+        .describe(
+          "Update the start date in YYYY-MM-DD format. Will be automatically aligned based on the metric's frequency (weekly=Monday, monthly=1st of month, etc.). Cannot conflict with another entry for the same metric."
+        ),
+      note: z
+        .string()
+        .optional()
+        .describe(
+          "Update the note. Can be set to empty string to clear the note."
+        ),
+    },
+    required: ["entryId"],
   },
 ];
 

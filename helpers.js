@@ -257,3 +257,208 @@ export async function getLastDateOfCurrentQuarter(companyId, db, isDevMode) {
     return null;
   }
 }
+
+/**
+ * Get the Monday of the week containing the given date
+ * @param {Date} date - The date to get Monday for
+ * @returns {string} - Date in YYYY-MM-DD format
+ */
+export function getMondayOfWeek(date) {
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Adjust when day is Sunday
+  const monday = new Date(d.setDate(diff));
+
+  const year = monday.getFullYear();
+  const month = String(monday.getMonth() + 1).padStart(2, "0");
+  const dayOfMonth = String(monday.getDate()).padStart(2, "0");
+  return `${year}-${month}-${dayOfMonth}`;
+}
+
+/**
+ * Get the first day of the month containing the given date
+ * @param {Date} date - The date to get first day of month for
+ * @returns {string} - Date in YYYY-MM-DD format
+ */
+export function getFirstDayOfMonth(date) {
+  const d = new Date(date);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  return `${year}-${month}-01`;
+}
+
+/**
+ * Get the first day of the year containing the given date
+ * @param {Date} date - The date to get first day of year for
+ * @returns {string} - Date in YYYY-MM-DD format
+ */
+export function getFirstDayOfYear(date) {
+  const d = new Date(date);
+  const year = d.getFullYear();
+  return `${year}-01-01`;
+}
+
+/**
+ * Get the quarter start date for a given date based on company quarter dates
+ * @param {Date} date - The date to find quarter start for
+ * @param {Array} quarterDates - Array of 4 Date objects representing quarter start dates
+ * @returns {string} - Date in YYYY-MM-DD format
+ */
+export function getQuarterStartDate(date, quarterDates) {
+  const d = new Date(date);
+  const currentYear = d.getFullYear();
+
+  // Convert quarter dates to current year
+  const quartersThisYear = quarterDates.map((qDate) => {
+    const qd = new Date(qDate);
+    return new Date(currentYear, qd.getMonth(), qd.getDate());
+  });
+
+  // Find the most recent quarter start date that is <= the given date
+  let quarterStartDate = null;
+  for (let i = quartersThisYear.length - 1; i >= 0; i--) {
+    if (quartersThisYear[i] <= d) {
+      quarterStartDate = quartersThisYear[i];
+      break;
+    }
+  }
+
+  // If no quarter found (date is before Q1), use Q4 of previous year
+  if (!quarterStartDate) {
+    const q4Date = new Date(quarterDates[3]);
+    quarterStartDate = new Date(
+      currentYear - 1,
+      q4Date.getMonth(),
+      q4Date.getDate()
+    );
+  }
+
+  const year = quarterStartDate.getFullYear();
+  const month = String(quarterStartDate.getMonth() + 1).padStart(2, "0");
+  const dayOfMonth = String(quarterStartDate.getDate()).padStart(2, "0");
+  return `${year}-${month}-${dayOfMonth}`;
+}
+
+/**
+ * Calculate the appropriate start_date for a data field based on its type
+ * @param {string} dataFieldType - The type of data field (WEEKLY, MONTHLY, QUARTERLY, ANNUALLY)
+ * @param {string|null} providedStartDate - Optional start date provided by user (YYYY-MM-DD)
+ * @param {string} companyId - The company ID
+ * @param {Object} db - Database connection object
+ * @param {boolean} isDevMode - Whether debug mode is enabled
+ * @returns {Promise<string>} - Calculated start date in YYYY-MM-DD format
+ */
+export async function calculateStartDateForDataField(
+  dataFieldType,
+  providedStartDate,
+  companyId,
+  db,
+  isDevMode
+) {
+  // If start date is provided, validate and align it
+  const dateToAlign = providedStartDate
+    ? new Date(providedStartDate)
+    : new Date();
+
+  if (isDevMode) {
+    console.error(
+      `[DEBUG] Calculating start date for type: ${dataFieldType}, provided: ${providedStartDate}`
+    );
+  }
+
+  switch (dataFieldType) {
+    case "WEEKLY":
+      // Must be a Monday
+      return getMondayOfWeek(dateToAlign);
+
+    case "MONTHLY":
+      // Must be the first day of the month
+      return getFirstDayOfMonth(dateToAlign);
+
+    case "QUARTERLY":
+      // Must align with company quarter dates
+      if (!db) {
+        throw new Error(
+          "Database connection required for quarterly data fields"
+        );
+      }
+
+      // Fetch company quarter dates
+      const result = await db`
+        SELECT quarter_one_date, quarter_two_date, quarter_three_date, quarter_four_date
+        FROM companies
+        WHERE id = ${companyId}
+        LIMIT 1
+      `;
+
+      if (result.length === 0) {
+        throw new Error(`Company not found: ${companyId}`);
+      }
+
+      const company = result[0];
+      const quarterDates = [
+        company.quarter_one_date,
+        company.quarter_two_date,
+        company.quarter_three_date,
+        company.quarter_four_date,
+      ];
+
+      // Validate that all quarter dates exist
+      if (quarterDates.some((d) => !d)) {
+        throw new Error(
+          "Company has missing quarter dates. All four quarters must be configured."
+        );
+      }
+
+      return getQuarterStartDate(dateToAlign, quarterDates);
+
+    case "ANNUALLY":
+      // Must be the first day of the year
+      return getFirstDayOfYear(dateToAlign);
+
+    default:
+      throw new Error(`Unknown data field type: ${dataFieldType}`);
+  }
+}
+
+/**
+ * Validate a measurable value based on unit type
+ * @param {string} value - The value to validate
+ * @param {string} unitType - The unit type (number, currency, percentage, etc.)
+ * @returns {Object} - Validation result with isValid boolean and error message if invalid
+ */
+export function validateMeasurableValue(value, unitType) {
+  if (value === null || value === undefined || value === "") {
+    return {
+      isValid: false,
+      error: "Value is required and cannot be empty",
+    };
+  }
+
+  const valueStr = String(value).trim();
+
+  // For most unit types, we expect a numeric value
+  // Common unit types: number, currency, percentage, dollar, euro, etc.
+  if (
+    unitType === "number" ||
+    unitType === "currency" ||
+    unitType === "percentage" ||
+    unitType === "dollar" ||
+    unitType === "euro" ||
+    unitType === "pound"
+  ) {
+    // Check if it's a valid number (can include decimals, negative numbers)
+    const numericValue = valueStr.replace(/[,$%€£]/g, ""); // Remove common currency/percentage symbols
+    if (isNaN(parseFloat(numericValue))) {
+      return {
+        isValid: false,
+        error: `Value must be numeric for unit type '${unitType}'. Got: '${value}'`,
+      };
+    }
+  }
+
+  // Additional validation could be added for other unit types here
+  // For now, we'll accept any non-empty value for other unit types
+
+  return { isValid: true };
+}

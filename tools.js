@@ -12,6 +12,8 @@ import {
   mapRockTypeToLowercase,
   clearDebugLog,
   getLastDateOfCurrentQuarter,
+  calculateStartDateForDataField,
+  validateMeasurableValue,
 } from "./helpers.js";
 import postgres from "postgres";
 
@@ -7282,6 +7284,512 @@ export async function getAccountabilityChart({
         {
           type: "text",
           text: `Error fetching accountability chart: ${error.message}`,
+        },
+      ],
+    };
+  }
+}
+
+/**
+ * Create a new scorecard measurable entry (data value) for a scorecard metric
+ * This creates a new record in the data_values table
+ *
+ * @param {Object} args - Parameters for creating the measurable entry
+ * @param {string} args.dataFieldId - The data field (measurable) ID (required)
+ * @param {string} args.value - The value to record (required)
+ * @param {string} args.startDate - Optional start date (YYYY-MM-DD format). If not provided, defaults to current period.
+ * @param {string} args.note - Optional note for the entry
+ * @returns {Promise<Object>} The created measurable entry
+ */
+export async function createScorecardMeasurableEntry(args) {
+  const { dataFieldId, value, startDate, note } = args;
+
+  try {
+    // Validate required parameters
+    if (!dataFieldId) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: "Error: dataFieldId is required",
+          },
+        ],
+      };
+    }
+
+    if (value === null || value === undefined || value === "") {
+      return {
+        content: [
+          {
+            type: "text",
+            text: "Error: value is required",
+          },
+        ],
+      };
+    }
+
+    // Get API key context to determine company ID
+    const apiKey = getSuccessCoApiKey();
+    if (!apiKey) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: "Error: No API key configured. Please set an API key first using the setSuccessCoApiKey tool.",
+          },
+        ],
+      };
+    }
+
+    const context = await getContextForApiKey(apiKey);
+    if (!context) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: "Error: Could not determine user context from API key",
+          },
+        ],
+      };
+    }
+
+    const { companyId } = context;
+
+    // Get the data field to determine its type and unit_type
+    const db = getDatabase();
+    if (!db) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: "Error: Database connection is required for creating measurable entries",
+          },
+        ],
+      };
+    }
+
+    const dataFieldResult = await db`
+      SELECT id, type, unit_type, name, company_id
+      FROM data_fields
+      WHERE id = ${dataFieldId}
+        AND company_id = ${companyId}
+        AND state_id = 'ACTIVE'
+      LIMIT 1
+    `;
+
+    if (dataFieldResult.length === 0) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error: Data field not found with ID: ${dataFieldId}`,
+          },
+        ],
+      };
+    }
+
+    const dataField = dataFieldResult[0];
+
+    // Validate the value based on unit_type
+    const validation = validateMeasurableValue(value, dataField.unit_type);
+    if (!validation.isValid) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error: ${validation.error}`,
+          },
+        ],
+      };
+    }
+
+    // Calculate the appropriate start_date based on data field type
+    let calculatedStartDate;
+    try {
+      calculatedStartDate = await calculateStartDateForDataField(
+        dataField.type,
+        startDate,
+        companyId,
+        db,
+        isDevMode
+      );
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error calculating start date: ${error.message}`,
+          },
+        ],
+      };
+    }
+
+    if (isDevMode) {
+      console.error(
+        `[DEBUG] Creating measurable entry for data field: ${dataField.name} (${dataFieldId})`
+      );
+      console.error(
+        `[DEBUG] Value: ${value}, Start date: ${calculatedStartDate}`
+      );
+      console.error(
+        `[DEBUG] Data field type: ${dataField.type}, Unit type: ${dataField.unit_type}`
+      );
+    }
+
+    // Check if an entry already exists for this data field and start date
+    const existingEntry = await db`
+      SELECT id, value
+      FROM data_values
+      WHERE data_field_id = ${dataFieldId}
+        AND start_date = ${calculatedStartDate}
+        AND state_id = 'ACTIVE'
+      LIMIT 1
+    `;
+
+    if (existingEntry.length > 0) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error: A measurable entry already exists for data field "${dataField.name}" with start date ${calculatedStartDate}. Current value: ${existingEntry[0].value}. Use updateMeasurableEntry to modify existing values.`,
+          },
+        ],
+      };
+    }
+
+    // Insert the new data value
+    // Note: sync_id and updated_at are automatically set by the database trigger
+    const insertResult = await db`
+      INSERT INTO data_values (
+        data_field_id,
+        start_date,
+        value,
+        company_id,
+        state_id,
+        note
+      ) VALUES (
+        ${dataFieldId},
+        ${calculatedStartDate},
+        ${String(value)},
+        ${companyId},
+        'ACTIVE',
+        ${note || ""}
+      )
+      RETURNING id, data_field_id, start_date, value, note, created_at
+    `;
+
+    const createdEntry = insertResult[0];
+
+    if (isDevMode) {
+      console.error(
+        `[DEBUG] Created measurable entry with ID: ${createdEntry.id}`
+      );
+    }
+
+    // Format the response
+    const response = {
+      success: true,
+      message: `Successfully created measurable entry for "${dataField.name}"`,
+      entry: {
+        id: createdEntry.id,
+        dataFieldId: createdEntry.data_field_id,
+        dataFieldName: dataField.name,
+        dataFieldType: dataField.type,
+        unitType: dataField.unit_type,
+        startDate: createdEntry.start_date,
+        value: createdEntry.value,
+        note: createdEntry.note || "",
+        createdAt: createdEntry.created_at,
+      },
+    };
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(response, null, 2),
+        },
+      ],
+    };
+  } catch (error) {
+    console.error("Error creating measurable entry:", error);
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error creating measurable entry: ${error.message}`,
+        },
+      ],
+    };
+  }
+}
+
+/**
+ * Update an existing scorecard measurable entry (data value)
+ * This updates a record in the data_values table
+ *
+ * @param {Object} args - Parameters for updating the measurable entry
+ * @param {string} args.entryId - The data value entry ID (required)
+ * @param {string} args.value - The new value to record (optional)
+ * @param {string} args.startDate - Update the start date (YYYY-MM-DD format) - will be aligned based on data field type (optional)
+ * @param {string} args.note - Update the note (optional)
+ * @returns {Promise<Object>} The updated measurable entry
+ */
+export async function updateScorecardMeasurableEntry(args) {
+  const { entryId, value, startDate, note } = args;
+
+  try {
+    // Validate required parameters
+    if (!entryId) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: "Error: entryId is required",
+          },
+        ],
+      };
+    }
+
+    // Get API key context to determine company ID
+    const apiKey = getSuccessCoApiKey();
+    if (!apiKey) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: "Error: No API key configured. Please set an API key first using the setSuccessCoApiKey tool.",
+          },
+        ],
+      };
+    }
+
+    const context = await getContextForApiKey(apiKey);
+    if (!context) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: "Error: Could not determine user context from API key",
+          },
+        ],
+      };
+    }
+
+    const { companyId } = context;
+
+    // Get the database connection
+    const db = getDatabase();
+    if (!db) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: "Error: Database connection is required for updating measurable entries",
+          },
+        ],
+      };
+    }
+
+    // Get the existing entry and its data field info
+    const existingEntryResult = await db`
+      SELECT dv.id, dv.data_field_id, dv.start_date, dv.value, dv.note, dv.company_id,
+             df.name as data_field_name, df.type as data_field_type, df.unit_type
+      FROM data_values dv
+      INNER JOIN data_fields df ON df.id = dv.data_field_id
+      WHERE dv.id = ${entryId}
+        AND dv.company_id = ${companyId}
+        AND dv.state_id = 'ACTIVE'
+      LIMIT 1
+    `;
+
+    if (existingEntryResult.length === 0) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error: Measurable entry not found with ID: ${entryId}`,
+          },
+        ],
+      };
+    }
+
+    const existingEntry = existingEntryResult[0];
+
+    if (isDevMode) {
+      console.error(
+        `[DEBUG] Updating measurable entry: ${existingEntry.data_field_name} (${existingEntry.data_field_id})`
+      );
+      console.error(
+        `[DEBUG] Current value: ${existingEntry.value}, Current start date: ${existingEntry.start_date}`
+      );
+    }
+
+    // Prepare update fields
+    const updates = {};
+    let updateQuery = "UPDATE data_values SET ";
+    const updateParts = [];
+    const updateValues = [];
+
+    // Update value if provided
+    if (value !== undefined && value !== null && value !== "") {
+      // Validate the value based on unit_type
+      const validation = validateMeasurableValue(
+        value,
+        existingEntry.unit_type
+      );
+      if (!validation.isValid) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Error: ${validation.error}`,
+            },
+          ],
+        };
+      }
+      updates.value = String(value);
+    }
+
+    // Update start date if provided
+    if (startDate) {
+      try {
+        const calculatedStartDate = await calculateStartDateForDataField(
+          existingEntry.data_field_type,
+          startDate,
+          companyId,
+          db,
+          isDevMode
+        );
+
+        // Check if another entry exists with the new start date (excluding current entry)
+        const conflictCheck = await db`
+          SELECT id, value
+          FROM data_values
+          WHERE data_field_id = ${existingEntry.data_field_id}
+            AND start_date = ${calculatedStartDate}
+            AND id != ${entryId}
+            AND state_id = 'ACTIVE'
+          LIMIT 1
+        `;
+
+        if (conflictCheck.length > 0) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Error: Another measurable entry already exists for data field "${existingEntry.data_field_name}" with start date ${calculatedStartDate}. Conflicting entry ID: ${conflictCheck[0].id}, value: ${conflictCheck[0].value}`,
+              },
+            ],
+          };
+        }
+
+        updates.start_date = calculatedStartDate;
+      } catch (error) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Error calculating start date: ${error.message}`,
+            },
+          ],
+        };
+      }
+    }
+
+    // Update note if provided (allow empty string to clear note)
+    if (note !== undefined) {
+      updates.note = note;
+    }
+
+    // Check if there are any updates to make
+    if (Object.keys(updates).length === 0) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: "Error: No updates provided. Please provide at least one field to update (value, startDate, or note).",
+          },
+        ],
+      };
+    }
+
+    if (isDevMode) {
+      console.error(`[DEBUG] Updates to apply:`, updates);
+    }
+
+    // Build the update query dynamically
+    // Use raw SQL with postgres library for dynamic updates
+    const updateResult = await db`
+      UPDATE data_values
+      SET ${db(updates)}
+      WHERE id = ${entryId}
+        AND company_id = ${companyId}
+        AND state_id = 'ACTIVE'
+      RETURNING id, data_field_id, start_date, value, note, updated_at
+    `;
+
+    if (updateResult.length === 0) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error: Failed to update measurable entry with ID: ${entryId}`,
+          },
+        ],
+      };
+    }
+
+    const updatedEntry = updateResult[0];
+
+    if (isDevMode) {
+      console.error(`[DEBUG] Updated measurable entry successfully`);
+    }
+
+    // Format the response
+    const response = {
+      success: true,
+      message: `Successfully updated measurable entry for "${existingEntry.data_field_name}"`,
+      entry: {
+        id: updatedEntry.id,
+        dataFieldId: updatedEntry.data_field_id,
+        dataFieldName: existingEntry.data_field_name,
+        dataFieldType: existingEntry.data_field_type,
+        unitType: existingEntry.unit_type,
+        startDate: updatedEntry.start_date,
+        value: updatedEntry.value,
+        note: updatedEntry.note || "",
+        updatedAt: updatedEntry.updated_at,
+      },
+      changes: {
+        value: updates.value
+          ? { from: existingEntry.value, to: updates.value }
+          : undefined,
+        startDate: updates.start_date
+          ? { from: existingEntry.start_date, to: updates.start_date }
+          : undefined,
+        note:
+          updates.note !== undefined
+            ? { from: existingEntry.note || "", to: updates.note }
+            : undefined,
+      },
+    };
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(response, null, 2),
+        },
+      ],
+    };
+  } catch (error) {
+    console.error("Error updating measurable entry:", error);
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error updating measurable entry: ${error.message}`,
         },
       ],
     };
