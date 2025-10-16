@@ -7343,11 +7343,28 @@ export async function createScorecardMeasurableEntry(args) {
 
     const context = await getContextForApiKey(apiKey);
     if (!context) {
+      // Get more details about why context lookup failed
+      const db = getDatabase();
+      let errorDetails = "Could not determine user context from API key.";
+
+      if (!db) {
+        errorDetails += " Database is not configured.";
+      } else {
+        errorDetails +=
+          " API key may not exist in database or database query failed.";
+        if (isDevMode) {
+          errorDetails += ` (API key starts with: ${apiKey.substring(
+            0,
+            12
+          )}...)`;
+        }
+      }
+
       return {
         content: [
           {
             type: "text",
-            text: "Error: Could not determine user context from API key",
+            text: `Error: ${errorDetails}`,
           },
         ],
       };
@@ -7419,6 +7436,24 @@ export async function createScorecardMeasurableEntry(args) {
           {
             type: "text",
             text: `Error calculating start date: ${error.message}`,
+          },
+        ],
+      };
+    }
+
+    // Validate that the start date is not in the future
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Set to start of day for comparison
+    const startDateObj = new Date(calculatedStartDate);
+
+    if (startDateObj > today) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error: Cannot create measurable entry with a future date. Calculated start date: ${calculatedStartDate}. Today: ${
+              today.toISOString().split("T")[0]
+            }`,
           },
         ],
       };
@@ -7531,12 +7566,11 @@ export async function createScorecardMeasurableEntry(args) {
  * @param {Object} args - Parameters for updating the measurable entry
  * @param {string} args.entryId - The data value entry ID (required)
  * @param {string} args.value - The new value to record (optional)
- * @param {string} args.startDate - Update the start date (YYYY-MM-DD format) - will be aligned based on data field type (optional)
  * @param {string} args.note - Update the note (optional)
  * @returns {Promise<Object>} The updated measurable entry
  */
 export async function updateScorecardMeasurableEntry(args) {
-  const { entryId, value, startDate, note } = args;
+  const { entryId, value, note } = args;
 
   try {
     // Validate required parameters
@@ -7566,11 +7600,28 @@ export async function updateScorecardMeasurableEntry(args) {
 
     const context = await getContextForApiKey(apiKey);
     if (!context) {
+      // Get more details about why context lookup failed
+      const db = getDatabase();
+      let errorDetails = "Could not determine user context from API key.";
+
+      if (!db) {
+        errorDetails += " Database is not configured.";
+      } else {
+        errorDetails +=
+          " API key may not exist in database or database query failed.";
+        if (isDevMode) {
+          errorDetails += ` (API key starts with: ${apiKey.substring(
+            0,
+            12
+          )}...)`;
+        }
+      }
+
       return {
         content: [
           {
             type: "text",
-            text: "Error: Could not determine user context from API key",
+            text: `Error: ${errorDetails}`,
           },
         ],
       };
@@ -7627,9 +7678,6 @@ export async function updateScorecardMeasurableEntry(args) {
 
     // Prepare update fields
     const updates = {};
-    let updateQuery = "UPDATE data_values SET ";
-    const updateParts = [];
-    const updateValues = [];
 
     // Update value if provided
     if (value !== undefined && value !== null && value !== "") {
@@ -7651,52 +7699,6 @@ export async function updateScorecardMeasurableEntry(args) {
       updates.value = String(value);
     }
 
-    // Update start date if provided
-    if (startDate) {
-      try {
-        const calculatedStartDate = await calculateStartDateForDataField(
-          existingEntry.data_field_type,
-          startDate,
-          companyId,
-          db,
-          isDevMode
-        );
-
-        // Check if another entry exists with the new start date (excluding current entry)
-        const conflictCheck = await db`
-          SELECT id, value
-          FROM data_values
-          WHERE data_field_id = ${existingEntry.data_field_id}
-            AND start_date = ${calculatedStartDate}
-            AND id != ${entryId}
-            AND state_id = 'ACTIVE'
-          LIMIT 1
-        `;
-
-        if (conflictCheck.length > 0) {
-          return {
-            content: [
-              {
-                type: "text",
-                text: `Error: Another measurable entry already exists for data field "${existingEntry.data_field_name}" with start date ${calculatedStartDate}. Conflicting entry ID: ${conflictCheck[0].id}, value: ${conflictCheck[0].value}`,
-              },
-            ],
-          };
-        }
-
-        updates.start_date = calculatedStartDate;
-      } catch (error) {
-        return {
-          content: [
-            {
-              type: "text",
-              text: `Error calculating start date: ${error.message}`,
-            },
-          ],
-        };
-      }
-    }
-
     // Update note if provided (allow empty string to clear note)
     if (note !== undefined) {
       updates.note = note;
@@ -7708,7 +7710,7 @@ export async function updateScorecardMeasurableEntry(args) {
         content: [
           {
             type: "text",
-            text: "Error: No updates provided. Please provide at least one field to update (value, startDate, or note).",
+            text: "Error: No updates provided. Please provide at least one field to update (value or note).",
           },
         ],
       };
@@ -7764,9 +7766,6 @@ export async function updateScorecardMeasurableEntry(args) {
       changes: {
         value: updates.value
           ? { from: existingEntry.value, to: updates.value }
-          : undefined,
-        startDate: updates.start_date
-          ? { from: existingEntry.start_date, to: updates.start_date }
           : undefined,
         note:
           updates.note !== undefined

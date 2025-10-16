@@ -73,7 +73,7 @@ The tool checks if an entry already exists for the same data field and start dat
 
 - **dataFieldId** (required): The UUID of the data field (measurable) to create an entry for
 - **value** (required): The value to record (string, can be numeric)
-- **startDate** (optional): The start date in YYYY-MM-DD format. If not provided, defaults to the current period.
+- **startDate** (optional): The start date in YYYY-MM-DD format. If not provided, defaults to the current period. **Cannot be a future date.**
 - **note** (optional): A note to attach to the entry
 
 #### Example 1: Create entry for current period
@@ -123,10 +123,9 @@ Currency symbols and commas are stripped during validation for numeric types.
 
 - **entryId** (required): The UUID of the data_values entry to update
 - **value** (optional): The new value to record (string, can be numeric)
-- **startDate** (optional): The new start date in YYYY-MM-DD format. Will be aligned based on the metric's frequency type.
 - **note** (optional): The new note (can be empty string to clear)
 
-At least one of `value`, `startDate`, or `note` must be provided.
+At least one of `value` or `note` must be provided. **Note:** Entries cannot be moved to different periods - the startDate is fixed once created.
 
 #### Example 1: Update value only
 
@@ -155,17 +154,6 @@ await updateScorecardMeasurableEntry({
   note: "Final corrected value",
 });
 ```
-
-#### Example 4: Move entry to different period
-
-```javascript
-await updateScorecardMeasurableEntry({
-  entryId: "750e8400-e29b-41d4-a716-446655440000",
-  startDate: "2024-10-21", // Will be aligned to Monday 2024-10-21 for weekly metrics
-});
-```
-
-**Note:** When changing `startDate`, the system checks for conflicts with existing entries for the same metric.
 
 ## Response Format
 
@@ -223,11 +211,11 @@ await updateScorecardMeasurableEntry({
 }
 ```
 
-#### Conflict Error (Update)
+#### Future Date Error (Create)
 
 ```json
 {
-  "error": "Another measurable entry already exists for data field \"Revenue\" with start date 2024-10-21. Conflicting entry ID: 850e8400-e29b-41d4-a716-446655440000, value: 400"
+  "error": "Cannot create measurable entry with a future date. Calculated start date: 2024-10-21. Today: 2024-10-15"
 }
 ```
 
@@ -276,10 +264,11 @@ The test script will:
    - Update value only
    - Update note only
    - Update both value and note
-5. Test duplicate detection (create)
-6. Test validation with invalid values
-7. Test update with no fields provided (should error)
-8. Test update with invalid entry ID
+5. Test future date validation (should error)
+6. Test duplicate detection (create)
+7. Test validation with invalid values
+8. Test update with no fields provided (should error)
+9. Test update with invalid entry ID
 
 ## Key Features
 
@@ -289,6 +278,8 @@ The test script will:
 
 ✅ **Smart defaults** - If no start date is provided, it defaults to the current period
 
+✅ **Future date prevention** - Cannot create entries with future dates
+
 ✅ **Validation** - Light validation based on unit_type ensures numeric values are valid for numeric metrics
 
 ✅ **Duplicate prevention** - Checks if an entry already exists for the same period
@@ -297,15 +288,13 @@ The test script will:
 
 ### updateScorecardMeasurableEntry
 
-✅ **Flexible updates** - Update value, startDate, note, or any combination
-
-✅ **Conflict detection** - Prevents moving entries to periods that already have entries
+✅ **Flexible updates** - Update value, note, or both
 
 ✅ **Validation** - Same validation as create for values
 
 ✅ **Change tracking** - Response includes what changed (from → to)
 
-✅ **Automatic date alignment** - Start dates are aligned when updated just like in create
+✅ **Period locked** - Entries cannot be moved to different periods once created
 
 ## Notes
 

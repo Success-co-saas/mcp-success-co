@@ -188,6 +188,27 @@ async function testCreateMeasurableEntry() {
       console.log();
     }
 
+    // Step 5.5: Test creating entry with future date (should error)
+    console.log("Step 4.5: Testing future date validation...\n");
+    const futureDate = new Date();
+    futureDate.setDate(futureDate.getDate() + 7); // 7 days in the future
+    const futureDateStr = futureDate.toISOString().split("T")[0];
+
+    console.log(
+      `Attempting to create entry with future date: ${futureDateStr}`
+    );
+    const futureDateResult = await createScorecardMeasurableEntry({
+      dataFieldId: firstMeasurable.id,
+      value: "100",
+      startDate: futureDateStr,
+      note: "This should fail - future date",
+    });
+
+    const futureDateText = futureDateResult.content[0].text;
+    console.log("Result (should be an error):");
+    console.log(futureDateText);
+    console.log();
+
     // Step 6: Test error handling - try to create duplicate entry
     console.log("Step 5: Testing duplicate entry detection...\n");
     const duplicateResult = await createScorecardMeasurableEntry({

@@ -1432,12 +1432,11 @@ const toolDefinitions = [
   {
     name: "updateScorecardMeasurableEntry",
     description:
-      "Update an existing scorecard measurable entry (data value). Perfect for queries like 'Change the Revenue entry from last week to 300' or 'Update the note on this month's leads entry'. The start date will be automatically aligned if changed. Use getScorecardMeasurables to find entries and their IDs.",
-    handler: async ({ entryId, value, startDate, note }) =>
+      "Update an existing scorecard measurable entry (data value). Perfect for queries like 'Change the Revenue entry from last week to 300' or 'Update the note on this month's leads entry'. Note: Entries cannot be moved to different periods - only value and note can be updated. Use getScorecardMeasurables to find entries and their IDs.",
+    handler: async ({ entryId, value, note }) =>
       await updateScorecardMeasurableEntry({
         entryId,
         value,
-        startDate,
         note,
       }),
     schema: {
@@ -1451,12 +1450,6 @@ const toolDefinitions = [
         .optional()
         .describe(
           "The new value to record. Can be a number, currency amount, percentage, etc. depending on the metric's unit type."
-        ),
-      startDate: z
-        .string()
-        .optional()
-        .describe(
-          "Update the start date in YYYY-MM-DD format. Will be automatically aligned based on the metric's frequency (weekly=Monday, monthly=1st of month, etc.). Cannot conflict with another entry for the same metric."
         ),
       note: z
         .string()
