@@ -22,9 +22,6 @@ import {
   getMilestones,
   search,
   fetch,
-  setSuccessCoApiKey,
-  getSuccessCoApiKeyTool,
-  getSuccessCoApiKey,
   callSuccessCoGraphQL,
   getScorecardMeasurables,
   getMeetingInfos,
@@ -126,22 +123,6 @@ const isDev =
 
 // Define all tools in one place to avoid duplication
 const toolDefinitions = [
-  {
-    name: "setSuccessCoApiKey",
-    description: "Set the Success.co API key",
-    handler: async ({ apiKey }) => await setSuccessCoApiKey({ apiKey }),
-    schema: {
-      apiKey: z.string().describe("The API key for Success.co"),
-    },
-    required: ["apiKey"],
-  },
-  {
-    name: "getSuccessCoApiKey",
-    description: "Get the Success.co API key (env or stored file)",
-    handler: async () => await getSuccessCoApiKeyTool({}),
-    schema: {},
-    required: [],
-  },
   {
     name: "getTeams",
     description:

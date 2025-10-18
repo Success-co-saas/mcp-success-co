@@ -15,8 +15,6 @@ export {
   callSuccessCoGraphQL,
   getGraphQLEndpoint,
   getSuccessCoApiKey,
-  setSuccessCoApiKey,
-  getSuccessCoApiKeyTool,
   getIsDevMode,
 } from "./core.js";
 
