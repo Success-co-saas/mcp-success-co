@@ -351,7 +351,7 @@ The server maintains backwards compatibility with the deprecated HTTP+SSE transp
    DB_PORT=5432
    DB_NAME=successco
    DB_USER=postgres
-   DB_PASSWORD=your-password
+   DB_PASS=your-password
    ```
 
    **Note:** Without database configuration, you can still use all read-only tools (get/search operations), but create/update operations will fail with "Could not determine company ID" error.

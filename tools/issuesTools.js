@@ -283,7 +283,7 @@ export async function createIssue(args) {
       content: [
         {
           type: "text",
-          text: "Error: Success.co API key not set. Use setSuccessCoApiKey first.",
+          text: "Error: Success.co API key not set. Please set SUCCESS_CO_API_KEY in your .env file.",
         },
       ],
     };
@@ -451,7 +451,7 @@ export async function updateIssue(args) {
       content: [
         {
           type: "text",
-          text: "Error: Success.co API key not set. Use setSuccessCoApiKey first.",
+          text: "Error: Success.co API key not set. Please set SUCCESS_CO_API_KEY in your .env file.",
         },
       ],
     };

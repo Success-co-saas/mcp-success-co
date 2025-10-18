@@ -22,9 +22,6 @@ import {
   getMilestones,
   search,
   fetch,
-  setSuccessCoApiKey,
-  getSuccessCoApiKeyTool,
-  getSuccessCoApiKey,
   callSuccessCoGraphQL,
   getScorecardMeasurables,
   getMeetingInfos,
@@ -76,7 +73,7 @@ init({
   DB_PORT: process.env.DB_PORT,
   DB_NAME: process.env.DB_NAME,
   DB_USER: process.env.DB_USER,
-  DB_PASSWORD: process.env.DB_PASSWORD,
+  DB_PASS: process.env.DB_PASS,
 });
 const API_KEY_FILE = path.join(__dirname, ".api_key");
 
@@ -103,7 +100,7 @@ const isDev =
       "  - DATABASE_URL=postgresql://user:password@host:port/database"
     );
     console.error("  OR");
-    console.error("  - DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD");
+    console.error("  - DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASS");
     console.error("\nFor help, see DATABASE_SETUP.md");
     console.error("\nExiting...\n");
     process.exit(1);
@@ -126,22 +123,6 @@ const isDev =
 
 // Define all tools in one place to avoid duplication
 const toolDefinitions = [
-  {
-    name: "setSuccessCoApiKey",
-    description: "Set the Success.co API key",
-    handler: async ({ apiKey }) => await setSuccessCoApiKey({ apiKey }),
-    schema: {
-      apiKey: z.string().describe("The API key for Success.co"),
-    },
-    required: ["apiKey"],
-  },
-  {
-    name: "getSuccessCoApiKey",
-    description: "Get the Success.co API key (env or stored file)",
-    handler: async () => await getSuccessCoApiKeyTool({}),
-    schema: {},
-    required: [],
-  },
   {
     name: "getTeams",
     description:
