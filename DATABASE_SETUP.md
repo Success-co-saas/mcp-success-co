@@ -39,7 +39,7 @@ DB_HOST=localhost
 DB_PORT=5432
 DB_NAME=successco
 DB_USER=postgres
-DB_PASSWORD=mypassword
+DB_PASS=mypassword
 ```
 
 ### 3. Optional: Add Other Environment Variables

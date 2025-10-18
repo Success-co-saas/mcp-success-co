@@ -40,7 +40,7 @@ Database connection is required for mutation operations (create/update).
 Please ensure your .env file contains correct database credentials:
   - DATABASE_URL=postgresql://user:password@host:port/database
   OR
-  - DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD
+  - DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASS
 
 For help, see DATABASE_SETUP.md
 
@@ -81,7 +81,7 @@ Error: Database connection failed: database "wrong_name" does not exist
 Error: Database connection failed: password authentication failed
 ```
 
-**Solution:** Check your `.env` file and correct `DB_USER` and `DB_PASSWORD`
+**Solution:** Check your `.env` file and correct `DB_USER` and `DB_PASS`
 
 ### 4. Missing Tables
 
@@ -94,7 +94,7 @@ Error: Required database tables not found (user_api_keys, users). Check database
 ### 5. No Database Configuration
 
 ```
-Error: Database not configured. Set DATABASE_URL or DB_HOST/DB_NAME/DB_USER/DB_PASSWORD in .env file.
+Error: Database not configured. Set DATABASE_URL or DB_HOST/DB_NAME/DB_USER/DB_PASS in .env file.
 ```
 
 **Solution:** Add database configuration to your `.env` file
@@ -274,7 +274,7 @@ DB_NAME=nonexistent node mcp-server.js
 **Test 3: Invalid Credentials**
 
 ```bash
-DB_PASSWORD=wrong node mcp-server.js
+DB_PASS=wrong node mcp-server.js
 # Should show: ❌ DATABASE CONNECTION FAILED! and exit
 ```
 

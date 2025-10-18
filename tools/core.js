@@ -34,7 +34,7 @@ function initDatabaseConnection() {
       envConfig.DB_HOST &&
       envConfig.DB_NAME &&
       envConfig.DB_USER &&
-      envConfig.DB_PASSWORD
+      envConfig.DB_PASS
     ) {
       // Use individual connection parameters
       sql = postgres({
@@ -42,7 +42,7 @@ function initDatabaseConnection() {
         port: parseInt(envConfig.DB_PORT || "5432", 10),
         database: envConfig.DB_NAME,
         username: envConfig.DB_USER,
-        password: envConfig.DB_PASSWORD,
+        password: envConfig.DB_PASS,
         max: 10,
         idle_timeout: 20,
         connect_timeout: 10,
@@ -216,7 +216,7 @@ export async function testDatabaseConnection() {
     return {
       ok: false,
       error:
-        "Database not configured. Set DATABASE_URL or DB_HOST/DB_NAME/DB_USER/DB_PASSWORD in .env file.",
+        "Database not configured. Set DATABASE_URL or DB_HOST/DB_NAME/DB_USER/DB_PASS in .env file.",
     };
   }
 

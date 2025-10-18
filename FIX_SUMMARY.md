@@ -20,7 +20,7 @@ Your `.env` file used:
 The code expected:
 
 - `DB_NAME` (correct)
-- `DB_PASSWORD` (correct)
+- `DB_PASS` (correct)
 
 ### 2. Incorrect Database Query
 
@@ -51,7 +51,7 @@ To:
 
 ```bash
 DB_NAME=app-success-onlineOct10
-DB_PASSWORD=Aa123456
+DB_PASS=Aa123456
 ```
 
 ### 2. Fixed Database Query
@@ -154,7 +154,7 @@ DB_HOST=127.0.0.1
 DB_PORT=5432
 DB_NAME=app-success-onlineOct10
 DB_USER=postgres
-DB_PASSWORD=Aa123456
+DB_PASS=Aa123456
 ```
 
 ## Database Schema Reference

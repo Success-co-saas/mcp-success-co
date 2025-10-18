@@ -73,7 +73,7 @@ init({
   DB_PORT: process.env.DB_PORT,
   DB_NAME: process.env.DB_NAME,
   DB_USER: process.env.DB_USER,
-  DB_PASSWORD: process.env.DB_PASSWORD,
+  DB_PASS: process.env.DB_PASS,
 });
 const API_KEY_FILE = path.join(__dirname, ".api_key");
 
@@ -100,7 +100,7 @@ const isDev =
       "  - DATABASE_URL=postgresql://user:password@host:port/database"
     );
     console.error("  OR");
-    console.error("  - DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD");
+    console.error("  - DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASS");
     console.error("\nFor help, see DATABASE_SETUP.md");
     console.error("\nExiting...\n");
     process.exit(1);
