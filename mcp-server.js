@@ -65,7 +65,18 @@ const originalConsoleError = console.error;
 if (logFile) {
   console.error = function (...args) {
     const timestamp = new Date().toISOString();
-    const message = `[${timestamp}] ${args.join(" ")}\n`;
+    // Convert objects to JSON strings for logging
+    const formattedArgs = args.map((arg) => {
+      if (typeof arg === "object" && arg !== null) {
+        try {
+          return JSON.stringify(arg);
+        } catch (e) {
+          return String(arg);
+        }
+      }
+      return String(arg);
+    });
+    const message = `[${timestamp}] ${formattedArgs.join(" ")}\n`;
 
     // Write to console
     originalConsoleError.apply(console, args);
@@ -1924,173 +1935,65 @@ app.all("/mcp", async (req, res) => {
     }
 
     // Use the StreamableHTTPServerTransport to handle the request
-    const sessionId =
-      req.headers["x-mcp-session-id"] ||
-      `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    // Note: Use 'mcp-session-id' as per MCP spec (not 'x-mcp-session-id')
+    const sessionId = req.headers["mcp-session-id"];
 
-    // Get or create transport for this session
-    let transport = transports.streamable[sessionId];
-    if (!transport) {
+    // Check if this is an initialize request (starts a new session)
+    const isInitialize =
+      req.body &&
+      req.body.method === "initialize" &&
+      req.body.jsonrpc === "2.0";
+
+    // Get existing transport or create new one for initialize
+    let transport = sessionId ? transports.streamable[sessionId] : null;
+
+    if (!transport && isInitialize) {
+      // Create new transport with session callback
       transport = new StreamableHTTPServerTransport({
-        sessionIdGenerator: () => sessionId,
+        sessionIdGenerator: () =>
+          `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        onsessioninitialized: (newSessionId) => {
+          transports.streamable[newSessionId] = transport;
+          console.error(`[MCP] Session initialized: ${newSessionId}`);
+        },
       });
-      transports.streamable[sessionId] = transport;
+
+      transport.onclose = () => {
+        if (transport.sessionId) {
+          console.error(`[MCP] Session closed: ${transport.sessionId}`);
+          delete transports.streamable[transport.sessionId];
+        }
+      };
 
       // Connect the transport to a fresh server instance
       const requestServer = createFreshMcpServer();
       await requestServer.connect(transport);
-      console.error(`[MCP] Created new transport for session: ${sessionId}`);
-    }
-
-    // Process MCP request manually since handleRequest doesn't exist
-    const mcpRequest = req.body;
-    console.error(`[MCP] Processing MCP request:`, mcpRequest);
-
-    // Check if mcpRequest is valid
-    if (!mcpRequest || typeof mcpRequest !== "object") {
-      console.error(`[MCP] Invalid request body:`, mcpRequest);
+      console.error(`[MCP] Created new transport for initialize request`);
+    } else if (!transport && !isInitialize) {
+      console.error(
+        `[MCP] No session found and not an initialize request. Session ID: ${sessionId}`
+      );
       res.status(400).json({
         jsonrpc: "2.0",
-        id: null,
         error: {
-          code: -32700,
-          message: "Parse error - request body must be valid JSON",
+          code: -32000,
+          message: "Bad Request: No valid session ID provided",
         },
+        id: null,
       });
       return;
     }
 
-    // Create a fresh server instance for this request
-    const requestServer = createFreshMcpServer();
-
-    // Create a direct mapping of tool names to handlers for easier access
-    const toolHandlers = createToolHandlersMap();
-
-    // Handle the initialize request
-    if (mcpRequest.method === "initialize") {
-      const response = {
-        jsonrpc: "2.0",
-        id: mcpRequest.id,
-        result: {
-          protocolVersion: "2025-06-18",
-          capabilities: {
-            tools: {},
-            resources: {},
-            prompts: {},
-          },
-          serverInfo: {
-            name: "Success.co MCP Server",
-            version: "0.0.3",
-          },
-        },
-      };
-      console.error(`[MCP] Sending initialize response:`, response);
-      res.json(response);
-      return;
-    }
-
-    // Handle tools/list request
-    if (mcpRequest.method === "tools/list") {
-      const tools = getToolsAsJsonSchema();
-
-      const response = {
-        jsonrpc: "2.0",
-        id: mcpRequest.id,
-        result: {
-          tools: tools,
-        },
-      };
-      console.error(`[MCP] Sending tools/list response:`, response);
-      res.json(response);
-      return;
-    }
-
-    // Handle tools/call request
-    if (mcpRequest.method === "tools/call") {
-      const { name, arguments: args } = mcpRequest.params;
-      console.error(`[MCP] Tool call: ${name} with args:`, args);
-
-      // Get the tool handler from our direct mapping
-      const toolHandler = toolHandlers[name];
-
-      if (!toolHandler) {
-        console.error(
-          `[MCP] Tool '${name}' not found. Available tools:`,
-          Object.keys(toolHandlers)
-        );
-        res.status(400).json({
-          jsonrpc: "2.0",
-          id: mcpRequest.id,
-          error: {
-            code: -32601,
-            message: `Tool '${name}' not found`,
-          },
-        });
-        return;
-      }
-
-      try {
-        // Log the start of the tool call to debug file
-        logToolCallStart(name, args);
-
-        const result = await toolHandler(args);
-
-        // Log the successful result to debug file
-        logToolCallEnd(name, result);
-
-        const response = {
-          jsonrpc: "2.0",
-          id: mcpRequest.id,
-          result: result,
-        };
-        console.error(`[MCP] Tool call result:`, response);
-        res.json(response);
-      } catch (error) {
-        console.error(`[MCP] Tool call error:`, error);
-
-        // Log the tool call error to debug file
-        logToolCallEnd(name, null, error.message);
-
-        res.status(500).json({
-          jsonrpc: "2.0",
-          id: mcpRequest.id,
-          error: {
-            code: -32603,
-            message: "Internal error",
-            data: error.message,
-          },
-        });
-      }
-      return;
-    }
-
-    // Handle resources/list request
-    if (mcpRequest.method === "resources/list") {
-      const response = {
-        jsonrpc: "2.0",
-        id: mcpRequest.id,
-        result: {
-          resources: [],
-        },
-      };
-      console.error(`[MCP] Sending resources/list response:`, response);
-      res.json(response);
-      return;
-    }
-
-    // For other requests, return not implemented
-    res.status(501).json({
-      jsonrpc: "2.0",
-      id: mcpRequest.id,
-      error: {
-        code: -32601,
-        message: `Method ${mcpRequest.method} not implemented`,
-      },
-    });
-
+    // Use the SDK's built-in request handler
+    console.error(`[MCP] Handling request with transport.handleRequest()`);
     console.error(
-      `[MCP] Request handled successfully for session: ${sessionId}`
+      `[MCP] Method: ${req.body?.method}, Session: ${
+        transport.sessionId || "none"
+      }`
     );
+
+    // Let the SDK handle the request properly - it will handle all JSON-RPC methods
+    await transport.handleRequest(req, res, req.body);
   } catch (error) {
     console.error(`[MCP] Error in /mcp endpoint:`, error);
     console.error(`[MCP] Error stack:`, error.stack);
@@ -2101,6 +2004,56 @@ app.all("/mcp", async (req, res) => {
     }
   }
 });
+
+// Add GET and DELETE handlers for session management
+app.get("/mcp", async (req, res) => {
+  try {
+    console.error(`[MCP] Received GET request for session management`);
+
+    const sessionId = req.headers["mcp-session-id"];
+    if (!sessionId || !transports.streamable[sessionId]) {
+      console.error(`[MCP] Invalid or missing session ID: ${sessionId}`);
+      res.status(400).send("Invalid or missing session ID");
+      return;
+    }
+
+    const transport = transports.streamable[sessionId];
+    await transport.handleRequest(req, res);
+  } catch (error) {
+    console.error(`[MCP] Error in GET /mcp:`, error);
+    if (!res.headersSent) {
+      res.status(500).send("Internal server error");
+    }
+  }
+});
+
+app.delete("/mcp", async (req, res) => {
+  try {
+    console.error(`[MCP] Received DELETE request for session cleanup`);
+
+    const sessionId = req.headers["mcp-session-id"];
+    if (!sessionId || !transports.streamable[sessionId]) {
+      console.error(`[MCP] Invalid or missing session ID: ${sessionId}`);
+      res.status(400).send("Invalid or missing session ID");
+      return;
+    }
+
+    const transport = transports.streamable[sessionId];
+    await transport.handleRequest(req, res);
+
+    // Clean up session after DELETE
+    delete transports.streamable[sessionId];
+    console.error(`[MCP] Session deleted: ${sessionId}`);
+  } catch (error) {
+    console.error(`[MCP] Error in DELETE /mcp:`, error);
+    if (!res.headersSent) {
+      res.status(500).send("Internal server error");
+    }
+  }
+});
+
+// Remove the old manual JSON-RPC handling - the SDK now handles everything
+// The transport.handleRequest() method properly implements the MCP protocol
 
 // Legacy SSE endpoint for older clients
 app.get("/sse", async (req, res) => {
@@ -2231,6 +2184,10 @@ app.post("/messages", async (req, res) => {
   }
 });
 
+// REMOVED: All the manual JSON-RPC handling code below
+// The StreamableHTTPServerTransport now handles everything properly
+// including initialize, tools/list, tools/call, resources/list, and notifications
+
 // Log .env file loading status
 if (fs.existsSync(envPath)) {
   console.error(`[STARTUP] Found .env file at ${envPath}`);
@@ -2312,3 +2269,12 @@ process.on("SIGTERM", () => {
 
 // Keep the process alive for STDIO transport
 process.stdin.resume();
+
+// EVERYTHING BELOW THIS LINE WAS REMOVED - THE SDK HANDLES IT
+// Previously we had manual handling of:
+// - initialize
+// - tools/list
+// - tools/call
+// - resources/list
+// - notifications
+// All of this is now properly handled by transport.handleRequest()
