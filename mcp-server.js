@@ -1663,8 +1663,12 @@ app.use("/mcp", async (req, res, next) => {
     const protocol =
       req.headers["x-forwarded-proto"] || (req.secure ? "https" : "http");
     const host = req.headers["x-forwarded-host"] || req.headers.host;
-    const resourceUrl = process.env.MCP_RESOURCE_URL || `${protocol}://${host}`;
-    const resourceMetadataUrl = `${resourceUrl}/.well-known/oauth-protected-resource`;
+
+    // OAuth endpoints are now served by ServiceAPI, not MCP server
+    // Use OAUTH_SERVER_URL if set, otherwise fall back to same host
+    const oauthServerUrl =
+      process.env.OAUTH_SERVER_URL || `${protocol}://${host}`;
+    const resourceMetadataUrl = `${oauthServerUrl}/.well-known/oauth-protected-resource`;
 
     // Set WWW-Authenticate header as per RFC 6750 and MCP OAuth spec
     res.setHeader(
@@ -1750,63 +1754,6 @@ app.get("/health", (req, res) => {
       sse: Object.keys(transports.sse).length,
     },
     timestamp: new Date().toISOString(),
-  });
-});
-
-// OAuth 2.0 Protected Resource Metadata endpoint
-// This endpoint provides clients with metadata about the protected resource
-// as per RFC 8414 (OAuth 2.0 Authorization Server Metadata)
-app.get("/.well-known/oauth-protected-resource", (req, res) => {
-  // Construct resource URL from request to support ngrok and production URLs
-  const protocol =
-    req.headers["x-forwarded-proto"] || (req.secure ? "https" : "http");
-  const host = req.headers["x-forwarded-host"] || req.headers.host;
-  const resourceUrl = process.env.MCP_RESOURCE_URL || `${protocol}://${host}`;
-
-  // Authorization server is the ServiceAPI on the same domain
-  // ServiceAPI handles OAuth at /oauth/* endpoints
-  const authServerUrl = process.env.OAUTH_AUTHORIZATION_SERVER || resourceUrl;
-
-  console.error(
-    `[OAUTH-METADATA] Serving metadata for resource: ${resourceUrl}`
-  );
-  console.error(`[OAUTH-METADATA] Authorization server: ${authServerUrl}`);
-
-  res.json({
-    resource: resourceUrl,
-    authorization_servers: [authServerUrl],
-    scopes_supported: ["mcp:tools", "mcp:resources", "mcp:prompts"],
-    bearer_methods_supported: ["header"],
-    resource_documentation:
-      "https://modelcontextprotocol.io/docs/tutorials/security/authorization",
-  });
-});
-
-// OAuth 2.0 Authorization Server Metadata endpoint
-// This provides the actual authorization endpoint URLs
-// as per RFC 8414 (OAuth 2.0 Authorization Server Metadata)
-app.get("/.well-known/oauth-authorization-server", (req, res) => {
-  // Construct base URL from request
-  const protocol =
-    req.headers["x-forwarded-proto"] || (req.secure ? "https" : "http");
-  const host = req.headers["x-forwarded-host"] || req.headers.host;
-  const issuer =
-    process.env.OAUTH_AUTHORIZATION_SERVER || `${protocol}://${host}`;
-
-  console.error(
-    `[OAUTH-AUTHZ-SERVER] Serving authorization server metadata for: ${issuer}`
-  );
-
-  res.json({
-    issuer: issuer,
-    authorization_endpoint: `${issuer}/oauth/authorize`,
-    token_endpoint: `${issuer}/oauth/token`,
-    revocation_endpoint: `${issuer}/oauth/revoke`,
-    scopes_supported: ["mcp:tools", "mcp:resources", "mcp:prompts"],
-    response_types_supported: ["code"],
-    grant_types_supported: ["authorization_code"],
-    token_endpoint_auth_methods_supported: ["client_secret_post"],
-    code_challenge_methods_supported: ["S256"],
   });
 });
 
