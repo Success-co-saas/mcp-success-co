@@ -54,6 +54,44 @@ import {
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+// Set up file logging in dev mode
+const isDevelopment =
+  process.env.NODE_ENV === "development" ||
+  process.env.NODE_ENV !== "production";
+const logFile = isDevelopment ? "/tmp/mcp-server.log" : null;
+
+// Override console.error to write to both console and file in dev mode
+const originalConsoleError = console.error;
+if (logFile) {
+  console.error = function (...args) {
+    const timestamp = new Date().toISOString();
+    const message = `[${timestamp}] ${args.join(" ")}\n`;
+
+    // Write to console
+    originalConsoleError.apply(console, args);
+
+    // Write to file
+    try {
+      fs.appendFileSync(logFile, message);
+    } catch (err) {
+      // Silently fail if can't write to log file
+    }
+  };
+
+  // Clear log file on startup
+  try {
+    fs.writeFileSync(
+      logFile,
+      `=== MCP Server Started at ${new Date().toISOString()} ===\n`
+    );
+    originalConsoleError(`[LOGGING] Logging to ${logFile}`);
+  } catch (err) {
+    originalConsoleError(
+      `[LOGGING] Could not initialize log file: ${err.message}`
+    );
+  }
+}
+
 // Load environment variables from .env file (silently to avoid polluting STDIO)
 // Load from the script directory regardless of current working directory
 const envPath = path.join(__dirname, ".env");
@@ -1625,6 +1663,16 @@ function getTransportGuidance(endpoint) {
 const app = express();
 app.use(express.json());
 
+// Log all incoming requests
+app.use((req, res, next) => {
+  console.error(`\n[REQUEST] ${req.method} ${req.path}`);
+  console.error(
+    `[REQUEST] URL: ${req.protocol}://${req.get("host")}${req.originalUrl}`
+  );
+  console.error(`[REQUEST] User-Agent: ${req.headers["user-agent"] || "N/A"}`);
+  next();
+});
+
 // Add CORS middleware for cross-origin requests
 app.use((req, res, next) => {
   res.header("Access-Control-Allow-Origin", "*");
@@ -1636,6 +1684,7 @@ app.use((req, res, next) => {
 
   // Handle preflight requests
   if (req.method === "OPTIONS") {
+    console.error(`[CORS] Handling OPTIONS preflight request`);
     res.sendStatus(200);
     return;
   }
@@ -1647,13 +1696,25 @@ app.use((req, res, next) => {
 app.use("/mcp", async (req, res, next) => {
   const authHeader = req.headers.authorization;
 
+  // Log all incoming requests to /mcp
+  console.error(`[AUTH] ${req.method} ${req.path}`);
+  console.error(
+    `[AUTH] Full URL: ${req.protocol}://${req.get("host")}${req.originalUrl}`
+  );
+  console.error(`[AUTH] Headers:`, JSON.stringify(req.headers, null, 2));
+
   // Log authentication attempts
   if (authHeader) {
-    console.error(`[AUTH] Authorization header: "${authHeader}"`);
+    console.error(
+      `[AUTH] Authorization header present: "${authHeader.substring(0, 20)}..."`
+    );
+  } else {
+    console.error(`[AUTH] No Authorization header present`);
   }
 
   // Skip authentication for health check and certain endpoints
   if (req.path === "/health" || req.method === "OPTIONS") {
+    console.error(`[AUTH] Skipping auth for ${req.path}`);
     return next();
   }
 
@@ -1671,15 +1732,16 @@ app.use("/mcp", async (req, res, next) => {
     const resourceMetadataUrl = `${oauthServerUrl}/.well-known/oauth-protected-resource`;
 
     // Set WWW-Authenticate header as per RFC 6750 and MCP OAuth spec
-    res.setHeader(
-      "WWW-Authenticate",
-      `Bearer realm="mcp", resource_metadata="${resourceMetadataUrl}"`
-    );
+    const wwwAuthHeader = `Bearer realm="mcp", resource_metadata="${resourceMetadataUrl}"`;
+    res.setHeader("WWW-Authenticate", wwwAuthHeader);
 
-    console.error(
-      `[AUTH] Sending OAuth challenge with resource_metadata: ${resourceMetadataUrl}`
-    );
+    console.error(`[AUTH] ======== SENDING 401 OAUTH CHALLENGE ========`);
+    console.error(`[AUTH] WWW-Authenticate: ${wwwAuthHeader}`);
+    console.error(`[AUTH] Resource metadata URL: ${resourceMetadataUrl}`);
+    console.error(`[AUTH] Error code: ${error || "unauthorized"}`);
     console.error(`[AUTH] Message: ${message}`);
+    console.error(`[AUTH] =============================================`);
+
     return res.status(401).json({
       error: error || "unauthorized",
       message:
@@ -1696,9 +1758,11 @@ app.use("/mcp", async (req, res, next) => {
       const validation = await validateOAuthToken(token);
 
       if (validation.valid) {
-        console.error(
-          `[AUTH] OAuth token valid for user ${validation.userEmail}`
-        );
+        console.error(`[AUTH] ======== AUTHENTICATION SUCCESSFUL ========`);
+        console.error(`[AUTH] User: ${validation.userEmail}`);
+        console.error(`[AUTH] Company: ${validation.companyId}`);
+        console.error(`[AUTH] Client: ${validation.clientId}`);
+        console.error(`[AUTH] ============================================`);
         // Attach user info to request for downstream use
         req.oauth = {
           userId: validation.userId,
@@ -1747,6 +1811,7 @@ const transports = {
 
 // Health check endpoint
 app.get("/health", (req, res) => {
+  console.error(`[HEALTH] Health check requested`);
   res.json({
     status: "healthy",
     transports: {
@@ -2166,19 +2231,11 @@ app.post("/messages", async (req, res) => {
   }
 });
 
-// Create a log file for operational logs to avoid polluting STDIO
-const logFile = path.join(__dirname, "mcp.log");
-
-function logToFile(message) {
-  const timestamp = new Date().toISOString();
-  fs.appendFileSync(logFile, `[${timestamp}] ${message}\n`);
-}
-
 // Log .env file loading status
 if (fs.existsSync(envPath)) {
-  logToFile(`Found .env file at ${envPath}`);
+  console.error(`[STARTUP] Found .env file at ${envPath}`);
 } else {
-  logToFile(`No .env file found at ${envPath}`);
+  console.error(`[STARTUP] No .env file found at ${envPath}`);
 }
 
 // Validate required environment variables at startup
@@ -2186,7 +2243,6 @@ if (!process.env.GRAPHQL_ENDPOINT_MODE) {
   const error =
     "GRAPHQL_ENDPOINT_MODE environment variable is required but not set";
   console.error(`[STARTUP ERROR] ${error}`);
-  logToFile(`STARTUP ERROR: ${error}`);
   console.error(
     `[STARTUP ERROR] Please set GRAPHQL_ENDPOINT_MODE in your environment or .env file`
   );
@@ -2195,15 +2251,15 @@ if (!process.env.GRAPHQL_ENDPOINT_MODE) {
   process.exit(1);
 }
 
-// Log startup information to file instead of console
-logToFile("Starting MCP server");
+// Log startup information
+console.error("[STARTUP] Starting MCP server");
 
 // Always start HTTP server (with error handling for port conflicts)
 const PORT = process.env.MCP_SERVER_PORT || 3001;
-logToFile(`Starting HTTP server on port ${PORT}`);
+console.error(`[STARTUP] Starting HTTP server on port ${PORT}`);
 const httpServer = app
   .listen(PORT, () => {
-    logToFile(`HTTP server is running on port ${PORT}`);
+    console.error(`[STARTUP] HTTP server is running on port ${PORT}`);
   })
   .on("error", (error) => {
     if (error.code === "EADDRINUSE" && isDev) {
@@ -2228,16 +2284,18 @@ const stdioTransport = new StdioServerTransport();
 server
   .connect(stdioTransport)
   .then(() => {
-    logToFile("STDIO transport connected successfully");
+    console.error("[STARTUP] STDIO transport connected successfully");
   })
   .catch((error) => {
-    logToFile(`Error connecting STDIO transport: ${error.message}`);
+    console.error(
+      `[STARTUP] Error connecting STDIO transport: ${error.message}`
+    );
     // Don't exit - HTTP server might still be running
   });
 
 // Handle process termination signals
 process.on("SIGINT", () => {
-  logToFile("Received SIGINT, shutting down");
+  console.error("[SHUTDOWN] Received SIGINT, shutting down");
   if (httpServer) {
     httpServer.close();
   }
@@ -2245,7 +2303,7 @@ process.on("SIGINT", () => {
 });
 
 process.on("SIGTERM", () => {
-  logToFile("Received SIGTERM, shutting down");
+  console.error("[SHUTDOWN] Received SIGTERM, shutting down");
   if (httpServer) {
     httpServer.close();
   }
