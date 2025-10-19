@@ -1762,11 +1762,15 @@ app.get("/.well-known/oauth-protected-resource", (req, res) => {
     req.headers["x-forwarded-proto"] || (req.secure ? "https" : "http");
   const host = req.headers["x-forwarded-host"] || req.headers.host;
   const resourceUrl = process.env.MCP_RESOURCE_URL || `${protocol}://${host}`;
+
+  // Authorization server is the ServiceAPI on the same domain
+  // ServiceAPI handles OAuth at /oauth/* endpoints
   const authServerUrl = process.env.OAUTH_AUTHORIZATION_SERVER || resourceUrl;
 
   console.error(
     `[OAUTH-METADATA] Serving metadata for resource: ${resourceUrl}`
   );
+  console.error(`[OAUTH-METADATA] Authorization server: ${authServerUrl}`);
 
   res.json({
     resource: resourceUrl,
@@ -1775,6 +1779,34 @@ app.get("/.well-known/oauth-protected-resource", (req, res) => {
     bearer_methods_supported: ["header"],
     resource_documentation:
       "https://modelcontextprotocol.io/docs/tutorials/security/authorization",
+  });
+});
+
+// OAuth 2.0 Authorization Server Metadata endpoint
+// This provides the actual authorization endpoint URLs
+// as per RFC 8414 (OAuth 2.0 Authorization Server Metadata)
+app.get("/.well-known/oauth-authorization-server", (req, res) => {
+  // Construct base URL from request
+  const protocol =
+    req.headers["x-forwarded-proto"] || (req.secure ? "https" : "http");
+  const host = req.headers["x-forwarded-host"] || req.headers.host;
+  const issuer =
+    process.env.OAUTH_AUTHORIZATION_SERVER || `${protocol}://${host}`;
+
+  console.error(
+    `[OAUTH-AUTHZ-SERVER] Serving authorization server metadata for: ${issuer}`
+  );
+
+  res.json({
+    issuer: issuer,
+    authorization_endpoint: `${issuer}/oauth/authorize`,
+    token_endpoint: `${issuer}/oauth/token`,
+    revocation_endpoint: `${issuer}/oauth/revoke`,
+    scopes_supported: ["mcp:tools", "mcp:resources", "mcp:prompts"],
+    response_types_supported: ["code"],
+    grant_types_supported: ["authorization_code"],
+    token_endpoint_auth_methods_supported: ["client_secret_post"],
+    code_challenge_methods_supported: ["S256"],
   });
 });
 
