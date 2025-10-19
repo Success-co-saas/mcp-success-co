@@ -8,6 +8,11 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import dotenv from "dotenv";
+import {
+  initOAuthValidator,
+  validateOAuthToken,
+  extractBearerToken,
+} from "./oauth-validator.js";
 
 import {
   init,
@@ -75,6 +80,17 @@ init({
   DB_USER: process.env.DB_USER,
   DB_PASS: process.env.DB_PASS,
 });
+
+// Initialize OAuth validator with database connection
+initOAuthValidator({
+  DATABASE_URL: process.env.DATABASE_URL,
+  DB_HOST: process.env.DB_HOST,
+  DB_PORT: process.env.DB_PORT,
+  DB_NAME: process.env.DB_NAME,
+  DB_USER: process.env.DB_USER,
+  DB_PASS: process.env.DB_PASS,
+});
+
 const API_KEY_FILE = path.join(__dirname, ".api_key");
 
 // Check if running in development mode
@@ -96,11 +112,11 @@ const isDev =
     console.error(
       "Please ensure your .env file contains correct database credentials:"
     );
+    console.error("  - DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASS");
+    console.error("  OR (alternative)");
     console.error(
       "  - DATABASE_URL=postgresql://user:password@host:port/database"
     );
-    console.error("  OR");
-    console.error("  - DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASS");
     console.error("\nFor help, see DATABASE_SETUP.md");
     console.error("\nExiting...\n");
     process.exit(1);
@@ -1628,7 +1644,7 @@ app.use((req, res, next) => {
 });
 
 // Add authentication middleware for MCP endpoints
-app.use("/mcp", (req, res, next) => {
+app.use("/mcp", async (req, res, next) => {
   const authHeader = req.headers.authorization;
 
   // Log authentication attempts
@@ -1636,9 +1652,87 @@ app.use("/mcp", (req, res, next) => {
     console.error(`[AUTH] Authorization header: "${authHeader}"`);
   }
 
-  // For now, allow all requests to pass through
-  // In production, you might want to validate the token
-  next();
+  // Skip authentication for health check and certain endpoints
+  if (req.path === "/health" || req.method === "OPTIONS") {
+    return next();
+  }
+
+  // Helper function to send OAuth challenge
+  const sendOAuthChallenge = (message, error) => {
+    // Construct resource URL from request to support ngrok and production URLs
+    const protocol =
+      req.headers["x-forwarded-proto"] || (req.secure ? "https" : "http");
+    const host = req.headers["x-forwarded-host"] || req.headers.host;
+    const resourceUrl = process.env.MCP_RESOURCE_URL || `${protocol}://${host}`;
+    const resourceMetadataUrl = `${resourceUrl}/.well-known/oauth-protected-resource`;
+
+    // Set WWW-Authenticate header as per RFC 6750 and MCP OAuth spec
+    res.setHeader(
+      "WWW-Authenticate",
+      `Bearer realm="mcp", resource_metadata="${resourceMetadataUrl}"`
+    );
+
+    console.error(
+      `[AUTH] Sending OAuth challenge with resource_metadata: ${resourceMetadataUrl}`
+    );
+    console.error(`[AUTH] Message: ${message}`);
+    return res.status(401).json({
+      error: error || "unauthorized",
+      message:
+        message ||
+        "Authentication required. Provide a valid OAuth Bearer token.",
+    });
+  };
+
+  // Try OAuth token first (Bearer token)
+  if (authHeader && authHeader.startsWith("Bearer ")) {
+    const token = extractBearerToken(authHeader);
+    if (token) {
+      console.error(`[AUTH] Validating OAuth token`);
+      const validation = await validateOAuthToken(token);
+
+      if (validation.valid) {
+        console.error(
+          `[AUTH] OAuth token valid for user ${validation.userEmail}`
+        );
+        // Attach user info to request for downstream use
+        req.oauth = {
+          userId: validation.userId,
+          companyId: validation.companyId,
+          userEmail: validation.userEmail,
+          clientId: validation.clientId,
+        };
+        return next();
+      } else {
+        console.error(
+          `[AUTH] OAuth token validation failed: ${validation.error}`
+        );
+        return sendOAuthChallenge(
+          validation.message || "Invalid or expired OAuth token",
+          validation.error
+        );
+      }
+    }
+  }
+
+  // Fall back to API key authentication (for development)
+  if (process.env.SUCCESS_CO_API_KEY) {
+    if (
+      authHeader === `Bearer ${process.env.SUCCESS_CO_API_KEY}` ||
+      authHeader === process.env.SUCCESS_CO_API_KEY
+    ) {
+      console.error(`[AUTH] Valid API key provided (dev mode)`);
+      req.apiKey = true;
+      return next();
+    }
+  }
+
+  // No valid authentication found - send OAuth challenge
+  console.error(`[AUTH] No valid authentication provided`);
+  return sendOAuthChallenge(
+    "Authentication required. Provide a valid OAuth Bearer token or API key.",
+    "unauthorized"
+  );
 });
 
 // Store transports for each session type
@@ -1656,6 +1750,31 @@ app.get("/health", (req, res) => {
       sse: Object.keys(transports.sse).length,
     },
     timestamp: new Date().toISOString(),
+  });
+});
+
+// OAuth 2.0 Protected Resource Metadata endpoint
+// This endpoint provides clients with metadata about the protected resource
+// as per RFC 8414 (OAuth 2.0 Authorization Server Metadata)
+app.get("/.well-known/oauth-protected-resource", (req, res) => {
+  // Construct resource URL from request to support ngrok and production URLs
+  const protocol =
+    req.headers["x-forwarded-proto"] || (req.secure ? "https" : "http");
+  const host = req.headers["x-forwarded-host"] || req.headers.host;
+  const resourceUrl = process.env.MCP_RESOURCE_URL || `${protocol}://${host}`;
+  const authServerUrl = process.env.OAUTH_AUTHORIZATION_SERVER || resourceUrl;
+
+  console.error(
+    `[OAUTH-METADATA] Serving metadata for resource: ${resourceUrl}`
+  );
+
+  res.json({
+    resource: resourceUrl,
+    authorization_servers: [authServerUrl],
+    scopes_supported: ["mcp:tools", "mcp:resources", "mcp:prompts"],
+    bearer_methods_supported: ["header"],
+    resource_documentation:
+      "https://modelcontextprotocol.io/docs/tutorials/security/authorization",
   });
 });
 
@@ -2101,18 +2220,19 @@ if (!process.env.GRAPHQL_ENDPOINT_MODE) {
 logToFile("Starting MCP server");
 
 // Always start HTTP server (with error handling for port conflicts)
-logToFile("Starting HTTP server on port 3001");
+const PORT = process.env.MCP_SERVER_PORT || 3001;
+logToFile(`Starting HTTP server on port ${PORT}`);
 const httpServer = app
-  .listen(3001, () => {
-    logToFile("HTTP server is running on port 3001");
+  .listen(PORT, () => {
+    logToFile(`HTTP server is running on port ${PORT}`);
   })
   .on("error", (error) => {
     if (error.code === "EADDRINUSE" && isDev) {
       // ok for these to be console.error
       console.error(
-        "Port 3001 is already in use. Run this command to kill the process:"
+        `Port ${PORT} is already in use. Run this command to kill the process:`
       );
-      console.error("lsof -ti:3001 | xargs kill -9");
+      console.error(`lsof -ti:${PORT} | xargs kill -9`);
     } else {
       console.error(`HTTP server error: ${error.message}`);
     }
