@@ -8,6 +8,11 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import dotenv from "dotenv";
+import {
+  initOAuthValidator,
+  validateOAuthToken,
+  extractBearerToken,
+} from "./oauth-validator.js";
 
 import {
   init,
@@ -22,9 +27,6 @@ import {
   getMilestones,
   search,
   fetch,
-  setSuccessCoApiKey,
-  getSuccessCoApiKeyTool,
-  getSuccessCoApiKey,
   callSuccessCoGraphQL,
   getScorecardMeasurables,
   getMeetingInfos,
@@ -52,6 +54,55 @@ import {
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+// Set up file logging in dev mode
+const isDevelopment =
+  process.env.NODE_ENV === "development" ||
+  process.env.NODE_ENV !== "production";
+const logFile = isDevelopment ? "/tmp/mcp-server.log" : null;
+
+// Override console.error to write to both console and file in dev mode
+const originalConsoleError = console.error;
+if (logFile) {
+  console.error = function (...args) {
+    const timestamp = new Date().toISOString();
+    // Convert objects to JSON strings for logging
+    const formattedArgs = args.map((arg) => {
+      if (typeof arg === "object" && arg !== null) {
+        try {
+          return JSON.stringify(arg);
+        } catch (e) {
+          return String(arg);
+        }
+      }
+      return String(arg);
+    });
+    const message = `[${timestamp}] ${formattedArgs.join(" ")}\n`;
+
+    // Write to console
+    originalConsoleError.apply(console, args);
+
+    // Write to file
+    try {
+      fs.appendFileSync(logFile, message);
+    } catch (err) {
+      // Silently fail if can't write to log file
+    }
+  };
+
+  // Clear log file on startup
+  try {
+    fs.writeFileSync(
+      logFile,
+      `=== MCP Server Started at ${new Date().toISOString()} ===\n`
+    );
+    originalConsoleError(`[LOGGING] Logging to ${logFile}`);
+  } catch (err) {
+    originalConsoleError(
+      `[LOGGING] Could not initialize log file: ${err.message}`
+    );
+  }
+}
+
 // Load environment variables from .env file (silently to avoid polluting STDIO)
 // Load from the script directory regardless of current working directory
 const envPath = path.join(__dirname, ".env");
@@ -76,8 +127,19 @@ init({
   DB_PORT: process.env.DB_PORT,
   DB_NAME: process.env.DB_NAME,
   DB_USER: process.env.DB_USER,
-  DB_PASSWORD: process.env.DB_PASSWORD,
+  DB_PASS: process.env.DB_PASS,
 });
+
+// Initialize OAuth validator with database connection
+initOAuthValidator({
+  DATABASE_URL: process.env.DATABASE_URL,
+  DB_HOST: process.env.DB_HOST,
+  DB_PORT: process.env.DB_PORT,
+  DB_NAME: process.env.DB_NAME,
+  DB_USER: process.env.DB_USER,
+  DB_PASS: process.env.DB_PASS,
+});
+
 const API_KEY_FILE = path.join(__dirname, ".api_key");
 
 // Check if running in development mode
@@ -99,11 +161,11 @@ const isDev =
     console.error(
       "Please ensure your .env file contains correct database credentials:"
     );
+    console.error("  - DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASS");
+    console.error("  OR (alternative)");
     console.error(
       "  - DATABASE_URL=postgresql://user:password@host:port/database"
     );
-    console.error("  OR");
-    console.error("  - DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD");
     console.error("\nFor help, see DATABASE_SETUP.md");
     console.error("\nExiting...\n");
     process.exit(1);
@@ -126,22 +188,6 @@ const isDev =
 
 // Define all tools in one place to avoid duplication
 const toolDefinitions = [
-  {
-    name: "setSuccessCoApiKey",
-    description: "Set the Success.co API key",
-    handler: async ({ apiKey }) => await setSuccessCoApiKey({ apiKey }),
-    schema: {
-      apiKey: z.string().describe("The API key for Success.co"),
-    },
-    required: ["apiKey"],
-  },
-  {
-    name: "getSuccessCoApiKey",
-    description: "Get the Success.co API key (env or stored file)",
-    handler: async () => await getSuccessCoApiKeyTool({}),
-    schema: {},
-    required: [],
-  },
   {
     name: "getTeams",
     description:
@@ -1628,6 +1674,16 @@ function getTransportGuidance(endpoint) {
 const app = express();
 app.use(express.json());
 
+// Log all incoming requests
+app.use((req, res, next) => {
+  console.error(`\n[REQUEST] ${req.method} ${req.path}`);
+  console.error(
+    `[REQUEST] URL: ${req.protocol}://${req.get("host")}${req.originalUrl}`
+  );
+  console.error(`[REQUEST] User-Agent: ${req.headers["user-agent"] || "N/A"}`);
+  next();
+});
+
 // Add CORS middleware for cross-origin requests
 app.use((req, res, next) => {
   res.header("Access-Control-Allow-Origin", "*");
@@ -1639,6 +1695,7 @@ app.use((req, res, next) => {
 
   // Handle preflight requests
   if (req.method === "OPTIONS") {
+    console.error(`[CORS] Handling OPTIONS preflight request`);
     res.sendStatus(200);
     return;
   }
@@ -1647,17 +1704,114 @@ app.use((req, res, next) => {
 });
 
 // Add authentication middleware for MCP endpoints
-app.use("/mcp", (req, res, next) => {
+app.use("/mcp", async (req, res, next) => {
   const authHeader = req.headers.authorization;
+
+  // Log all incoming requests to /mcp
+  console.error(`[AUTH] ${req.method} ${req.path}`);
+  console.error(
+    `[AUTH] Full URL: ${req.protocol}://${req.get("host")}${req.originalUrl}`
+  );
+  console.error(`[AUTH] Headers:`, JSON.stringify(req.headers, null, 2));
 
   // Log authentication attempts
   if (authHeader) {
-    console.error(`[AUTH] Authorization header: "${authHeader}"`);
+    console.error(
+      `[AUTH] Authorization header present: "${authHeader.substring(0, 20)}..."`
+    );
+  } else {
+    console.error(`[AUTH] No Authorization header present`);
   }
 
-  // For now, allow all requests to pass through
-  // In production, you might want to validate the token
-  next();
+  // Skip authentication for health check and certain endpoints
+  if (req.path === "/health" || req.method === "OPTIONS") {
+    console.error(`[AUTH] Skipping auth for ${req.path}`);
+    return next();
+  }
+
+  // Helper function to send OAuth challenge
+  const sendOAuthChallenge = (message, error) => {
+    // Construct resource URL from request to support ngrok and production URLs
+    const protocol =
+      req.headers["x-forwarded-proto"] || (req.secure ? "https" : "http");
+    const host = req.headers["x-forwarded-host"] || req.headers.host;
+
+    // OAuth endpoints are now served by ServiceAPI, not MCP server
+    // Use OAUTH_SERVER_URL if set, otherwise fall back to same host
+    const oauthServerUrl =
+      process.env.OAUTH_SERVER_URL || `${protocol}://${host}`;
+    const resourceMetadataUrl = `${oauthServerUrl}/.well-known/oauth-protected-resource`;
+
+    // Set WWW-Authenticate header as per RFC 6750 and MCP OAuth spec
+    const wwwAuthHeader = `Bearer realm="mcp", resource_metadata="${resourceMetadataUrl}"`;
+    res.setHeader("WWW-Authenticate", wwwAuthHeader);
+
+    console.error(`[AUTH] ======== SENDING 401 OAUTH CHALLENGE ========`);
+    console.error(`[AUTH] WWW-Authenticate: ${wwwAuthHeader}`);
+    console.error(`[AUTH] Resource metadata URL: ${resourceMetadataUrl}`);
+    console.error(`[AUTH] Error code: ${error || "unauthorized"}`);
+    console.error(`[AUTH] Message: ${message}`);
+    console.error(`[AUTH] =============================================`);
+
+    return res.status(401).json({
+      error: error || "unauthorized",
+      message:
+        message ||
+        "Authentication required. Provide a valid OAuth Bearer token.",
+    });
+  };
+
+  // Try OAuth token first (Bearer token)
+  if (authHeader && authHeader.startsWith("Bearer ")) {
+    const token = extractBearerToken(authHeader);
+    if (token) {
+      console.error(`[AUTH] Validating OAuth token`);
+      const validation = await validateOAuthToken(token);
+
+      if (validation.valid) {
+        console.error(`[AUTH] ======== AUTHENTICATION SUCCESSFUL ========`);
+        console.error(`[AUTH] User: ${validation.userEmail}`);
+        console.error(`[AUTH] Company: ${validation.companyId}`);
+        console.error(`[AUTH] Client: ${validation.clientId}`);
+        console.error(`[AUTH] ============================================`);
+        // Attach user info to request for downstream use
+        req.oauth = {
+          userId: validation.userId,
+          companyId: validation.companyId,
+          userEmail: validation.userEmail,
+          clientId: validation.clientId,
+        };
+        return next();
+      } else {
+        console.error(
+          `[AUTH] OAuth token validation failed: ${validation.error}`
+        );
+        return sendOAuthChallenge(
+          validation.message || "Invalid or expired OAuth token",
+          validation.error
+        );
+      }
+    }
+  }
+
+  // Fall back to API key authentication (for development)
+  if (process.env.SUCCESS_CO_API_KEY) {
+    if (
+      authHeader === `Bearer ${process.env.SUCCESS_CO_API_KEY}` ||
+      authHeader === process.env.SUCCESS_CO_API_KEY
+    ) {
+      console.error(`[AUTH] Valid API key provided (dev mode)`);
+      req.apiKey = true;
+      return next();
+    }
+  }
+
+  // No valid authentication found - send OAuth challenge
+  console.error(`[AUTH] No valid authentication provided`);
+  return sendOAuthChallenge(
+    "Authentication required. Provide a valid OAuth Bearer token or API key.",
+    "unauthorized"
+  );
 });
 
 // Store transports for each session type
@@ -1668,6 +1822,7 @@ const transports = {
 
 // Health check endpoint
 app.get("/health", (req, res) => {
+  console.error(`[HEALTH] Health check requested`);
   res.json({
     status: "healthy",
     transports: {
@@ -1780,173 +1935,65 @@ app.all("/mcp", async (req, res) => {
     }
 
     // Use the StreamableHTTPServerTransport to handle the request
-    const sessionId =
-      req.headers["x-mcp-session-id"] ||
-      `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    // Note: Use 'mcp-session-id' as per MCP spec (not 'x-mcp-session-id')
+    const sessionId = req.headers["mcp-session-id"];
 
-    // Get or create transport for this session
-    let transport = transports.streamable[sessionId];
-    if (!transport) {
+    // Check if this is an initialize request (starts a new session)
+    const isInitialize =
+      req.body &&
+      req.body.method === "initialize" &&
+      req.body.jsonrpc === "2.0";
+
+    // Get existing transport or create new one for initialize
+    let transport = sessionId ? transports.streamable[sessionId] : null;
+
+    if (!transport && isInitialize) {
+      // Create new transport with session callback
       transport = new StreamableHTTPServerTransport({
-        sessionIdGenerator: () => sessionId,
+        sessionIdGenerator: () =>
+          `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        onsessioninitialized: (newSessionId) => {
+          transports.streamable[newSessionId] = transport;
+          console.error(`[MCP] Session initialized: ${newSessionId}`);
+        },
       });
-      transports.streamable[sessionId] = transport;
+
+      transport.onclose = () => {
+        if (transport.sessionId) {
+          console.error(`[MCP] Session closed: ${transport.sessionId}`);
+          delete transports.streamable[transport.sessionId];
+        }
+      };
 
       // Connect the transport to a fresh server instance
       const requestServer = createFreshMcpServer();
       await requestServer.connect(transport);
-      console.error(`[MCP] Created new transport for session: ${sessionId}`);
-    }
-
-    // Process MCP request manually since handleRequest doesn't exist
-    const mcpRequest = req.body;
-    console.error(`[MCP] Processing MCP request:`, mcpRequest);
-
-    // Check if mcpRequest is valid
-    if (!mcpRequest || typeof mcpRequest !== "object") {
-      console.error(`[MCP] Invalid request body:`, mcpRequest);
+      console.error(`[MCP] Created new transport for initialize request`);
+    } else if (!transport && !isInitialize) {
+      console.error(
+        `[MCP] No session found and not an initialize request. Session ID: ${sessionId}`
+      );
       res.status(400).json({
         jsonrpc: "2.0",
-        id: null,
         error: {
-          code: -32700,
-          message: "Parse error - request body must be valid JSON",
+          code: -32000,
+          message: "Bad Request: No valid session ID provided",
         },
+        id: null,
       });
       return;
     }
 
-    // Create a fresh server instance for this request
-    const requestServer = createFreshMcpServer();
-
-    // Create a direct mapping of tool names to handlers for easier access
-    const toolHandlers = createToolHandlersMap();
-
-    // Handle the initialize request
-    if (mcpRequest.method === "initialize") {
-      const response = {
-        jsonrpc: "2.0",
-        id: mcpRequest.id,
-        result: {
-          protocolVersion: "2025-06-18",
-          capabilities: {
-            tools: {},
-            resources: {},
-            prompts: {},
-          },
-          serverInfo: {
-            name: "Success.co MCP Server",
-            version: "0.0.3",
-          },
-        },
-      };
-      console.error(`[MCP] Sending initialize response:`, response);
-      res.json(response);
-      return;
-    }
-
-    // Handle tools/list request
-    if (mcpRequest.method === "tools/list") {
-      const tools = getToolsAsJsonSchema();
-
-      const response = {
-        jsonrpc: "2.0",
-        id: mcpRequest.id,
-        result: {
-          tools: tools,
-        },
-      };
-      console.error(`[MCP] Sending tools/list response:`, response);
-      res.json(response);
-      return;
-    }
-
-    // Handle tools/call request
-    if (mcpRequest.method === "tools/call") {
-      const { name, arguments: args } = mcpRequest.params;
-      console.error(`[MCP] Tool call: ${name} with args:`, args);
-
-      // Get the tool handler from our direct mapping
-      const toolHandler = toolHandlers[name];
-
-      if (!toolHandler) {
-        console.error(
-          `[MCP] Tool '${name}' not found. Available tools:`,
-          Object.keys(toolHandlers)
-        );
-        res.status(400).json({
-          jsonrpc: "2.0",
-          id: mcpRequest.id,
-          error: {
-            code: -32601,
-            message: `Tool '${name}' not found`,
-          },
-        });
-        return;
-      }
-
-      try {
-        // Log the start of the tool call to debug file
-        logToolCallStart(name, args);
-
-        const result = await toolHandler(args);
-
-        // Log the successful result to debug file
-        logToolCallEnd(name, result);
-
-        const response = {
-          jsonrpc: "2.0",
-          id: mcpRequest.id,
-          result: result,
-        };
-        console.error(`[MCP] Tool call result:`, response);
-        res.json(response);
-      } catch (error) {
-        console.error(`[MCP] Tool call error:`, error);
-
-        // Log the tool call error to debug file
-        logToolCallEnd(name, null, error.message);
-
-        res.status(500).json({
-          jsonrpc: "2.0",
-          id: mcpRequest.id,
-          error: {
-            code: -32603,
-            message: "Internal error",
-            data: error.message,
-          },
-        });
-      }
-      return;
-    }
-
-    // Handle resources/list request
-    if (mcpRequest.method === "resources/list") {
-      const response = {
-        jsonrpc: "2.0",
-        id: mcpRequest.id,
-        result: {
-          resources: [],
-        },
-      };
-      console.error(`[MCP] Sending resources/list response:`, response);
-      res.json(response);
-      return;
-    }
-
-    // For other requests, return not implemented
-    res.status(501).json({
-      jsonrpc: "2.0",
-      id: mcpRequest.id,
-      error: {
-        code: -32601,
-        message: `Method ${mcpRequest.method} not implemented`,
-      },
-    });
-
+    // Use the SDK's built-in request handler
+    console.error(`[MCP] Handling request with transport.handleRequest()`);
     console.error(
-      `[MCP] Request handled successfully for session: ${sessionId}`
+      `[MCP] Method: ${req.body?.method}, Session: ${
+        transport.sessionId || "none"
+      }`
     );
+
+    // Let the SDK handle the request properly - it will handle all JSON-RPC methods
+    await transport.handleRequest(req, res, req.body);
   } catch (error) {
     console.error(`[MCP] Error in /mcp endpoint:`, error);
     console.error(`[MCP] Error stack:`, error.stack);
@@ -1957,6 +2004,56 @@ app.all("/mcp", async (req, res) => {
     }
   }
 });
+
+// Add GET and DELETE handlers for session management
+app.get("/mcp", async (req, res) => {
+  try {
+    console.error(`[MCP] Received GET request for session management`);
+
+    const sessionId = req.headers["mcp-session-id"];
+    if (!sessionId || !transports.streamable[sessionId]) {
+      console.error(`[MCP] Invalid or missing session ID: ${sessionId}`);
+      res.status(400).send("Invalid or missing session ID");
+      return;
+    }
+
+    const transport = transports.streamable[sessionId];
+    await transport.handleRequest(req, res);
+  } catch (error) {
+    console.error(`[MCP] Error in GET /mcp:`, error);
+    if (!res.headersSent) {
+      res.status(500).send("Internal server error");
+    }
+  }
+});
+
+app.delete("/mcp", async (req, res) => {
+  try {
+    console.error(`[MCP] Received DELETE request for session cleanup`);
+
+    const sessionId = req.headers["mcp-session-id"];
+    if (!sessionId || !transports.streamable[sessionId]) {
+      console.error(`[MCP] Invalid or missing session ID: ${sessionId}`);
+      res.status(400).send("Invalid or missing session ID");
+      return;
+    }
+
+    const transport = transports.streamable[sessionId];
+    await transport.handleRequest(req, res);
+
+    // Clean up session after DELETE
+    delete transports.streamable[sessionId];
+    console.error(`[MCP] Session deleted: ${sessionId}`);
+  } catch (error) {
+    console.error(`[MCP] Error in DELETE /mcp:`, error);
+    if (!res.headersSent) {
+      res.status(500).send("Internal server error");
+    }
+  }
+});
+
+// Remove the old manual JSON-RPC handling - the SDK now handles everything
+// The transport.handleRequest() method properly implements the MCP protocol
 
 // Legacy SSE endpoint for older clients
 app.get("/sse", async (req, res) => {
@@ -2087,19 +2184,15 @@ app.post("/messages", async (req, res) => {
   }
 });
 
-// Create a log file for operational logs to avoid polluting STDIO
-const logFile = path.join(__dirname, "mcp.log");
-
-function logToFile(message) {
-  const timestamp = new Date().toISOString();
-  fs.appendFileSync(logFile, `[${timestamp}] ${message}\n`);
-}
+// REMOVED: All the manual JSON-RPC handling code below
+// The StreamableHTTPServerTransport now handles everything properly
+// including initialize, tools/list, tools/call, resources/list, and notifications
 
 // Log .env file loading status
 if (fs.existsSync(envPath)) {
-  logToFile(`Found .env file at ${envPath}`);
+  console.error(`[STARTUP] Found .env file at ${envPath}`);
 } else {
-  logToFile(`No .env file found at ${envPath}`);
+  console.error(`[STARTUP] No .env file found at ${envPath}`);
 }
 
 // Validate required environment variables at startup
@@ -2107,7 +2200,6 @@ if (!process.env.GRAPHQL_ENDPOINT_MODE) {
   const error =
     "GRAPHQL_ENDPOINT_MODE environment variable is required but not set";
   console.error(`[STARTUP ERROR] ${error}`);
-  logToFile(`STARTUP ERROR: ${error}`);
   console.error(
     `[STARTUP ERROR] Please set GRAPHQL_ENDPOINT_MODE in your environment or .env file`
   );
@@ -2116,22 +2208,23 @@ if (!process.env.GRAPHQL_ENDPOINT_MODE) {
   process.exit(1);
 }
 
-// Log startup information to file instead of console
-logToFile("Starting MCP server");
+// Log startup information
+console.error("[STARTUP] Starting MCP server");
 
 // Always start HTTP server (with error handling for port conflicts)
-logToFile("Starting HTTP server on port 3001");
+const PORT = process.env.MCP_SERVER_PORT || 3001;
+console.error(`[STARTUP] Starting HTTP server on port ${PORT}`);
 const httpServer = app
-  .listen(3001, () => {
-    logToFile("HTTP server is running on port 3001");
+  .listen(PORT, () => {
+    console.error(`[STARTUP] HTTP server is running on port ${PORT}`);
   })
   .on("error", (error) => {
     if (error.code === "EADDRINUSE" && isDev) {
       // ok for these to be console.error
       console.error(
-        "Port 3001 is already in use. Run this command to kill the process:"
+        `Port ${PORT} is already in use. Run this command to kill the process:`
       );
-      console.error("lsof -ti:3001 | xargs kill -9");
+      console.error(`lsof -ti:${PORT} | xargs kill -9`);
     } else {
       console.error(`HTTP server error: ${error.message}`);
     }
@@ -2148,16 +2241,18 @@ const stdioTransport = new StdioServerTransport();
 server
   .connect(stdioTransport)
   .then(() => {
-    logToFile("STDIO transport connected successfully");
+    console.error("[STARTUP] STDIO transport connected successfully");
   })
   .catch((error) => {
-    logToFile(`Error connecting STDIO transport: ${error.message}`);
+    console.error(
+      `[STARTUP] Error connecting STDIO transport: ${error.message}`
+    );
     // Don't exit - HTTP server might still be running
   });
 
 // Handle process termination signals
 process.on("SIGINT", () => {
-  logToFile("Received SIGINT, shutting down");
+  console.error("[SHUTDOWN] Received SIGINT, shutting down");
   if (httpServer) {
     httpServer.close();
   }
@@ -2165,7 +2260,7 @@ process.on("SIGINT", () => {
 });
 
 process.on("SIGTERM", () => {
-  logToFile("Received SIGTERM, shutting down");
+  console.error("[SHUTDOWN] Received SIGTERM, shutting down");
   if (httpServer) {
     httpServer.close();
   }
@@ -2174,3 +2269,12 @@ process.on("SIGTERM", () => {
 
 // Keep the process alive for STDIO transport
 process.stdin.resume();
+
+// EVERYTHING BELOW THIS LINE WAS REMOVED - THE SDK HANDLES IT
+// Previously we had manual handling of:
+// - initialize
+// - tools/list
+// - tools/call
+// - resources/list
+// - notifications
+// All of this is now properly handled by transport.handleRequest()

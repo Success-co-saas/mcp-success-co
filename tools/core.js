@@ -34,7 +34,7 @@ function initDatabaseConnection() {
       envConfig.DB_HOST &&
       envConfig.DB_NAME &&
       envConfig.DB_USER &&
-      envConfig.DB_PASSWORD
+      envConfig.DB_PASS
     ) {
       // Use individual connection parameters
       sql = postgres({
@@ -42,7 +42,7 @@ function initDatabaseConnection() {
         port: parseInt(envConfig.DB_PORT || "5432", 10),
         database: envConfig.DB_NAME,
         username: envConfig.DB_USER,
-        password: envConfig.DB_PASSWORD,
+        password: envConfig.DB_PASS,
         max: 10,
         idle_timeout: 20,
         connect_timeout: 10,
@@ -216,7 +216,7 @@ export async function testDatabaseConnection() {
     return {
       ok: false,
       error:
-        "Database not configured. Set DATABASE_URL or DB_HOST/DB_NAME/DB_USER/DB_PASSWORD in .env file.",
+        "Database not configured. Set DATABASE_URL or DB_HOST/DB_NAME/DB_USER/DB_PASS in .env file.",
     };
   }
 
@@ -398,7 +398,7 @@ export async function callSuccessCoGraphQL(query, variables = null) {
     return {
       ok: false,
       error:
-        "Success.co API key not set. Use the setSuccessCoApiKey tool first.",
+        "Success.co API key not set. Please set SUCCESS_CO_API_KEY in your .env file.",
     };
   }
 
@@ -481,91 +481,11 @@ export function getGraphQLEndpoint() {
 }
 
 /**
- * Gets Success.co API key from environment or file
+ * Gets Success.co API key from environment
  * @returns {string|null}
  */
 export function getSuccessCoApiKey() {
-  if (envConfig.SUCCESS_CO_API_KEY) return envConfig.SUCCESS_CO_API_KEY;
-
-  try {
-    const __dirname = path.dirname(fileURLToPath(import.meta.url));
-    const API_KEY_FILE = path.join(__dirname, "..", ".api_key");
-
-    if (fs.existsSync(API_KEY_FILE)) {
-      return fs.readFileSync(API_KEY_FILE, "utf8").trim();
-    }
-  } catch (error) {
-    // Ignore file read errors
-  }
-
-  return null;
-}
-
-/**
- * Stores Success.co API key to file
- * @param {string} apiKey - The API key to store
- * @returns {boolean} - Whether the storage was successful
- */
-function storeSuccessCoApiKey(apiKey) {
-  try {
-    const __dirname = path.dirname(fileURLToPath(import.meta.url));
-    const API_KEY_FILE = path.join(__dirname, "..", ".api_key");
-    fs.writeFileSync(API_KEY_FILE, apiKey, "utf8");
-    return true;
-  } catch (error) {
-    console.error("Error storing API key:", error);
-    return false;
-  }
-}
-
-/**
- * Set the Success.co API key
- * @param {Object} args - Arguments object
- * @param {string} args.apiKey - The API key for Success.co
- * @returns {Promise<{content: Array<{type: string, text: string}>}>}
- */
-export async function setSuccessCoApiKey(args) {
-  const { apiKey } = args;
-
-  if (!apiKey || apiKey.trim() === "") {
-    return {
-      content: [
-        {
-          type: "text",
-          text: "Error: API key cannot be blank",
-        },
-      ],
-    };
-  }
-
-  const stored = storeSuccessCoApiKey(apiKey);
-  return {
-    content: [
-      {
-        type: "text",
-        text: stored
-          ? "Success.co API key stored successfully"
-          : "Failed to store Success.co API key",
-      },
-    ],
-  };
-}
-
-/**
- * Get the Success.co API key (env or stored file)
- * @param {Object} args - Arguments object (no parameters needed)
- * @returns {Promise<{content: Array<{type: string, text: string}>}>}
- */
-export async function getSuccessCoApiKeyTool(args) {
-  const apiKey = getSuccessCoApiKey();
-  return {
-    content: [
-      {
-        type: "text",
-        text: apiKey || "Success.co API key not set",
-      },
-    ],
-  };
+  return envConfig.SUCCESS_CO_API_KEY || null;
 }
 
 // Export isDevMode for use by other modules

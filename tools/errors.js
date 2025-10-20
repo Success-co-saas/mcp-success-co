@@ -42,7 +42,7 @@ export class MCPError extends Error {
 export class APIKeyNotFoundError extends MCPError {
   constructor() {
     super(
-      "Success.co API key not set. Use setSuccessCoApiKey first.",
+      "Success.co API key not set. Please set SUCCESS_CO_API_KEY in your .env file.",
       "API_KEY_NOT_FOUND"
     );
   }

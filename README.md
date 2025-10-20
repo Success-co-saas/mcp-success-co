@@ -14,6 +14,28 @@ This MCP server provides comprehensive access to Success.co's EOS (Entrepreneuri
 
 This project demonstrates an MCP server implemented in JavaScript using Node.js that provides comprehensive access to Success.co's EOS framework data. It includes tools for retrieving teams, users, todos, rocks, meetings, issues, headlines, visions, and Scorecard measurables. Most importantly, it includes advanced analytical tools that can answer complex EOS-related questions like "Which company Rocks are at risk of missing their due dates this quarter, and who owns them?", Scorecard questions like "Give me the last 12 weeks of Scorecard measurables for my team and flag any KPI below target", and Level 10 meeting questions like "What are the top 5 open Issues for this week's Level 10 meeting and their owners?"
 
+## Authentication
+
+The MCP server supports two authentication methods:
+
+### 1. OAuth 2.0 (Recommended for Production)
+
+Secure OAuth authentication through your Success.co account. See [OAUTH_SETUP.md](OAUTH_SETUP.md) for complete setup instructions.
+
+- **Authorization Flow:** Standard OAuth 2.0 authorization code flow
+- **Token Lifetime:** 90 days
+- **Endpoints:** All under `/mcp/*` prefix
+- **Setup Required:** Database tables + ngrok for local testing
+
+### 2. API Key (Development Only)
+
+Simple API key authentication for development and testing.
+
+- **Configuration:** Set `SUCCESS_CO_API_KEY` in `.env` (you should already have this)
+- **Usage:** Include in Authorization header: `Bearer your-api-key`
+- **Security:** Not recommended for production use
+- **Database:** OAuth uses your existing database configuration (`DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASS`)
+
 ## Quick dev setup and notes
 
 ### Local Development Setup
@@ -351,7 +373,7 @@ The server maintains backwards compatibility with the deprecated HTTP+SSE transp
    DB_PORT=5432
    DB_NAME=successco
    DB_USER=postgres
-   DB_PASSWORD=your-password
+   DB_PASS=your-password
    ```
 
    **Note:** Without database configuration, you can still use all read-only tools (get/search operations), but create/update operations will fail with "Could not determine company ID" error.
