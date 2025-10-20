@@ -74,7 +74,7 @@ cd /Users/topper/dev/success.co/mcp-success-co
 # Kill existing process if running
 lsof -ti:3001 | xargs kill -9
 # Start server
-node mcp-server.js
+node index.js
 ```
 
 ### 4. Test the Flow

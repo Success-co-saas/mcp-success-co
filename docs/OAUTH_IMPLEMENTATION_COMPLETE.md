@@ -43,7 +43,7 @@ else if (shouldUseApiKeyMode()) {
 }
 ```
 
-### 2. MCP Server Updates (`mcp-server.js`)
+### 2. MCP Server Updates (`index.js`)
 
 #### Environment Configuration
 
@@ -309,7 +309,7 @@ HTTP Request
 
 ```bash
 # Start server (OAuth is default)
-node mcp-server.js
+node index.js
 
 # Make request with OAuth token
 curl -X POST http://localhost:3001/mcp \
@@ -326,7 +326,7 @@ export DEVMODE_SUCCESS_USE_API_KEY=true
 export NODE_ENV=development
 
 # Start server
-node mcp-server.js
+node index.js
 
 # Make request with API key
 curl -X POST http://localhost:3001/mcp \
@@ -400,7 +400,7 @@ The implementation includes clear logging to show which auth mode is active:
 ## Files Modified
 
 - `tools/core.js` - Core authentication logic
-- `mcp-server.js` - Middleware and request handling
+- `index.js` - Middleware and request handling
 - `tools/index.js` - Export auth functions
 - `README.md` - Updated documentation
 - `OAUTH_IMPLEMENTATION_COMPLETE.md` - This document

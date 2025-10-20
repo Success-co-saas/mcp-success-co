@@ -1,5 +1,6 @@
 {
   "type": "module",
+  "main": "index.js",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.7.0",
     "dotenv": "^17.2.3",
@@ -8,7 +9,7 @@
     "zod": "^3.24.2"
   },
   "scripts": {
-    "inspector": "npx @modelcontextprotocol/inspector node ./mcp-server.js",
-    "start": "node ./mcp-server.js"
+    "inspector": "npx @modelcontextprotocol/inspector node index.js",
+    "start": "node index.js"
   }
 }

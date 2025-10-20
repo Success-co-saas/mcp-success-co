@@ -103,6 +103,7 @@ Use ngrok when you need external access or testing from remote tools.
 ### Setup Steps
 
 1. **Start all required services:**
+
    ```bash
    # Start ServiceAPI (port 4001)
    cd serviceapi-success-co
@@ -110,7 +111,7 @@ Use ngrok when you need external access or testing from remote tools.
 
    # Start MCP Server (port 3001)
    cd mcp-success-co
-   node mcp-server.js
+   node index.js
 
    # Start Vite proxy (port 5174)
    cd app.success.co
@@ -118,6 +119,7 @@ Use ngrok when you need external access or testing from remote tools.
    ```
 
 2. **For remote access, start ngrok (optional):**
+
    ```bash
    # Install ngrok if needed
    brew install ngrok
@@ -298,11 +300,13 @@ MCP Client → Vite Proxy (5174) → ServiceAPI (4001) + MCP Server (3001)
 ### Key Components
 
 1. **Vite Proxy (port 5174)** - Unified entry point
+
    - Routes `/mcp` requests to MCP Server
    - Routes `/.well-known/*` and `/oauth/*` to ServiceAPI
    - Preserves URL context for both local and ngrok connections
 
 2. **ServiceAPI (port 4001)** - Authentication & OAuth
+
    - Handles OAuth 2.0 authorization flow
    - Stores and validates access tokens
    - Provides OAuth metadata endpoints
@@ -361,7 +365,7 @@ This design allows:
    ```json
    "type": "module",
    "scripts": {
-    "inspector": "npx @modelcontextprotocol/inspector node ./mcp-server.js"
+    "inspector": "npx @modelcontextprotocol/inspector node index.js"
    }
    ```
 
