@@ -1,11 +1,7 @@
 // Search and Fetch Tools
 // Tools for searching across Success.co entities and fetching specific items
 
-import {
-  callSuccessCoGraphQL,
-  getSuccessCoApiKey,
-  getGraphQLEndpoint,
-} from "./core.js";
+import { callSuccessCoGraphQL, getGraphQLEndpoint } from "./core.js";
 
 /**
  * Search across Success.co entities
@@ -613,17 +609,7 @@ export async function fetch(args) {
     strategyId ||
     id;
 
-  const apiKey = getSuccessCoApiKey();
-  if (!apiKey) {
-    return {
-      content: [
-        {
-          type: "text",
-          text: "Success.co API key not set. Please set DEVMODE_SUCCESS_API_KEY in your .env file.",
-        },
-      ],
-    };
-  }
+  // Authentication is handled automatically by callSuccessCoGraphQL
 
   // Helper function to make GraphQL requests
   const makeGraphQLRequest = async (query, variables = {}) => {

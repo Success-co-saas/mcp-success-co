@@ -4,8 +4,7 @@
 import {
   callSuccessCoGraphQL,
   getLeadershipTeamId,
-  getSuccessCoApiKey,
-  getContextForApiKey,
+  getUserContext,
   getDatabase,
   getIsDevMode,
 } from "./core.js";
@@ -454,36 +453,18 @@ export async function createScorecardMeasurableEntry(args) {
       };
     }
 
-    // Get API key context to determine company ID
-    const apiKey = getSuccessCoApiKey();
-    if (!apiKey) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: "Error: No API key configured. Please set DEVMODE_SUCCESS_API_KEY in your .env file.",
-          },
-        ],
-      };
-    }
-
-    const context = await getContextForApiKey(apiKey);
+    // Get user context (works with OAuth or API key)
+    const context = await getUserContext();
     if (!context) {
       // Get more details about why context lookup failed
       const db = getDatabase();
-      let errorDetails = "Could not determine user context from API key.";
+      let errorDetails =
+        "Authentication required. No valid OAuth token or API key found.";
 
       if (!db) {
         errorDetails += " Database is not configured.";
-      } else {
-        errorDetails +=
-          " API key may not exist in database or database query failed.";
-        if (isDevMode) {
-          errorDetails += ` (API key starts with: ${apiKey.substring(
-            0,
-            12
-          )}...)`;
-        }
+      } else if (isDevMode) {
+        errorDetails += " Context lookup failed.";
       }
 
       return {
@@ -767,36 +748,18 @@ export async function updateScorecardMeasurableEntry(args) {
       };
     }
 
-    // Get API key context to determine company ID
-    const apiKey = getSuccessCoApiKey();
-    if (!apiKey) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: "Error: No API key configured. Please set DEVMODE_SUCCESS_API_KEY in your .env file.",
-          },
-        ],
-      };
-    }
-
-    const context = await getContextForApiKey(apiKey);
+    // Get user context (works with OAuth or API key)
+    const context = await getUserContext();
     if (!context) {
       // Get more details about why context lookup failed
       const db = getDatabase();
-      let errorDetails = "Could not determine user context from API key.";
+      let errorDetails =
+        "Authentication required. No valid OAuth token or API key found.";
 
       if (!db) {
         errorDetails += " Database is not configured.";
-      } else {
-        errorDetails +=
-          " API key may not exist in database or database query failed.";
-        if (isDevMode) {
-          errorDetails += ` (API key starts with: ${apiKey.substring(
-            0,
-            12
-          )}...)`;
-        }
+      } else if (isDevMode) {
+        errorDetails += " Context lookup failed.";
       }
 
       return {

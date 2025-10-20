@@ -4,8 +4,7 @@
 import {
   callSuccessCoGraphQL,
   getLeadershipTeamId,
-  getSuccessCoApiKey,
-  getContextForApiKey,
+  getUserContext,
 } from "./core.js";
 import {
   validateStateId,
@@ -271,26 +270,14 @@ export async function createTodo(args) {
     };
   }
 
-  const apiKey = getSuccessCoApiKey();
-  if (!apiKey) {
-    return {
-      content: [
-        {
-          type: "text",
-          text: "Error: Success.co API key not set. Please set DEVMODE_SUCCESS_API_KEY in your .env file.",
-        },
-      ],
-    };
-  }
-
-  // Get context (company ID and user ID) from the API key
-  const context = await getContextForApiKey(apiKey);
+  // Get user context (works with OAuth or API key)
+  const context = await getUserContext();
   if (!context) {
     return {
       content: [
         {
           type: "text",
-          text: "Error: Could not determine context from API key. Please ensure database connection is configured.",
+          text: "Error: Authentication required. No valid OAuth token or API key found.",
         },
       ],
     };
@@ -412,13 +399,14 @@ export async function updateTodo(args) {
     };
   }
 
-  const apiKey = getSuccessCoApiKey();
-  if (!apiKey) {
+  // Get user context (works with OAuth or API key)
+  const context = await getUserContext();
+  if (!context) {
     return {
       content: [
         {
           type: "text",
-          text: "Error: Success.co API key not set. Please set DEVMODE_SUCCESS_API_KEY in your .env file.",
+          text: "Error: Authentication required. No valid OAuth token or API key found.",
         },
       ],
     };

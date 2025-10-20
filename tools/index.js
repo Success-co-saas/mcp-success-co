@@ -7,6 +7,7 @@ export {
   getLeadershipTeamId,
   getUserAndCompanyInfoForApiKey,
   getContextForApiKey,
+  getUserContext,
   testDatabaseConnection,
   init,
   logGraphQLCall,

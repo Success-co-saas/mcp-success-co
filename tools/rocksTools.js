@@ -4,9 +4,7 @@
 import {
   callSuccessCoGraphQL,
   getLeadershipTeamId,
-  getSuccessCoApiKey,
-  getUserAndCompanyInfoForApiKey,
-  getContextForApiKey,
+  getUserContext,
   getDatabase,
   getIsDevMode,
 } from "./core.js";
@@ -264,33 +262,21 @@ export async function createRock(args) {
     };
   }
 
-  const apiKey = getSuccessCoApiKey();
-  if (!apiKey) {
-    return {
-      content: [
-        {
-          type: "text",
-          text: "Error: Success.co API key not set. Please set DEVMODE_SUCCESS_API_KEY in your .env file.",
-        },
-      ],
-    };
-  }
-
-  // Get user and company info from the API key
-  const context = await getUserAndCompanyInfoForApiKey(apiKey);
+  // Get user context (works with OAuth or API key)
+  const context = await getUserContext();
   if (!context) {
     return {
       content: [
         {
           type: "text",
-          text: "Error: Could not determine user and company info. Please ensure database connection is configured.",
+          text: "Error: Authentication required. No valid OAuth token or API key found.",
         },
       ],
     };
   }
 
   const companyId = context.companyId;
-  // Use provided userId or default to current user from API key
+  // Use provided userId or default to current user from context
   const finalUserId = userId || context.userId;
 
   // If dueDate is not provided, calculate the last date of the current quarter
@@ -548,13 +534,14 @@ export async function updateRock(args) {
     };
   }
 
-  const apiKey = getSuccessCoApiKey();
-  if (!apiKey) {
+  // Get user context (works with OAuth or API key)
+  const context = await getUserContext();
+  if (!context) {
     return {
       content: [
         {
           type: "text",
-          text: "Error: Success.co API key not set. Please set DEVMODE_SUCCESS_API_KEY in your .env file.",
+          text: "Error: Authentication required. No valid OAuth token or API key found.",
         },
       ],
     };

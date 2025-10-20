@@ -211,6 +211,53 @@ export async function getContextForApiKey(apiKey) {
 }
 
 /**
+ * Get user context (company ID, user ID, email) for the current request
+ * Automatically handles OAuth access tokens or API key mode
+ * @returns {Promise<{companyId: string, userId: string, userEmail?: string}|null>} - User context or null
+ */
+export async function getUserContext() {
+  // Try to get context from OAuth first (preferred method)
+  const auth = getAuthContext();
+
+  if (auth && auth.accessToken) {
+    // OAuth mode - context is already in the auth object from middleware
+    if (auth.companyId && auth.userId) {
+      if (isDevMode) {
+        console.error(
+          `[AUTH] getUserContext() using OAuth context - Company: ${auth.companyId}, User: ${auth.userId}`
+        );
+      }
+      return {
+        companyId: auth.companyId,
+        userId: auth.userId,
+        userEmail: auth.userEmail,
+      };
+    }
+  }
+
+  // Fallback to API key mode (only in development with explicit flag)
+  if (shouldUseApiKeyMode()) {
+    const apiKey = getSuccessCoApiKey();
+    if (apiKey) {
+      if (isDevMode) {
+        console.error(
+          `[AUTH] getUserContext() falling back to API key mode (DEVMODE_SUCCESS_USE_API_KEY=true)`
+        );
+      }
+      return await getUserAndCompanyInfoForApiKey(apiKey);
+    }
+  }
+
+  // No authentication context available
+  if (isDevMode) {
+    console.error(
+      `[AUTH] getUserContext() failed - no OAuth context or API key available`
+    );
+  }
+  return null;
+}
+
+/**
  * Test database connection
  * @returns {Promise<{ok: boolean, error?: string}>}
  */
