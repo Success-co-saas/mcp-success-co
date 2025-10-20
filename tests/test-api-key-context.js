@@ -20,7 +20,7 @@ init({
   DATABASE_URL: process.env.DATABASE_URL,
   DB_HOST: process.env.DB_HOST,
   DB_PORT: process.env.DB_PORT,
-  DB_NAME: process.env.DB_NAME,
+  DB_DATABASE: process.env.DB_DATABASE,
   DB_USER: process.env.DB_USER,
   DB_PASS: process.env.DB_PASS,
 });
@@ -65,7 +65,7 @@ async function diagnoseApiKeyContext() {
       db = postgres({
         host: process.env.DB_HOST,
         port: parseInt(process.env.DB_PORT || "5432", 10),
-        database: process.env.DB_NAME,
+        database: process.env.DB_DATABASE,
         username: process.env.DB_USER,
         password: process.env.DB_PASS,
         max: 10,

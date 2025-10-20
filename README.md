@@ -71,7 +71,7 @@ NODE_ENV=development
 - Will not work in production (NODE_ENV=production)
 - Useful for local testing without OAuth setup
 
-**Database:** Both methods use your existing database configuration (`DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASS`)
+**Database:** Both methods use your existing database configuration (`DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USER`, `DB_PASS`)
 
 ## Quick Start
 
@@ -399,7 +399,7 @@ This design allows:
    ```bash
    DB_HOST=localhost
    DB_PORT=5432
-   DB_NAME=successco
+   DB_DATABASE=successco
    DB_USER=postgres
    DB_PASS=your-password
    ```

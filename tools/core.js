@@ -36,7 +36,7 @@ function initDatabaseConnection() {
       });
     } else if (
       envConfig.DB_HOST &&
-      envConfig.DB_NAME &&
+      envConfig.DB_DATABASE &&
       envConfig.DB_USER &&
       envConfig.DB_PASS
     ) {
@@ -44,7 +44,7 @@ function initDatabaseConnection() {
       sql = postgres({
         host: envConfig.DB_HOST,
         port: parseInt(envConfig.DB_PORT || "5432", 10),
-        database: envConfig.DB_NAME,
+        database: envConfig.DB_DATABASE,
         username: envConfig.DB_USER,
         password: envConfig.DB_PASS,
         max: 10,
@@ -267,7 +267,7 @@ export async function testDatabaseConnection() {
     return {
       ok: false,
       error:
-        "Database not configured. Set DATABASE_URL or DB_HOST/DB_NAME/DB_USER/DB_PASS in .env file.",
+        "Database not configured. Set DATABASE_URL or DB_HOST/DB_DATABASE/DB_USER/DB_PASS in .env file.",
     };
   }
 

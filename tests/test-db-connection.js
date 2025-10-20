@@ -9,7 +9,7 @@ dotenv.config({ path: path.join(__dirname, ".env") });
 console.log("Testing database connection...");
 console.log("DB_HOST:", process.env.DB_HOST);
 console.log("DB_PORT:", process.env.DB_PORT);
-console.log("DB_NAME:", process.env.DB_NAME);
+console.log("DB_DATABASE:", process.env.DB_DATABASE);
 console.log("DB_USER:", process.env.DB_USER);
 console.log("DB_PASS:", process.env.DB_PASS ? "***" : "not set");
 
@@ -17,7 +17,7 @@ try {
   const sql = postgres({
     host: process.env.DB_HOST,
     port: parseInt(process.env.DB_PORT, 10),
-    database: process.env.DB_NAME,
+    database: process.env.DB_DATABASE,
     username: process.env.DB_USER,
     password: process.env.DB_PASS,
     max: 1,

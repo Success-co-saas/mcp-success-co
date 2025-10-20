@@ -66,7 +66,7 @@ initOAuthValidator(DB_CONFIG);
     logger.error(
       "Please ensure your .env file contains correct database credentials:"
     );
-    logger.error("  - DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASS");
+    logger.error("  - DB_HOST, DB_PORT, DB_DATABASE, DB_USER, DB_PASS");
     logger.error("  OR (alternative)");
     logger.error(
       "  - DATABASE_URL=postgresql://user:password@host:port/database"

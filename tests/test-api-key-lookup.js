@@ -11,7 +11,7 @@ console.log("Testing API key prefix stripping...\n");
 const sql = postgres({
   host: process.env.DB_HOST,
   port: parseInt(process.env.DB_PORT, 10),
-  database: process.env.DB_NAME,
+  database: process.env.DB_DATABASE,
   username: process.env.DB_USER,
   password: process.env.DB_PASS,
   max: 1,

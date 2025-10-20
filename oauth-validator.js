@@ -22,14 +22,14 @@ export function initOAuthValidator(config) {
   } else if (
     config.DB_HOST &&
     config.DB_PORT &&
-    config.DB_NAME &&
+    config.DB_DATABASE &&
     config.DB_USER &&
     config.DB_PASS
   ) {
     sql = postgres({
       host: config.DB_HOST,
       port: parseInt(config.DB_PORT, 10),
-      database: config.DB_NAME,
+      database: config.DB_DATABASE,
       username: config.DB_USER,
       password: config.DB_PASS,
       max: 10,
