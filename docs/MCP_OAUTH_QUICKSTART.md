@@ -213,7 +213,7 @@ DB_PASS=your-password
 # Optional OAuth configuration
 OAUTH_AUTHORIZATION_SERVER=https://successcodev.ngrok.app  # Default: auto-detected
 MCP_RESOURCE_URL=https://successcodev.ngrok.app     # Auto-detected
-MCP_SERVER_PORT=3001                                # Default
+PORT=3001                                # Default
 
 # Development fallback
 DEVMODE_SUCCESS_API_KEY=your-api-key-for-dev

@@ -59,7 +59,7 @@ Add these variables to your MCP server `.env` file:
 ```bash
 # Server Configuration
 NODE_ENV=development
-MCP_SERVER_PORT=3001
+PORT=3001
 
 # GraphQL Endpoint
 GRAPHQL_ENDPOINT_MODE=online

@@ -2253,7 +2253,7 @@ if (!process.env.GRAPHQL_ENDPOINT_MODE) {
 console.error("[STARTUP] Starting MCP server");
 
 // Always start HTTP server (with error handling for port conflicts)
-const PORT = process.env.MCP_SERVER_PORT || 3001;
+const PORT = process.env.PORT || 3001;
 console.error(`[STARTUP] Starting HTTP server on port ${PORT}`);
 const httpServer = app
   .listen(PORT, () => {

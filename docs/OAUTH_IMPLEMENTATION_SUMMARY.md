@@ -102,7 +102,7 @@ Add or update these variables:
 
 ```bash
 # Server Port (now configurable)
-MCP_SERVER_PORT=3001
+PORT=3001
 
 # Database connection (required for OAuth)
 # Use your existing individual parameters:
