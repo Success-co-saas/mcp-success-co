@@ -10,9 +10,9 @@ dotenv.config();
 tools.init({
   NODE_ENV: process.env.NODE_ENV || "development",
   DEBUG: process.env.DEBUG || "true",
-  GRAPHQL_ENDPOINT_MODE: process.env.GRAPHQL_ENDPOINT_MODE || "online",
-  GRAPHQL_ENDPOINT_LOCAL: process.env.GRAPHQL_ENDPOINT_LOCAL,
-  GRAPHQL_ENDPOINT_ONLINE: process.env.GRAPHQL_ENDPOINT_ONLINE,
+  GRAPHQL_ENDPOINT: process.env.GRAPHQL_ENDPOINT || "online",
+  GRAPHQL_ENDPOINT: process.env.GRAPHQL_ENDPOINT,
+  GRAPHQL_ENDPOINT: process.env.GRAPHQL_ENDPOINT,
   DEVMODE_SUCCESS_API_KEY: process.env.DEVMODE_SUCCESS_API_KEY,
   DATABASE_URL: process.env.DATABASE_URL,
   DB_HOST: process.env.DB_HOST,

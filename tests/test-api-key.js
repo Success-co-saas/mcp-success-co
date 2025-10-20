@@ -24,9 +24,9 @@ console.log("Dotenv loaded:", result.parsed ? "Yes" : "No");
 init({
   NODE_ENV: process.env.NODE_ENV,
   DEBUG: process.env.DEBUG,
-  GRAPHQL_ENDPOINT_MODE: process.env.GRAPHQL_ENDPOINT_MODE,
-  GRAPHQL_ENDPOINT_LOCAL: process.env.GRAPHQL_ENDPOINT_LOCAL,
-  GRAPHQL_ENDPOINT_ONLINE: process.env.GRAPHQL_ENDPOINT_ONLINE,
+  GRAPHQL_ENDPOINT: process.env.GRAPHQL_ENDPOINT,
+  GRAPHQL_ENDPOINT: process.env.GRAPHQL_ENDPOINT,
+  GRAPHQL_ENDPOINT: process.env.GRAPHQL_ENDPOINT,
   DEVMODE_SUCCESS_API_KEY: process.env.DEVMODE_SUCCESS_API_KEY,
   DATABASE_URL: process.env.DATABASE_URL,
   DB_HOST: process.env.DB_HOST,

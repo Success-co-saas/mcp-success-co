@@ -587,17 +587,11 @@ export async function callSuccessCoGraphQL(query, variables = null) {
 }
 
 /**
- * Gets the GraphQL endpoint URL based on environment configuration
+ * Gets the GraphQL endpoint URL from environment configuration
  * @returns {string}
  */
 export function getGraphQLEndpoint() {
-  const mode = envConfig.GRAPHQL_ENDPOINT_MODE || "online";
-
-  if (mode === "local") {
-    return envConfig.GRAPHQL_ENDPOINT_LOCAL || "http://localhost:5174/graphql";
-  }
-
-  return envConfig.GRAPHQL_ENDPOINT_ONLINE || "https://www.success.co/graphql";
+  return envConfig.GRAPHQL_ENDPOINT || "http://localhost:5174/graphql";
 }
 
 /**

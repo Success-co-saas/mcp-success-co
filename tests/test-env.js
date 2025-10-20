@@ -23,8 +23,5 @@ console.log(
   "DEVMODE_SUCCESS_API_KEY from process.env:",
   process.env.DEVMODE_SUCCESS_API_KEY
 );
-console.log(
-  "GRAPHQL_ENDPOINT_MODE from process.env:",
-  process.env.GRAPHQL_ENDPOINT_MODE
-);
+console.log("GRAPHQL_ENDPOINT from process.env:", process.env.GRAPHQL_ENDPOINT);
 console.log("NODE_ENV from process.env:", process.env.NODE_ENV);
