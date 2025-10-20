@@ -28,7 +28,7 @@ The MCP server supports two authentication methods:
 - **Token Usage:** Automatically passed to GraphQL API as `Bearer <access_token>`
 - **Endpoints:** All under `/mcp/*` prefix
 - **Setup Required:** Database tables + OAuth client registration
-- **See:** [OAUTH_SETUP.md](OAUTH_SETUP.md) for complete setup instructions
+- **See:** [OAUTH_SETUP.md](docs/OAUTH_SETUP.md) for complete setup instructions
 
 **How it works:**
 
