@@ -5,12 +5,16 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import postgres from "postgres";
+import { AsyncLocalStorage } from "async_hooks";
 import { clearDebugLog } from "../helpers.js";
 
 // Logging - Debug
 const DEBUG_LOG_FILE = "/tmp/mcp-success-co-debug.log";
 let isDevMode = false;
 let envConfig = {};
+
+// Authentication context storage (for passing OAuth tokens through async call chains)
+const authContext = new AsyncLocalStorage();
 
 // Database connection
 let sql = null;
@@ -207,6 +211,53 @@ export async function getContextForApiKey(apiKey) {
 }
 
 /**
+ * Get user context (company ID, user ID, email) for the current request
+ * Automatically handles OAuth access tokens or API key mode
+ * @returns {Promise<{companyId: string, userId: string, userEmail?: string}|null>} - User context or null
+ */
+export async function getUserContext() {
+  // Try to get context from OAuth first (preferred method)
+  const auth = getAuthContext();
+
+  if (auth && auth.accessToken) {
+    // OAuth mode - context is already in the auth object from middleware
+    if (auth.companyId && auth.userId) {
+      if (isDevMode) {
+        console.error(
+          `[AUTH] getUserContext() using OAuth context - Company: ${auth.companyId}, User: ${auth.userId}`
+        );
+      }
+      return {
+        companyId: auth.companyId,
+        userId: auth.userId,
+        userEmail: auth.userEmail,
+      };
+    }
+  }
+
+  // Fallback to API key mode (only in development with explicit flag)
+  if (shouldUseApiKeyMode()) {
+    const apiKey = getSuccessCoApiKey();
+    if (apiKey) {
+      if (isDevMode) {
+        console.error(
+          `[AUTH] getUserContext() falling back to API key mode (DEVMODE_SUCCESS_USE_API_KEY=true)`
+        );
+      }
+      return await getUserAndCompanyInfoForApiKey(apiKey);
+    }
+  }
+
+  // No authentication context available
+  if (isDevMode) {
+    console.error(
+      `[AUTH] getUserContext() failed - no OAuth context or API key available`
+    );
+  }
+  return null;
+}
+
+/**
  * Test database connection
  * @returns {Promise<{ok: boolean, error?: string}>}
  */
@@ -281,6 +332,48 @@ export function init(config) {
   if (envConfig.DATABASE_URL || envConfig.DB_HOST) {
     initDatabaseConnection();
   }
+}
+
+/**
+ * Set authentication context for the current request
+ * This should be called at the start of each request with OAuth token or API key info
+ * @param {Object} auth - Authentication info
+ * @param {string} [auth.accessToken] - OAuth access token
+ * @param {string} [auth.userId] - User ID
+ * @param {string} [auth.companyId] - Company ID
+ * @param {string} [auth.userEmail] - User email
+ * @param {boolean} [auth.isApiKeyMode] - Whether using API key instead of OAuth
+ */
+export function setAuthContext(auth) {
+  return authContext.enterWith(auth);
+}
+
+/**
+ * Run a function with authentication context
+ * @param {Object} auth - Authentication info
+ * @param {Function} fn - Function to run with auth context
+ * @returns {Promise<any>} - Result of the function
+ */
+export function runWithAuthContext(auth, fn) {
+  return authContext.run(auth, fn);
+}
+
+/**
+ * Get current authentication context
+ * @returns {Object|undefined} - Current auth context or undefined
+ */
+export function getAuthContext() {
+  return authContext.getStore();
+}
+
+/**
+ * Check if we should use API key mode (only allowed in development)
+ * @returns {boolean} - True if API key mode is enabled and allowed
+ */
+export function shouldUseApiKeyMode() {
+  // Only allow API key mode if explicitly enabled AND in development
+  const useApiKey = envConfig.DEVMODE_SUCCESS_USE_API_KEY === "true";
+  return useApiKey && isDevMode;
 }
 
 /**
@@ -388,17 +481,44 @@ export function logToolCallEnd(toolName, result, error = null) {
 
 /**
  * Calls the Success.co GraphQL API
+ * Uses OAuth access token from context, or falls back to API key in dev mode
  * @param {string} query - The GraphQL query string
  * @param {Object} [variables] - Optional variables for the GraphQL query
  * @returns {Promise<{ok: boolean, data?: any, error?: string}>}
  */
 export async function callSuccessCoGraphQL(query, variables = null) {
-  const apiKey = getSuccessCoApiKey();
-  if (!apiKey) {
+  // Get authentication from context (OAuth access token) or fall back to API key
+  const auth = getAuthContext();
+  let authToken = null;
+  let authMode = "none";
+
+  // Try to use OAuth access token from context first
+  if (auth && auth.accessToken) {
+    authToken = auth.accessToken;
+    authMode = "oauth";
+    if (isDevMode) {
+      console.error(`[AUTH] Using OAuth access token for GraphQL call`);
+    }
+  }
+  // Fall back to API key mode only if explicitly enabled in development
+  else if (shouldUseApiKeyMode()) {
+    const apiKey = getSuccessCoApiKey();
+    if (apiKey) {
+      authToken = apiKey;
+      authMode = "api_key";
+      if (isDevMode) {
+        console.error(
+          `[AUTH] Using API key for GraphQL call (DEVMODE_SUCCESS_USE_API_KEY=true)`
+        );
+      }
+    }
+  }
+
+  if (!authToken) {
     return {
       ok: false,
       error:
-        "Success.co API key not set. Please set SUCCESS_CO_API_KEY in your .env file.",
+        "No authentication available. Expected OAuth access token in request context, or DEVMODE_SUCCESS_API_KEY in dev mode with DEVMODE_SUCCESS_USE_API_KEY=true.",
     };
   }
 
@@ -408,7 +528,7 @@ export async function callSuccessCoGraphQL(query, variables = null) {
   const response = await globalThis.fetch(url, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${apiKey}`,
+      Authorization: `Bearer ${authToken}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify(body),
@@ -485,7 +605,7 @@ export function getGraphQLEndpoint() {
  * @returns {string|null}
  */
 export function getSuccessCoApiKey() {
-  return envConfig.SUCCESS_CO_API_KEY || null;
+  return envConfig.DEVMODE_SUCCESS_API_KEY || null;
 }
 
 // Export isDevMode for use by other modules

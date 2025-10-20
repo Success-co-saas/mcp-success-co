@@ -216,7 +216,7 @@ MCP_RESOURCE_URL=https://successcodev.ngrok.app     # Auto-detected
 MCP_SERVER_PORT=3001                                # Default
 
 # Development fallback
-SUCCESS_CO_API_KEY=your-api-key-for-dev
+DEVMODE_SUCCESS_API_KEY=your-api-key-for-dev
 ```
 
 ## Support

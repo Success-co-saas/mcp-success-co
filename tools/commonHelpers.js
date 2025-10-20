@@ -2,9 +2,8 @@
 // Reusable utilities to reduce code duplication across tools
 
 import {
-  getSuccessCoApiKey,
+  getUserContext,
   getLeadershipTeamId,
-  getContextForApiKey,
   callSuccessCoGraphQL,
 } from "./core.js";
 import {
@@ -20,16 +19,18 @@ import {
 } from "./errors.js";
 
 /**
- * Validate and get API key
- * @throws {APIKeyNotFoundError} if API key is not set
- * @returns {string} API key
+ * Validate and get user context (OAuth or API key)
+ * @throws {ContextError} if authentication is not available
+ * @returns {Promise<{companyId: string, userId: string, userEmail?: string}>} User context
  */
-export function requireApiKey() {
-  const apiKey = getSuccessCoApiKey();
-  if (!apiKey) {
-    throw new APIKeyNotFoundError();
+export async function requireContext() {
+  const context = await getUserContext();
+  if (!context) {
+    throw new ContextError(
+      "Authentication required. No valid OAuth token or API key found."
+    );
   }
-  return apiKey;
+  return context;
 }
 
 /**
@@ -77,20 +78,6 @@ export async function resolveTeamId(
   }
 
   return teamId;
-}
-
-/**
- * Get context (company ID and user ID) from API key
- * @param {string} apiKey - API key
- * @returns {Promise<{companyId: string, userId: string}>} Context
- * @throws {ContextError} if context cannot be determined
- */
-export async function requireContext(apiKey) {
-  const context = await getContextForApiKey(apiKey);
-  if (!context) {
-    throw new ContextError();
-  }
-  return context;
 }
 
 /**

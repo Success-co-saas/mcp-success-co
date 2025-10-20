@@ -50,6 +50,7 @@ import {
   updateScorecardMeasurableEntry,
   logToolCallStart,
   logToolCallEnd,
+  runWithAuthContext,
 } from "./tools.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -121,7 +122,8 @@ init({
   GRAPHQL_ENDPOINT_MODE: process.env.GRAPHQL_ENDPOINT_MODE,
   GRAPHQL_ENDPOINT_LOCAL: process.env.GRAPHQL_ENDPOINT_LOCAL,
   GRAPHQL_ENDPOINT_ONLINE: process.env.GRAPHQL_ENDPOINT_ONLINE,
-  SUCCESS_CO_API_KEY: process.env.SUCCESS_CO_API_KEY,
+  DEVMODE_SUCCESS_API_KEY: process.env.DEVMODE_SUCCESS_API_KEY,
+  DEVMODE_SUCCESS_USE_API_KEY: process.env.DEVMODE_SUCCESS_USE_API_KEY,
   DATABASE_URL: process.env.DATABASE_URL,
   DB_HOST: process.env.DB_HOST,
   DB_PORT: process.env.DB_PORT,
@@ -1773,9 +1775,11 @@ app.use("/mcp", async (req, res, next) => {
         console.error(`[AUTH] User: ${validation.userEmail}`);
         console.error(`[AUTH] Company: ${validation.companyId}`);
         console.error(`[AUTH] Client: ${validation.clientId}`);
+        console.error(`[AUTH] Mode: OAuth (access token)`);
         console.error(`[AUTH] ============================================`);
-        // Attach user info to request for downstream use
+        // Attach user info and access token to request for downstream use
         req.oauth = {
+          accessToken: token, // Store the access token for GraphQL calls
           userId: validation.userId,
           companyId: validation.companyId,
           userEmail: validation.userEmail,
@@ -1794,14 +1798,26 @@ app.use("/mcp", async (req, res, next) => {
     }
   }
 
-  // Fall back to API key authentication (for development)
-  if (process.env.SUCCESS_CO_API_KEY) {
+  // Fall back to API key authentication (only in development with explicit flag)
+  const isDevelopment =
+    process.env.NODE_ENV === "development" ||
+    process.env.NODE_ENV !== "production";
+  const useApiKey = process.env.DEVMODE_SUCCESS_USE_API_KEY === "true";
+
+  if (isDevelopment && useApiKey && process.env.DEVMODE_SUCCESS_API_KEY) {
     if (
-      authHeader === `Bearer ${process.env.SUCCESS_CO_API_KEY}` ||
-      authHeader === process.env.SUCCESS_CO_API_KEY
+      authHeader === `Bearer ${process.env.DEVMODE_SUCCESS_API_KEY}` ||
+      authHeader === process.env.DEVMODE_SUCCESS_API_KEY
     ) {
-      console.error(`[AUTH] Valid API key provided (dev mode)`);
+      console.error(`[AUTH] ======== AUTHENTICATION SUCCESSFUL ========`);
+      console.error(
+        `[AUTH] Mode: API Key (DEVMODE_SUCCESS_USE_API_KEY=true in dev mode)`
+      );
+      console.error(`[AUTH] ============================================`);
       req.apiKey = true;
+      req.oauth = {
+        isApiKeyMode: true, // Flag to indicate API key mode
+      };
       return next();
     }
   }
@@ -1992,8 +2008,21 @@ app.all("/mcp", async (req, res) => {
       }`
     );
 
-    // Let the SDK handle the request properly - it will handle all JSON-RPC methods
-    await transport.handleRequest(req, res, req.body);
+    // Set up authentication context for downstream tool calls
+    const authContext = req.oauth || {};
+    console.error(
+      `[MCP] Auth context:`,
+      authContext.isApiKeyMode
+        ? "API Key mode"
+        : authContext.accessToken
+        ? "OAuth mode"
+        : "None"
+    );
+
+    // Let the SDK handle the request properly with auth context
+    await runWithAuthContext(authContext, async () => {
+      await transport.handleRequest(req, res, req.body);
+    });
   } catch (error) {
     console.error(`[MCP] Error in /mcp endpoint:`, error);
     console.error(`[MCP] Error stack:`, error.stack);
@@ -2018,7 +2047,10 @@ app.get("/mcp", async (req, res) => {
     }
 
     const transport = transports.streamable[sessionId];
-    await transport.handleRequest(req, res);
+    const authContext = req.oauth || {};
+    await runWithAuthContext(authContext, async () => {
+      await transport.handleRequest(req, res);
+    });
   } catch (error) {
     console.error(`[MCP] Error in GET /mcp:`, error);
     if (!res.headersSent) {
@@ -2039,7 +2071,10 @@ app.delete("/mcp", async (req, res) => {
     }
 
     const transport = transports.streamable[sessionId];
-    await transport.handleRequest(req, res);
+    const authContext = req.oauth || {};
+    await runWithAuthContext(authContext, async () => {
+      await transport.handleRequest(req, res);
+    });
 
     // Clean up session after DELETE
     delete transports.streamable[sessionId];
@@ -2115,7 +2150,10 @@ app.get("/sse", async (req, res) => {
       delete transports.sse[transport.sessionId];
     });
 
-    await server.connect(transport);
+    const authContext = req.oauth || {};
+    await runWithAuthContext(authContext, async () => {
+      await server.connect(transport);
+    });
     console.error(
       `[SSE] Transport connected successfully with sessionId: ${transport.sessionId}`
     );
@@ -2162,7 +2200,10 @@ app.post("/messages", async (req, res) => {
 
     const transport = transports.sse[sessionId];
     if (transport) {
-      await transport.handlePostMessage(req, res, req.body);
+      const authContext = req.oauth || {};
+      await runWithAuthContext(authContext, async () => {
+        await transport.handlePostMessage(req, res, req.body);
+      });
     } else {
       console.error(
         `[MESSAGES] No SSE transport found for sessionId: ${sessionId}`

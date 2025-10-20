@@ -16,7 +16,7 @@ init({
   GRAPHQL_ENDPOINT_MODE: process.env.GRAPHQL_ENDPOINT_MODE,
   GRAPHQL_ENDPOINT_LOCAL: process.env.GRAPHQL_ENDPOINT_LOCAL,
   GRAPHQL_ENDPOINT_ONLINE: process.env.GRAPHQL_ENDPOINT_ONLINE,
-  SUCCESS_CO_API_KEY: process.env.SUCCESS_CO_API_KEY,
+  DEVMODE_SUCCESS_API_KEY: process.env.DEVMODE_SUCCESS_API_KEY,
   DATABASE_URL: process.env.DATABASE_URL,
   DB_HOST: process.env.DB_HOST,
   DB_PORT: process.env.DB_PORT,
@@ -33,7 +33,7 @@ async function diagnoseApiKeyContext() {
   const apiKey = getSuccessCoApiKey();
   if (!apiKey) {
     console.log("❌ No API key found!");
-    console.log("Please set SUCCESS_CO_API_KEY in your .env file");
+    console.log("Please set DEVMODE_SUCCESS_API_KEY in your .env file");
     return;
   }
   console.log(`✅ API key found (starts with: ${apiKey.substring(0, 12)}...)`);

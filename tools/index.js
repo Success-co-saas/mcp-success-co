@@ -7,6 +7,7 @@ export {
   getLeadershipTeamId,
   getUserAndCompanyInfoForApiKey,
   getContextForApiKey,
+  getUserContext,
   testDatabaseConnection,
   init,
   logGraphQLCall,
@@ -16,6 +17,10 @@ export {
   getGraphQLEndpoint,
   getSuccessCoApiKey,
   getIsDevMode,
+  setAuthContext,
+  runWithAuthContext,
+  getAuthContext,
+  shouldUseApiKeyMode,
 } from "./core.js";
 
 // Error handling
