@@ -398,7 +398,7 @@ export async function callSuccessCoGraphQL(query, variables = null) {
     return {
       ok: false,
       error:
-        "Success.co API key not set. Please set SUCCESS_CO_API_KEY in your .env file.",
+        "Success.co API key not set. Please set DEVMODE_SUCCESS_API_KEY in your .env file.",
     };
   }
 
@@ -485,7 +485,7 @@ export function getGraphQLEndpoint() {
  * @returns {string|null}
  */
 export function getSuccessCoApiKey() {
-  return envConfig.SUCCESS_CO_API_KEY || null;
+  return envConfig.DEVMODE_SUCCESS_API_KEY || null;
 }
 
 // Export isDevMode for use by other modules

@@ -76,7 +76,7 @@ DB_PASS=your-db-password
 # DATABASE_URL=postgresql://user:password@host:port/database
 
 # API Key (development fallback)
-SUCCESS_CO_API_KEY=your-dev-api-key-here
+DEVMODE_SUCCESS_API_KEY=your-dev-api-key-here
 
 # Server URL (for OAuth callbacks via ngrok)
 MCP_SERVER_URL=https://your-ngrok-url.ngrok-free.app
@@ -315,7 +315,7 @@ All endpoints under `/mcp/*` now support OAuth authentication:
 
 ### Development
 
-- Use API key authentication: `SUCCESS_CO_API_KEY`
+- Use API key authentication: `DEVMODE_SUCCESS_API_KEY`
 - Use ngrok for local OAuth testing
 - Use default OAuth client
 

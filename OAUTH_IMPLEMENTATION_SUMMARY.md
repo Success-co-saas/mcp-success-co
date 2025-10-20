@@ -116,7 +116,7 @@ DB_PASS=your-db-password
 # DATABASE_URL=postgresql://user:password@host:port/database
 
 # API Key (keep for dev fallback)
-SUCCESS_CO_API_KEY=your-existing-api-key
+DEVMODE_SUCCESS_API_KEY=your-existing-api-key
 
 # Server URL (for OAuth - use ngrok for local dev)
 MCP_SERVER_URL=https://df6e2f2e0e95.ngrok-free.app
@@ -360,7 +360,7 @@ curl -X POST https://df6e2f2e0e95.ngrok-free.app/mcp \
 2. **Update Production Environment:**
 
    - Set `MCP_SERVER_URL` to production domain
-   - Remove or disable `SUCCESS_CO_API_KEY` for production
+   - Remove or disable `DEVMODE_SUCCESS_API_KEY` for production
    - Ensure HTTPS is enabled
    - Configure firewall rules
 

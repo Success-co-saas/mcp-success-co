@@ -121,7 +121,7 @@ init({
   GRAPHQL_ENDPOINT_MODE: process.env.GRAPHQL_ENDPOINT_MODE,
   GRAPHQL_ENDPOINT_LOCAL: process.env.GRAPHQL_ENDPOINT_LOCAL,
   GRAPHQL_ENDPOINT_ONLINE: process.env.GRAPHQL_ENDPOINT_ONLINE,
-  SUCCESS_CO_API_KEY: process.env.SUCCESS_CO_API_KEY,
+  DEVMODE_SUCCESS_API_KEY: process.env.DEVMODE_SUCCESS_API_KEY,
   DATABASE_URL: process.env.DATABASE_URL,
   DB_HOST: process.env.DB_HOST,
   DB_PORT: process.env.DB_PORT,
@@ -1795,10 +1795,10 @@ app.use("/mcp", async (req, res, next) => {
   }
 
   // Fall back to API key authentication (for development)
-  if (process.env.SUCCESS_CO_API_KEY) {
+  if (process.env.DEVMODE_SUCCESS_API_KEY) {
     if (
-      authHeader === `Bearer ${process.env.SUCCESS_CO_API_KEY}` ||
-      authHeader === process.env.SUCCESS_CO_API_KEY
+      authHeader === `Bearer ${process.env.DEVMODE_SUCCESS_API_KEY}` ||
+      authHeader === process.env.DEVMODE_SUCCESS_API_KEY
     ) {
       console.error(`[AUTH] Valid API key provided (dev mode)`);
       req.apiKey = true;

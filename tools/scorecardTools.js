@@ -461,7 +461,7 @@ export async function createScorecardMeasurableEntry(args) {
         content: [
           {
             type: "text",
-            text: "Error: No API key configured. Please set SUCCESS_CO_API_KEY in your .env file.",
+            text: "Error: No API key configured. Please set DEVMODE_SUCCESS_API_KEY in your .env file.",
           },
         ],
       };
@@ -774,7 +774,7 @@ export async function updateScorecardMeasurableEntry(args) {
         content: [
           {
             type: "text",
-            text: "Error: No API key configured. Please set SUCCESS_CO_API_KEY in your .env file.",
+            text: "Error: No API key configured. Please set DEVMODE_SUCCESS_API_KEY in your .env file.",
           },
         ],
       };

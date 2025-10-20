@@ -31,7 +31,7 @@ Secure OAuth authentication through your Success.co account. See [OAUTH_SETUP.md
 
 Simple API key authentication for development and testing.
 
-- **Configuration:** Set `SUCCESS_CO_API_KEY` in `.env` (you should already have this)
+- **Configuration:** Set `DEVMODE_SUCCESS_API_KEY` in `.env` (you should already have this)
 - **Usage:** Include in Authorization header: `Bearer your-api-key`
 - **Security:** Not recommended for production use
 - **Database:** OAuth uses your existing database configuration (`DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASS`)
@@ -248,7 +248,7 @@ The **stdio** transport is the preferred method for MCP communication:
     "command": "node",
     "args": ["/path/to/mcp-server.js"],
     "env": {
-      "SUCCESS_CO_API_KEY": "your-api-key"
+      "DEVMODE_SUCCESS_API_KEY": "your-api-key"
     }
   }
 }
@@ -348,7 +348,7 @@ The server maintains backwards compatibility with the deprecated HTTP+SSE transp
    **Option 1: Set environment variable**
 
    ```bash
-   export SUCCESS_CO_API_KEY="your-success-co-api-key"
+   export DEVMODE_SUCCESS_API_KEY="your-success-co-api-key"
    ```
 
    **Option 2: Use the MCP tool to set it**

@@ -619,7 +619,7 @@ export async function fetch(args) {
       content: [
         {
           type: "text",
-          text: "Success.co API key not set. Please set SUCCESS_CO_API_KEY in your .env file.",
+          text: "Success.co API key not set. Please set DEVMODE_SUCCESS_API_KEY in your .env file.",
         },
       ],
     };

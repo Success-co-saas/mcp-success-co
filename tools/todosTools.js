@@ -277,7 +277,7 @@ export async function createTodo(args) {
       content: [
         {
           type: "text",
-          text: "Error: Success.co API key not set. Please set SUCCESS_CO_API_KEY in your .env file.",
+          text: "Error: Success.co API key not set. Please set DEVMODE_SUCCESS_API_KEY in your .env file.",
         },
       ],
     };
@@ -418,7 +418,7 @@ export async function updateTodo(args) {
       content: [
         {
           type: "text",
-          text: "Error: Success.co API key not set. Please set SUCCESS_CO_API_KEY in your .env file.",
+          text: "Error: Success.co API key not set. Please set DEVMODE_SUCCESS_API_KEY in your .env file.",
         },
       ],
     };

@@ -20,8 +20,8 @@ const result = dotenv.config({
 console.log("Dotenv result:", result);
 
 console.log(
-  "SUCCESS_CO_API_KEY from process.env:",
-  process.env.SUCCESS_CO_API_KEY
+  "DEVMODE_SUCCESS_API_KEY from process.env:",
+  process.env.DEVMODE_SUCCESS_API_KEY
 );
 console.log(
   "GRAPHQL_ENDPOINT_MODE from process.env:",
