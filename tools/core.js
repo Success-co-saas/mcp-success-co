@@ -5,12 +5,16 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import postgres from "postgres";
+import { AsyncLocalStorage } from "async_hooks";
 import { clearDebugLog } from "../helpers.js";
 
 // Logging - Debug
 const DEBUG_LOG_FILE = "/tmp/mcp-success-co-debug.log";
 let isDevMode = false;
 let envConfig = {};
+
+// Authentication context storage (for passing OAuth tokens through async call chains)
+const authContext = new AsyncLocalStorage();
 
 // Database connection
 let sql = null;
@@ -284,6 +288,48 @@ export function init(config) {
 }
 
 /**
+ * Set authentication context for the current request
+ * This should be called at the start of each request with OAuth token or API key info
+ * @param {Object} auth - Authentication info
+ * @param {string} [auth.accessToken] - OAuth access token
+ * @param {string} [auth.userId] - User ID
+ * @param {string} [auth.companyId] - Company ID
+ * @param {string} [auth.userEmail] - User email
+ * @param {boolean} [auth.isApiKeyMode] - Whether using API key instead of OAuth
+ */
+export function setAuthContext(auth) {
+  return authContext.enterWith(auth);
+}
+
+/**
+ * Run a function with authentication context
+ * @param {Object} auth - Authentication info
+ * @param {Function} fn - Function to run with auth context
+ * @returns {Promise<any>} - Result of the function
+ */
+export function runWithAuthContext(auth, fn) {
+  return authContext.run(auth, fn);
+}
+
+/**
+ * Get current authentication context
+ * @returns {Object|undefined} - Current auth context or undefined
+ */
+export function getAuthContext() {
+  return authContext.getStore();
+}
+
+/**
+ * Check if we should use API key mode (only allowed in development)
+ * @returns {boolean} - True if API key mode is enabled and allowed
+ */
+export function shouldUseApiKeyMode() {
+  // Only allow API key mode if explicitly enabled AND in development
+  const useApiKey = envConfig.DEVMODE_SUCCESS_USE_API_KEY === "true";
+  return useApiKey && isDevMode;
+}
+
+/**
  * Log GraphQL request and response to debug file
  * @param {string} url - The GraphQL endpoint URL
  * @param {string} query - The GraphQL query
@@ -388,17 +434,44 @@ export function logToolCallEnd(toolName, result, error = null) {
 
 /**
  * Calls the Success.co GraphQL API
+ * Uses OAuth access token from context, or falls back to API key in dev mode
  * @param {string} query - The GraphQL query string
  * @param {Object} [variables] - Optional variables for the GraphQL query
  * @returns {Promise<{ok: boolean, data?: any, error?: string}>}
  */
 export async function callSuccessCoGraphQL(query, variables = null) {
-  const apiKey = getSuccessCoApiKey();
-  if (!apiKey) {
+  // Get authentication from context (OAuth access token) or fall back to API key
+  const auth = getAuthContext();
+  let authToken = null;
+  let authMode = "none";
+
+  // Try to use OAuth access token from context first
+  if (auth && auth.accessToken) {
+    authToken = auth.accessToken;
+    authMode = "oauth";
+    if (isDevMode) {
+      console.error(`[AUTH] Using OAuth access token for GraphQL call`);
+    }
+  }
+  // Fall back to API key mode only if explicitly enabled in development
+  else if (shouldUseApiKeyMode()) {
+    const apiKey = getSuccessCoApiKey();
+    if (apiKey) {
+      authToken = apiKey;
+      authMode = "api_key";
+      if (isDevMode) {
+        console.error(
+          `[AUTH] Using API key for GraphQL call (DEVMODE_SUCCESS_USE_API_KEY=true)`
+        );
+      }
+    }
+  }
+
+  if (!authToken) {
     return {
       ok: false,
       error:
-        "Success.co API key not set. Please set DEVMODE_SUCCESS_API_KEY in your .env file.",
+        "No authentication available. Expected OAuth access token in request context, or DEVMODE_SUCCESS_API_KEY in dev mode with DEVMODE_SUCCESS_USE_API_KEY=true.",
     };
   }
 
@@ -408,7 +481,7 @@ export async function callSuccessCoGraphQL(query, variables = null) {
   const response = await globalThis.fetch(url, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${apiKey}`,
+      Authorization: `Bearer ${authToken}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify(body),

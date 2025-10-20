@@ -18,23 +18,60 @@ This project demonstrates an MCP server implemented in JavaScript using Node.js 
 
 The MCP server supports two authentication methods:
 
-### 1. OAuth 2.0 (Recommended for Production)
+### 1. OAuth 2.0 (Recommended for Production - DEFAULT)
 
-Secure OAuth authentication through your Success.co account. See [OAUTH_SETUP.md](OAUTH_SETUP.md) for complete setup instructions.
+**This is now the default authentication method.** All GraphQL API calls use OAuth access tokens.
 
 - **Authorization Flow:** Standard OAuth 2.0 authorization code flow
 - **Token Lifetime:** 90 days
+- **Token Storage:** Stored in `oauth_access_tokens` database table
+- **Token Usage:** Automatically passed to GraphQL API as `Bearer <access_token>`
 - **Endpoints:** All under `/mcp/*` prefix
-- **Setup Required:** Database tables + ngrok for local testing
+- **Setup Required:** Database tables + OAuth client registration
+- **See:** [OAUTH_SETUP.md](OAUTH_SETUP.md) for complete setup instructions
 
-### 2. API Key (Development Only)
+**How it works:**
 
-Simple API key authentication for development and testing.
+1. User authenticates via OAuth flow
+2. Server stores access token in database
+3. Server validates token on each request
+4. Token is automatically used for all GraphQL API calls
+5. No API key needed in production
 
-- **Configuration:** Set `DEVMODE_SUCCESS_API_KEY` in `.env` (you should already have this)
-- **Usage:** Include in Authorization header: `Bearer your-api-key`
-- **Security:** Not recommended for production use
-- **Database:** OAuth uses your existing database configuration (`DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASS`)
+### 2. API Key (Development Only - Opt-in)
+
+Simple API key authentication for local development and testing.
+
+⚠️ **Only available in development mode when explicitly enabled.**
+
+**Configuration:**
+
+Add to your `.env` file:
+
+```bash
+# Enable API key mode (defaults to false)
+DEVMODE_SUCCESS_USE_API_KEY=true
+
+# Your API key (you should already have this)
+DEVMODE_SUCCESS_API_KEY=your-api-key-here
+
+# Must be in development mode
+NODE_ENV=development
+```
+
+**Usage:**
+
+- Include in Authorization header: `Bearer your-api-key`
+- Only works when `DEVMODE_SUCCESS_USE_API_KEY=true` AND `NODE_ENV=development`
+- All GraphQL API calls use the API key instead of OAuth token
+
+**Security:**
+
+- Not recommended for production use
+- Will not work in production (NODE_ENV=production)
+- Useful for local testing without OAuth setup
+
+**Database:** Both methods use your existing database configuration (`DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASS`)
 
 ## Quick dev setup and notes
 
