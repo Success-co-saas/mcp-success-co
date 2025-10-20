@@ -73,51 +73,73 @@ NODE_ENV=development
 
 **Database:** Both methods use your existing database configuration (`DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASS`)
 
-## Quick dev setup and notes
+## Quick Start
 
-### Local Development Setup
+### Prerequisites
 
-1. **Start the MCP Server:**
+- **Node.js:** Version 20 or higher
+- **Success.co Account:** OAuth authentication required
 
+### Connecting to the MCP Server
+
+The MCP server supports two connection methods that work seamlessly:
+
+#### 1. **Local Connection** (Development)
+
+```text
+http://localhost:5174/mcp
+```
+
+Perfect for local testing without external dependencies.
+
+#### 2. **Ngrok Connection** (Remote Access)
+
+```text
+https://successcodev.ngrok.app/mcp
+```
+
+Use ngrok when you need external access or testing from remote tools.
+
+### Setup Steps
+
+1. **Start all required services:**
    ```bash
+   # Start ServiceAPI (port 4001)
+   cd serviceapi-success-co
+   npm start
+
+   # Start MCP Server (port 3001)
+   cd mcp-success-co
    node mcp-server.js
+
+   # Start Vite proxy (port 5174)
+   cd app.success.co
+   npm run dev
    ```
 
-   The server will start and listen on port 3001 with both STDIO and HTTP transports available.
+2. **For remote access, start ngrok (optional):**
+   ```bash
+   # Install ngrok if needed
+   brew install ngrok
 
-2. **Test with MCP Inspector:**
+   # Expose Vite proxy
+   ngrok http 5174
+   ```
 
+3. **Connect with MCP Inspector:**
    ```bash
    npx @modelcontextprotocol/inspector
    ```
+   Then connect to either `http://localhost:5174/mcp` (local) or your ngrok URL.
 
-3. **Connect to the Server:**
+### How It Works
 
-   - **Streamable HTTP (Recommended):** `http://localhost:3001/mcp`
-   - **Legacy SSE (Backwards Compatible):** `http://localhost:3001/sse`
+- **Vite (port 5174)** acts as a unified proxy for all services
+- **ServiceAPI (port 4001)** handles OAuth authentication
+- **MCP Server (port 3001)** provides the actual MCP tools
+- **Connections are automatically routed** based on the URL you use
 
-4. **For External Access (Optional):**
-
-   ```bash
-   # Expose server via ngrok for external testing
-   ngrok http 3001
-   ```
-
-   Tip: To install ngrok, use this to install it and create an account at ngrok.com to get an authtoken
-
-   ```bash
-   brew install ngrok
-   ```
-
-### Transport Notes
-
-- **Streamable HTTP** is the preferred transport method per MCP specification
-- **STDIO** transport is used automatically when integrating with IDEs like Cursor
-- **SSE endpoint** is maintained for backwards compatibility with older clients
-- The server automatically detects and handles both transport methods
-
-- **Node.js:** Version 20 or higher is required.
-- **Success.co API Key:** You'll need a valid Success.co API key to access the data.
+Both local and ngrok connections use the same OAuth flow and work identically.
 
 ## API & Database Schemas
 
@@ -263,82 +285,47 @@ This introspection query returns the complete schema including all types, fields
 - **Comprehensive Search:** Intelligent search across all EOS data types
 - **Real-time Analysis:** Dynamic analysis of rock statuses, milestones, team performance, and KPI metrics
 
-## MCP Transport Mechanisms
+## Connection Architecture
 
-This MCP server supports both standard transport mechanisms defined in the [MCP Specification](https://modelcontextprotocol.io/specification/2025-06-18/basic/transports):
+The MCP server uses a multi-tier architecture that allows flexible connectivity:
 
-### 1. STDIO Transport (Recommended)
-
-The **stdio** transport is the preferred method for MCP communication:
-
-- **How it works:** The client launches the MCP server as a subprocess
-- **Communication:** Server reads JSON-RPC messages from `stdin` and sends responses to `stdout`
-- **Message format:** Individual JSON-RPC requests, notifications, or responses delimited by newlines
-- **Logging:** Server may write UTF-8 strings to `stderr` for logging purposes
-- **Security:** No network exposure, runs locally as a subprocess
-
-**Usage in Cursor IDE:**
-
-```json
-{
-  "MCP Server Boilerplate": {
-    "command": "node",
-    "args": ["/path/to/mcp-server.js"],
-    "env": {
-      "DEVMODE_SUCCESS_API_KEY": "your-api-key"
-    }
-  }
-}
+```text
+MCP Client → Vite Proxy (5174) → ServiceAPI (4001) + MCP Server (3001)
+             ↓
+        [OAuth Auth]
 ```
 
-### 2. Streamable HTTP Transport
+### Key Components
 
-The **Streamable HTTP** transport allows the server to operate as an independent process handling multiple client connections:
+1. **Vite Proxy (port 5174)** - Unified entry point
+   - Routes `/mcp` requests to MCP Server
+   - Routes `/.well-known/*` and `/oauth/*` to ServiceAPI
+   - Preserves URL context for both local and ngrok connections
 
-- **How it works:** Server operates independently and can handle multiple client connections
-- **Protocol:** Uses HTTP POST and GET requests with optional Server-Sent Events (SSE)
-- **Endpoint:** Single HTTP endpoint (e.g., `https://example.com/mcp`) supporting both POST and GET methods
-- **Features:** Supports streaming, server-to-client notifications, and resumable connections
+2. **ServiceAPI (port 4001)** - Authentication & OAuth
+   - Handles OAuth 2.0 authorization flow
+   - Stores and validates access tokens
+   - Provides OAuth metadata endpoints
 
-**Security Requirements:**
+3. **MCP Server (port 3001)** - MCP Protocol Implementation
+   - Implements Model Context Protocol
+   - Validates OAuth tokens
+   - Executes tool calls with authenticated context
 
-- **Origin validation:** Servers MUST validate the `Origin` header to prevent DNS rebinding attacks
-- **Local binding:** When running locally, servers SHOULD bind only to localhost (127.0.0.1)
-- **Authentication:** Servers SHOULD implement proper authentication for all connections
+### Supported Transports
 
-**HTTP Headers:**
+- **HTTP (Streamable):** Full support for HTTP-based MCP protocol
+- **STDIO:** For direct IDE integration (Cursor, VS Code)
+- **SSE:** Legacy support for backwards compatibility
 
-- **MCP-Protocol-Version:** Clients MUST include this header (e.g., `MCP-Protocol-Version: 2025-06-18`)
-- **Accept:** Clients MUST include `Accept: application/json, text/event-stream`
-- **Mcp-Session-Id:** For session management (optional)
+### Why This Architecture?
 
-**Message Flow:**
+This design allows:
 
-1. **Client to Server:** JSON-RPC messages sent via HTTP POST requests
-2. **Server to Client:** Responses via `Content-Type: application/json` or `Content-Type: text/event-stream` (SSE)
-3. **Streaming:** Server can initiate SSE streams for multiple messages
-4. **Resumability:** Supports connection resumption using `Last-Event-ID` header
-
-**Usage with MCP Inspector:**
-
-```bash
-# Start server with HTTP transport
-node mcp-server.js
-
-# In another terminal, start inspector and connect to HTTP endpoint
-npx @modelcontextprotocol/inspector
-# Connect to: http://localhost:3001/mcp
-```
-
-### Transport Selection
-
-- **For IDE Integration:** Use STDIO transport (recommended for Cursor, VS Code, etc.)
-- **For Web Applications:** Use Streamable HTTP transport
-- **For Testing:** Both transports work with MCP Inspector
-
-### Backwards Compatibility
-
-The server maintains backwards compatibility with the deprecated HTTP+SSE transport from protocol version 2024-11-05. Clients can automatically detect and use the appropriate transport method.
+- ✅ Single connection URL for both local and remote access
+- ✅ Proper OAuth discovery without hardcoded URLs
+- ✅ Easy ngrok integration without configuration changes
+- ✅ Consistent authentication across all connection methods
 
 ## Installation
 
@@ -1169,34 +1156,24 @@ This will run comprehensive tests of all Scorecard tools and analysis capabiliti
 
 ## Testing with MCP Inspector
 
-The MCP Inspector is a debugging tool that lets you test your server's tools interactively before integrating with an IDE.
+The MCP Inspector is a debugging tool that lets you test your server's tools interactively.
 
-**Option 1: Run directly with npx**
-
-```bash
-npx @modelcontextprotocol/inspector node ./mcp-server.js
-```
-
-Note to just run the inspector on it's own:
+### Start the Inspector
 
 ```bash
 npx @modelcontextprotocol/inspector
 ```
 
-**Option 2: Use the npm script**
+This opens the inspector interface in your browser at `http://localhost:6274/`
 
-```bash
-npm run inspector
-```
+### Connect to Your MCP Server
 
-This will:
+In the inspector interface, connect using either:
 
-1. Start the MCP inspector server
-2. Open your browser to the inspector interface
-3. Allow you to test tools, resources, and prompts
+- **Local:** `http://localhost:5174/mcp`
+- **Ngrok:** `https://your-ngrok-url.ngrok.app/mcp`
 
-Open the MCP Server Inspector on the browser:
-http://localhost:6274/
+The inspector will automatically handle the OAuth authentication flow when you first connect.
 
 ## Code Overview
 
