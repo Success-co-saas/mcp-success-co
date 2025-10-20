@@ -9,7 +9,9 @@
     "zod": "^3.24.2"
   },
   "scripts": {
+    "start": "node index.js",
+    "dev": "NODE_ENV=development node index.js",
     "inspector": "npx @modelcontextprotocol/inspector node index.js",
-    "start": "node index.js"
+    "health": "curl -s http://localhost:3001/health | json_pp || curl -s http://localhost:3001/health"
   }
 }
