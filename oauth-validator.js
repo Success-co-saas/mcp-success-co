@@ -1,11 +1,15 @@
 /**
  * OAuth Token Validator for MCP Server
- * Validates OAuth access tokens from the database
+ * Validates OAuth access tokens (JWT and database)
  */
 
 import postgres from "postgres";
+import * as jose from "jose";
 
 let sql;
+let jwksCache = null;
+let jwksCacheTime = null;
+const JWKS_CACHE_TTL = 3600000; // 1 hour in milliseconds
 
 /**
  * Initialize the OAuth validator with database connection
@@ -44,7 +48,41 @@ export function initOAuthValidator(config) {
 }
 
 /**
- * Validate an OAuth access token
+ * Fetch JWKS from OAuth server with caching
+ */
+async function getJWKS() {
+  // Return cached JWKS if still valid
+  if (
+    jwksCache &&
+    jwksCacheTime &&
+    Date.now() - jwksCacheTime < JWKS_CACHE_TTL
+  ) {
+    return jwksCache;
+  }
+
+  try {
+    const oauthServerUrl =
+      process.env.OAUTH_SERVER_URL || "https://www.success.co";
+    const jwksUrl = `${oauthServerUrl}/oauth/jwks`;
+
+    const response = await fetch(jwksUrl);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch JWKS: ${response.statusText}`);
+    }
+
+    const jwks = await response.json();
+    jwksCache = jose.createLocalJWKSet(jwks);
+    jwksCacheTime = Date.now();
+
+    return jwksCache;
+  } catch (error) {
+    console.error("[OAuth Validator] Error fetching JWKS:", error);
+    throw error;
+  }
+}
+
+/**
+ * Validate an OAuth access token (JWT format)
  * Returns user and company information if valid
  */
 export async function validateOAuthToken(token) {
@@ -57,55 +95,63 @@ export async function validateOAuthToken(token) {
   }
 
   try {
-    const tokens = await sql`
-      SELECT 
-        id, 
-        access_token, 
-        client_id, 
-        user_id, 
-        company_id, 
-        user_email, 
-        scope, 
-        expires_at, 
-        state_id
-      FROM oauth_access_tokens
-      WHERE access_token = ${token}
-      AND state_id = 'ACTIVE'
-    `;
+    // Try to verify as JWT first
+    const issuer = process.env.OAUTH_SERVER_URL || "https://www.success.co";
 
-    if (tokens.length === 0) {
+    let payload;
+    try {
+      const JWKS = await getJWKS();
+      const { payload: jwtPayload } = await jose.jwtVerify(token, JWKS, {
+        issuer,
+      });
+      payload = jwtPayload;
+    } catch (jwtError) {
+      console.error(
+        "[OAuth Validator] JWT verification failed:",
+        jwtError.message
+      );
       return {
         valid: false,
         error: "invalid_token",
-        message: "Token not found or inactive",
+        message: "Invalid or expired JWT token",
       };
     }
 
-    const tokenData = tokens[0];
-
-    // Check if token is expired
-    if (new Date() > new Date(tokenData.expires_at)) {
-      return {
-        valid: false,
-        error: "token_expired",
-        message: "Token has expired",
-      };
-    }
-
-    // Update last used timestamp
-    await sql`
-      UPDATE oauth_access_tokens
-      SET last_used_at = NOW()
-      WHERE id = ${tokenData.id}
+    // Check if token has been revoked in database
+    const tokens = await sql`
+      SELECT id, state_id
+      FROM oauth_access_tokens
+      WHERE access_token = ${token}
     `;
 
+    // If token exists in database, check revocation status
+    if (tokens.length > 0) {
+      const tokenData = tokens[0];
+
+      if (tokenData.state_id !== "ACTIVE") {
+        return {
+          valid: false,
+          error: "token_revoked",
+          message: "Token has been revoked",
+        };
+      }
+
+      // Update last used timestamp
+      await sql`
+        UPDATE oauth_access_tokens
+        SET last_used_at = NOW()
+        WHERE id = ${tokenData.id}
+      `;
+    }
+
+    // Return user/company info from JWT claims
     return {
       valid: true,
-      userId: tokenData.user_id,
-      companyId: tokenData.company_id,
-      userEmail: tokenData.user_email,
-      clientId: tokenData.client_id,
-      scope: tokenData.scope,
+      userId: payload.sub,
+      companyId: payload.company_id,
+      userEmail: payload.email,
+      clientId: payload.client_id || payload.aud,
+      scope: payload.scope,
     };
   } catch (error) {
     console.error("[OAuth Validator] Error validating token:", error);
