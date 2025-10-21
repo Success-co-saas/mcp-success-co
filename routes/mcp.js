@@ -28,6 +28,13 @@ function createFreshMcpServer() {
  */
 export async function mcpHandler(req, res) {
   try {
+    logger.info(`[MCP-HANDLER] ${req.method} ${req.path}`, {
+      query: req.query,
+      hasBody: !!req.body,
+      hasAuth: !!req.oauth,
+      sessionId: req.headers["mcp-session-id"],
+    });
+
     logger.debug(`[MCP] ${req.method} ${req.path}`, {
       query: req.query,
       hasBody: !!req.body,
