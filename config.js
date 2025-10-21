@@ -22,7 +22,8 @@ export const IS_DEVELOPMENT = !IS_PRODUCTION;
 export const PORT = process.env.PORT || 3001;
 export const CORS_ORIGIN = process.env.CORS_ORIGIN || "*";
 export const OAUTH_SERVER_URL =
-  process.env.OAUTH_SERVER_URL || "https://www.success.co";
+  process.env.OAUTH_SERVER_URL ||
+  (IS_PRODUCTION ? "https://www.success.co" : "http://localhost:3000");
 
 // GraphQL configuration
 export const GRAPHQL_ENDPOINT =
