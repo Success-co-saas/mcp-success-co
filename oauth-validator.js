@@ -61,9 +61,9 @@ async function getJWKS() {
   }
 
   try {
-    const jwksUrl =
-      process.env.OAUTH_JWKS_URL ||
-      `${process.env.OAUTH_SERVER_URL || "https://www.success.co"}/oauth/jwks`;
+    const oauthServerUrl =
+      process.env.OAUTH_SERVER_URL || "https://www.success.co";
+    const jwksUrl = `${oauthServerUrl}/oauth/jwks`;
 
     const response = await fetch(jwksUrl);
     if (!response.ok) {
@@ -96,10 +96,7 @@ export async function validateOAuthToken(token) {
 
   try {
     // Try to verify as JWT first
-    const issuer =
-      process.env.OAUTH_ISSUER ||
-      process.env.OAUTH_SERVER_URL ||
-      "https://www.success.co";
+    const issuer = process.env.OAUTH_SERVER_URL || "https://www.success.co";
 
     let payload;
     try {

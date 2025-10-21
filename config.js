@@ -21,7 +21,8 @@ export const IS_DEVELOPMENT = !IS_PRODUCTION;
 // Server configuration
 export const PORT = process.env.PORT || 3001;
 export const CORS_ORIGIN = process.env.CORS_ORIGIN || "*";
-export const OAUTH_SERVER_URL = process.env.OAUTH_SERVER_URL;
+export const OAUTH_SERVER_URL =
+  process.env.OAUTH_SERVER_URL || "https://www.success.co";
 
 // GraphQL configuration
 export const GRAPHQL_ENDPOINT =
