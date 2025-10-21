@@ -9,8 +9,18 @@ function sendOAuthChallenge(req, res, message, error) {
   const protocol =
     req.headers["x-forwarded-proto"] || (req.secure ? "https" : "http");
   const host = req.headers["x-forwarded-host"] || req.headers.host;
-  const oauthServerUrl = OAUTH_SERVER_URL || `${protocol}://${host}`;
-  const resourceMetadataUrl = `${oauthServerUrl}/.well-known/oauth-protected-resource`;
+  let baseUrl = OAUTH_SERVER_URL || `${protocol}://${host}`;
+
+  // Strip any resource path from the base URL to get the OAuth server base
+  // e.g., "https://www.success.co/mcp" -> "https://www.success.co"
+  try {
+    const urlObj = new URL(baseUrl);
+    baseUrl = `${urlObj.protocol}//${urlObj.host}`;
+  } catch (e) {
+    // If URL parsing fails, use as-is
+  }
+
+  const resourceMetadataUrl = `${baseUrl}/.well-known/oauth-protected-resource`;
 
   const wwwAuthHeader = `Bearer realm="mcp", resource_metadata="${resourceMetadataUrl}"`;
   res.setHeader("WWW-Authenticate", wwwAuthHeader);
