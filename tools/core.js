@@ -211,6 +211,42 @@ export async function getContextForApiKey(apiKey) {
 }
 
 /**
+ * Get a user's API key from the database based on their user ID
+ * Used to fetch API key for users authenticated via OAuth
+ * @param {string} userId - The user's UUID
+ * @returns {Promise<string|null>} - The user's API key with suc_api_ prefix, or null
+ */
+async function getUserApiKey(userId) {
+  const db = getDatabase();
+  if (!db) {
+    return null;
+  }
+
+  try {
+    const result = await db`
+      SELECT key, name
+      FROM user_api_keys
+      WHERE user_id = ${userId}
+        AND revoked = false
+      ORDER BY created_at DESC
+      LIMIT 1
+    `;
+
+    if (result.length > 0 && result[0].key) {
+      // Build the full API key with prefix
+      const name = result[0].name || 'suc_api';
+      const key = result[0].key;
+      return `${name}_${key}`;
+    }
+
+    return null;
+  } catch (error) {
+    console.error(`[AUTH] Error fetching user API key: ${error.message}`);
+    return null;
+  }
+}
+
+/**
  * Get user context (company ID, user ID, email) for the current request
  * Automatically handles OAuth access tokens or API key mode
  * @returns {Promise<{companyId: string, userId: string, userEmail?: string}|null>} - User context or null
@@ -372,7 +408,8 @@ export function getAuthContext() {
  */
 export function shouldUseApiKeyMode() {
   // Only allow API key mode if explicitly enabled AND in development
-  const useApiKey = envConfig.DEVMODE_SUCCESS_USE_API_KEY === "true";
+  // Accept both boolean true and string "true" for compatibility
+  const useApiKey = envConfig.DEVMODE_SUCCESS_USE_API_KEY === true || envConfig.DEVMODE_SUCCESS_USE_API_KEY === "true";
   return useApiKey && isDevMode;
 }
 
@@ -481,34 +518,43 @@ export function logToolCallEnd(toolName, result, error = null) {
 
 /**
  * Calls the Success.co GraphQL API
- * Uses OAuth access token from context, or falls back to API key in dev mode
+ * Uses user's API key (looked up from OAuth context) or falls back to dev API key
  * @param {string} query - The GraphQL query string
  * @param {Object} [variables] - Optional variables for the GraphQL query
  * @returns {Promise<{ok: boolean, data?: any, error?: string}>}
  */
 export async function callSuccessCoGraphQL(query, variables = null) {
-  // Get authentication from context (OAuth access token) or fall back to API key
+  // Get authentication from context
   const auth = getAuthContext();
   let authToken = null;
   let authMode = "none";
 
-  // Try to use OAuth access token from context first
-  if (auth && auth.accessToken) {
-    authToken = auth.accessToken;
-    authMode = "oauth";
-    if (isDevMode) {
-      console.error(`[AUTH] Using OAuth access token for GraphQL call`);
+  // If OAuth authenticated, look up the user's API key from database
+  // GraphQL API expects API keys (suc_api_*), not OAuth tokens
+  if (auth && auth.userId) {
+    const apiKey = await getUserApiKey(auth.userId);
+    if (apiKey) {
+      authToken = apiKey;
+      authMode = "oauth_user_api_key";
+      if (isDevMode) {
+        console.error(`[AUTH] Using user's API key (from OAuth user ID) for GraphQL call`);
+      }
+    } else {
+      if (isDevMode) {
+        console.error(`[AUTH] No API key found for OAuth user ${auth.userId}`);
+      }
     }
   }
-  // Fall back to API key mode only if explicitly enabled in development
-  else if (shouldUseApiKeyMode()) {
+  
+  // Fall back to dev API key mode only if explicitly enabled in development
+  if (!authToken && shouldUseApiKeyMode()) {
     const apiKey = getSuccessCoApiKey();
     if (apiKey) {
       authToken = apiKey;
-      authMode = "api_key";
+      authMode = "dev_api_key";
       if (isDevMode) {
         console.error(
-          `[AUTH] Using API key for GraphQL call (DEVMODE_SUCCESS_USE_API_KEY=true)`
+          `[AUTH] Using dev API key for GraphQL call (DEVMODE_SUCCESS_USE_API_KEY=true)`
         );
       }
     }
@@ -518,7 +564,7 @@ export async function callSuccessCoGraphQL(query, variables = null) {
     return {
       ok: false,
       error:
-        "No authentication available. Expected OAuth access token in request context, or DEVMODE_SUCCESS_API_KEY in dev mode with DEVMODE_SUCCESS_USE_API_KEY=true.",
+        "No API key available. User must have an active API key in user_api_keys table, or set DEVMODE_SUCCESS_API_KEY in dev mode with DEVMODE_SUCCESS_USE_API_KEY=true.",
     };
   }
 

@@ -25,6 +25,12 @@ export const OAUTH_SERVER_URL =
   process.env.OAUTH_SERVER_URL ||
   (IS_PRODUCTION ? "https://www.success.co" : "http://localhost:3000");
 
+// OAuth JWT validation configuration
+export const OAUTH_CONFIG = {
+  issuer: OAUTH_SERVER_URL,
+  jwksUri: `${OAUTH_SERVER_URL}/oauth/jwks`,
+};
+
 // GraphQL configuration
 export const GRAPHQL_ENDPOINT =
   process.env.GRAPHQL_ENDPOINT || "http://localhost:5174/graphql";
@@ -78,6 +84,7 @@ export default {
   PORT,
   CORS_ORIGIN,
   OAUTH_SERVER_URL,
+  OAUTH_CONFIG,
   GRAPHQL_ENDPOINT,
   DB_CONFIG,
   DEV_CONFIG,
