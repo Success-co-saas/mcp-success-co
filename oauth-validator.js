@@ -1,15 +1,12 @@
 /**
  * OAuth Token Validator for MCP Server
- * Validates OAuth access tokens (JWT and database)
+ * Handles token revocation checks against database
+ * JWT validation is handled by express-oauth2-jwt-bearer
  */
 
 import postgres from "postgres";
-import * as jose from "jose";
 
 let sql;
-let jwksCache = null;
-let jwksCacheTime = null;
-const JWKS_CACHE_TTL = 3600000; // 1 hour in milliseconds
 
 /**
  * Initialize the OAuth validator with database connection
@@ -48,44 +45,10 @@ export function initOAuthValidator(config) {
 }
 
 /**
- * Fetch JWKS from OAuth server with caching
+ * Check if a token has been revoked in the database
+ * Returns user and company information if token is valid and not revoked
  */
-async function getJWKS() {
-  // Return cached JWKS if still valid
-  if (
-    jwksCache &&
-    jwksCacheTime &&
-    Date.now() - jwksCacheTime < JWKS_CACHE_TTL
-  ) {
-    return jwksCache;
-  }
-
-  try {
-    const oauthServerUrl =
-      process.env.OAUTH_SERVER_URL || "https://www.success.co";
-    const jwksUrl = `${oauthServerUrl}/oauth/jwks`;
-
-    const response = await fetch(jwksUrl);
-    if (!response.ok) {
-      throw new Error(`Failed to fetch JWKS: ${response.statusText}`);
-    }
-
-    const jwks = await response.json();
-    jwksCache = jose.createLocalJWKSet(jwks);
-    jwksCacheTime = Date.now();
-
-    return jwksCache;
-  } catch (error) {
-    console.error("[OAuth Validator] Error fetching JWKS:", error);
-    throw error;
-  }
-}
-
-/**
- * Validate an OAuth access token (JWT format)
- * Returns user and company information if valid
- */
-export async function validateOAuthToken(token) {
+export async function checkTokenRevocation(token) {
   if (!sql) {
     return {
       valid: false,
@@ -95,66 +58,58 @@ export async function validateOAuthToken(token) {
   }
 
   try {
-    // Try to verify as JWT first
-    const issuer = process.env.OAUTH_SERVER_URL || "https://www.success.co";
-
-    let payload;
-    try {
-      const JWKS = await getJWKS();
-      const { payload: jwtPayload } = await jose.jwtVerify(token, JWKS, {
-        issuer,
-      });
-      payload = jwtPayload;
-    } catch (jwtError) {
-      console.error(
-        "[OAuth Validator] JWT verification failed:",
-        jwtError.message
-      );
-      return {
-        valid: false,
-        error: "invalid_token",
-        message: "Invalid or expired JWT token",
-      };
-    }
-
-    // Check if token has been revoked in database
+    // Check if token exists and get its status
     const tokens = await sql`
-      SELECT id, state_id
+      SELECT id, state_id, user_id, company_id, user_email, client_id
       FROM oauth_access_tokens
       WHERE access_token = ${token}
     `;
 
-    // If token exists in database, check revocation status
-    if (tokens.length > 0) {
-      const tokenData = tokens[0];
-
-      if (tokenData.state_id !== "ACTIVE") {
-        return {
-          valid: false,
-          error: "token_revoked",
-          message: "Token has been revoked",
-        };
-      }
-
-      // Update last used timestamp
-      await sql`
-        UPDATE oauth_access_tokens
-        SET last_used_at = NOW()
-        WHERE id = ${tokenData.id}
-      `;
+    // If token doesn't exist in database, it might be valid but not tracked
+    // JWT validation already happened, so we'll allow it
+    if (tokens.length === 0) {
+      console.warn(
+        "[OAuth Validator] Token not found in database, but JWT is valid"
+      );
+      // Return valid but without user/company info
+      // The JWT claims will be available in req.auth from express-oauth2-jwt-bearer
+      return {
+        valid: true,
+        userId: null,
+        companyId: null,
+        userEmail: null,
+        clientId: null,
+      };
     }
 
-    // Return user/company info from JWT claims
+    const tokenData = tokens[0];
+
+    // Check revocation status
+    if (tokenData.state_id !== "ACTIVE") {
+      return {
+        valid: false,
+        error: "token_revoked",
+        message: "Token has been revoked",
+      };
+    }
+
+    // Update last used timestamp
+    await sql`
+      UPDATE oauth_access_tokens
+      SET last_used_at = NOW()
+      WHERE id = ${tokenData.id}
+    `;
+
+    // Return user/company info from database
     return {
       valid: true,
-      userId: payload.sub,
-      companyId: payload.company_id,
-      userEmail: payload.email,
-      clientId: payload.client_id || payload.aud,
-      scope: payload.scope,
+      userId: tokenData.user_id,
+      companyId: tokenData.company_id,
+      userEmail: tokenData.user_email,
+      clientId: tokenData.client_id,
     };
   } catch (error) {
-    console.error("[OAuth Validator] Error validating token:", error);
+    console.error("[OAuth Validator] Error checking token revocation:", error);
     return {
       valid: false,
       error: "server_error",

@@ -134,6 +134,9 @@ Use ngrok when you need external access or testing from remote tools.
    ```
    Then connect to either `http://localhost:5174/mcp` (local) or your ngrok URL.
 
+If you have issues due to port in use, you can use:
+sof -ti:6277 | xargs kill -9
+
 ### How It Works
 
 - **Vite (port 5174)** acts as a unified proxy for all services
