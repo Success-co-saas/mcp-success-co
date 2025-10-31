@@ -191,7 +191,7 @@ export const toolDefinitions = [
   {
     name: "getRocks",
     description:
-      "List Success.co rocks with ownership and team information. Use leadershipTeam=true to automatically filter by the leadership team. Returns userId (rock owner) and teamIds (associated teams) for each rock. Perfect for analyzing accountability and team execution. Supports keyword search.",
+      "List Success.co rocks with ownership, team information, and milestones. By default, returns rocks for 'this_year' with milestones included. Use leadershipTeam=true to automatically filter by the leadership team. Returns userId (rock owner), teamIds (associated teams), and milestones for each rock. Perfect for analyzing accountability, team execution, and rock progress. Supports keyword search and flexible time period filtering.",
     handler: async ({
       first,
       offset,
@@ -200,6 +200,8 @@ export const toolDefinitions = [
       teamId,
       leadershipTeam,
       keyword,
+      includeMilestones,
+      timePeriod,
     }) =>
       await getRocks({
         first,
@@ -209,6 +211,8 @@ export const toolDefinitions = [
         teamId,
         leadershipTeam,
         keyword,
+        includeMilestones,
+        timePeriod,
       }),
     schema: {
       first: z
@@ -243,6 +247,20 @@ export const toolDefinitions = [
         .optional()
         .describe(
           "Search for rocks with names containing this keyword (case-insensitive)"
+        ),
+      includeMilestones: z
+        .boolean()
+        .optional()
+        .default(true)
+        .describe(
+          "Include milestones for each rock (defaults to true). Set to false to exclude milestones for faster queries."
+        ),
+      timePeriod: z
+        .enum(["this_year", "current_quarter", "previous_quarter", "all"])
+        .optional()
+        .default("this_year")
+        .describe(
+          "Filter rocks by time period (defaults to 'this_year'): 'this_year' for rocks due this calendar year, 'current_quarter' for rocks due in the current quarter, 'previous_quarter' for rocks from last quarter, 'all' for all rocks regardless of due date."
         ),
     },
     required: [],
@@ -747,17 +765,42 @@ export const toolDefinitions = [
   {
     name: "getMeetingDetails",
     description:
-      "Get comprehensive meeting details including all related items (headlines, todos, issues, ratings) for a specific meeting. Returns the meeting with its associated headlines, todos, and issues in a single call.",
-    handler: async ({ meetingId }) =>
+      "Get comprehensive meeting details including all related items (headlines, todos, issues, ratings) for a specific meeting. Can fetch by specific meetingId OR use lastFinishedL10=true to automatically get the most recent FINISHED L10 meeting for a team. Only returns meetings with status 'FINISHED' when using lastFinishedL10. Returns the meeting with its associated headlines, todos, and issues in a single call. Perfect for queries like 'Show me the last L10 meeting for the leadership team' or 'What happened in our most recent Level 10 meeting?'",
+    handler: async ({ meetingId, lastFinishedL10, teamId, leadershipTeam }) =>
       await getMeetingDetails({
         meetingId,
+        lastFinishedL10,
+        teamId,
+        leadershipTeam,
       }),
     schema: {
       meetingId: z
         .string()
-        .describe("Meeting ID to fetch details for (required)"),
+        .optional()
+        .describe(
+          "Meeting ID to fetch details for (required unless lastFinishedL10 is true)"
+        ),
+      lastFinishedL10: z
+        .boolean()
+        .optional()
+        .default(false)
+        .describe(
+          "If true, automatically fetch the most recent FINISHED L10 (Level 10) meeting for the specified team. Only returns meetings with status 'FINISHED'. Requires teamId or leadershipTeam to be provided."
+        ),
+      teamId: z
+        .string()
+        .optional()
+        .describe(
+          "Team ID to find the last finished L10 meeting for (required when lastFinishedL10=true, unless leadershipTeam is true)"
+        ),
+      leadershipTeam: z
+        .boolean()
+        .optional()
+        .describe(
+          "If true, automatically use the leadership team ID (shortcut instead of providing teamId). Use with lastFinishedL10=true to get the last finished L10 meeting for the leadership team."
+        ),
     },
-    required: ["meetingId"],
+    required: [],
   },
   {
     name: "getPeopleAnalyzerSessions",
