@@ -499,3 +499,80 @@ export async function updateTodo(args) {
     ],
   };
 }
+
+/**
+ * Delete a todo in Success.co
+ * @param {Object} args - Arguments object
+ * @param {string} args.todoId - Todo ID (required)
+ * @returns {Promise<{content: Array<{type: string, text: string}>}>}
+ */
+export async function deleteTodo(args) {
+  const { todoId } = args;
+
+  if (!todoId) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: "Error: todoId is required",
+        },
+      ],
+    };
+  }
+
+  const mutation = `
+    mutation {
+      updateTodo(input: {
+        id: "${todoId}",
+        patch: {
+          stateId: "DELETED"
+        }
+      }) {
+        todo {
+          id
+          name
+          stateId
+        }
+      }
+    }
+  `;
+
+  const result = await callSuccessCoGraphQL(mutation);
+  if (!result.ok) {
+    return { content: [{ type: "text", text: result.error }] };
+  }
+
+  const todo = result.data?.data?.updateTodo?.todo;
+
+  if (!todo) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error: Todo deletion failed. ${JSON.stringify(result.data, null, 2)}`,
+        },
+      ],
+    };
+  }
+
+  return {
+    content: [
+      {
+        type: "text",
+        text: JSON.stringify(
+          {
+            success: true,
+            message: `Todo deleted successfully`,
+            todo: {
+              id: todo.id,
+              name: todo.name,
+              status: todo.stateId,
+            },
+          },
+          null,
+          2
+        ),
+      },
+    ],
+  };
+}

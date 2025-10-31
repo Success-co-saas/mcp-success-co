@@ -107,3 +107,261 @@ export async function getMilestones(args) {
     ],
   };
 }
+
+/**
+ * Create a new milestone in Success.co
+ * @param {Object} args - Arguments object
+ * @param {string} args.name - Milestone name (required)
+ * @param {string} args.rockId - Rock ID (required)
+ * @param {string} [args.dueDate] - Due date (YYYY-MM-DD format)
+ * @param {string} [args.userId] - User ID to assign the milestone to
+ * @returns {Promise<{content: Array<{type: string, text: string}>}>}
+ */
+export async function createMilestone(args) {
+  const { name, rockId, dueDate, userId } = args;
+
+  if (!name) {
+    return {
+      content: [{ type: "text", text: "Error: name is required" }],
+    };
+  }
+
+  if (!rockId) {
+    return {
+      content: [{ type: "text", text: "Error: rockId is required" }],
+    };
+  }
+
+  const mutation = `
+    mutation {
+      createMilestone(input: {
+        milestone: {
+          name: "${name}"
+          rockId: "${rockId}"
+          ${dueDate ? `dueDate: "${dueDate}"` : ""}
+          ${userId ? `userId: "${userId}"` : ""}
+          stateId: "ACTIVE"
+          milestoneStatusId: "TODO"
+        }
+      }) {
+        milestone {
+          id
+          name
+          rockId
+          dueDate
+          userId
+          milestoneStatusId
+          createdAt
+          stateId
+        }
+      }
+    }
+  `;
+
+  const result = await callSuccessCoGraphQL(mutation);
+  if (!result.ok) {
+    return { content: [{ type: "text", text: result.error }] };
+  }
+
+  const milestone = result.data?.data?.createMilestone?.milestone;
+
+  if (!milestone) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error: Milestone creation failed. ${JSON.stringify(result.data, null, 2)}`,
+        },
+      ],
+    };
+  }
+
+  return {
+    content: [
+      {
+        type: "text",
+        text: JSON.stringify(
+          {
+            success: true,
+            message: "Milestone created successfully",
+            milestone: milestone,
+          },
+          null,
+          2
+        ),
+      },
+    ],
+  };
+}
+
+/**
+ * Update a milestone in Success.co
+ * @param {Object} args - Arguments object
+ * @param {string} args.milestoneId - Milestone ID (required)
+ * @param {string} [args.name] - Update milestone name
+ * @param {string} [args.dueDate] - Update due date (YYYY-MM-DD format)
+ * @param {string} [args.userId] - Update user assignment
+ * @param {string} [args.milestoneStatusId] - Update status: "TODO" or "COMPLETE"
+ * @returns {Promise<{content: Array<{type: string, text: string}>}>}
+ */
+export async function updateMilestone(args) {
+  const { milestoneId, name, dueDate, userId, milestoneStatusId } = args;
+
+  if (!milestoneId) {
+    return {
+      content: [{ type: "text", text: "Error: milestoneId is required" }],
+    };
+  }
+
+  // Build patch object with only provided fields
+  const patchFields = [];
+  if (name !== undefined) patchFields.push(`name: "${name}"`);
+  if (dueDate !== undefined) patchFields.push(`dueDate: "${dueDate}"`);
+  if (userId !== undefined) patchFields.push(`userId: "${userId}"`);
+  if (milestoneStatusId !== undefined)
+    patchFields.push(`milestoneStatusId: "${milestoneStatusId}"`);
+
+  if (patchFields.length === 0) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: "Error: At least one field to update must be provided (name, dueDate, userId, or milestoneStatusId)",
+        },
+      ],
+    };
+  }
+
+  const mutation = `
+    mutation {
+      updateMilestone(input: {
+        id: "${milestoneId}",
+        patch: {
+          ${patchFields.join("\n          ")}
+        }
+      }) {
+        milestone {
+          id
+          name
+          rockId
+          dueDate
+          userId
+          milestoneStatusId
+          stateId
+        }
+      }
+    }
+  `;
+
+  const result = await callSuccessCoGraphQL(mutation);
+  if (!result.ok) {
+    return { content: [{ type: "text", text: result.error }] };
+  }
+
+  const milestone = result.data?.data?.updateMilestone?.milestone;
+
+  if (!milestone) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error: Milestone update failed. ${JSON.stringify(result.data, null, 2)}`,
+        },
+      ],
+    };
+  }
+
+  return {
+    content: [
+      {
+        type: "text",
+        text: JSON.stringify(
+          {
+            success: true,
+            message: "Milestone updated successfully",
+            milestone: milestone,
+          },
+          null,
+          2
+        ),
+      },
+    ],
+  };
+}
+
+/**
+ * Delete a milestone in Success.co
+ * @param {Object} args - Arguments object
+ * @param {string} args.milestoneId - Milestone ID (required)
+ * @returns {Promise<{content: Array<{type: string, text: string}>}>}
+ */
+export async function deleteMilestone(args) {
+  const { milestoneId } = args;
+
+  if (!milestoneId) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: "Error: milestoneId is required",
+        },
+      ],
+    };
+  }
+
+  const mutation = `
+    mutation {
+      updateMilestone(input: {
+        id: "${milestoneId}",
+        patch: {
+          stateId: "DELETED"
+        }
+      }) {
+        milestone {
+          id
+          name
+          stateId
+        }
+      }
+    }
+  `;
+
+  const result = await callSuccessCoGraphQL(mutation);
+  if (!result.ok) {
+    return { content: [{ type: "text", text: result.error }] };
+  }
+
+  const milestone = result.data?.data?.updateMilestone?.milestone;
+
+  if (!milestone) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error: Milestone deletion failed. ${JSON.stringify(result.data, null, 2)}`,
+        },
+      ],
+    };
+  }
+
+  return {
+    content: [
+      {
+        type: "text",
+        text: JSON.stringify(
+          {
+            success: true,
+            message: `Milestone deleted successfully`,
+            milestone: {
+              id: milestone.id,
+              name: milestone.name,
+              status: milestone.stateId,
+            },
+          },
+          null,
+          2
+        ),
+      },
+    ],
+  };
+}

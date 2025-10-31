@@ -978,3 +978,80 @@ export async function updateRock(args) {
     ],
   };
 }
+
+/**
+ * Delete a rock in Success.co
+ * @param {Object} args - Arguments object
+ * @param {string} args.rockId - Rock ID (required)
+ * @returns {Promise<{content: Array<{type: string, text: string}>}>}
+ */
+export async function deleteRock(args) {
+  const { rockId } = args;
+
+  if (!rockId) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: "Error: rockId is required",
+        },
+      ],
+    };
+  }
+
+  const mutation = `
+    mutation {
+      updateRock(input: {
+        id: "${rockId}",
+        patch: {
+          stateId: "DELETED"
+        }
+      }) {
+        rock {
+          id
+          name
+          stateId
+        }
+      }
+    }
+  `;
+
+  const result = await callSuccessCoGraphQL(mutation);
+  if (!result.ok) {
+    return { content: [{ type: "text", text: result.error }] };
+  }
+
+  const rock = result.data?.data?.updateRock?.rock;
+
+  if (!rock) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error: Rock deletion failed. ${JSON.stringify(result.data, null, 2)}`,
+        },
+      ],
+    };
+  }
+
+  return {
+    content: [
+      {
+        type: "text",
+        text: JSON.stringify(
+          {
+            success: true,
+            message: `Rock deleted successfully`,
+            rock: {
+              id: rock.id,
+              name: rock.name,
+              status: rock.stateId,
+            },
+          },
+          null,
+          2
+        ),
+      },
+    ],
+  };
+}

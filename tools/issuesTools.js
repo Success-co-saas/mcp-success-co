@@ -536,3 +536,80 @@ export async function updateIssue(args) {
     ],
   };
 }
+
+/**
+ * Delete an issue in Success.co
+ * @param {Object} args - Arguments object
+ * @param {string} args.issueId - Issue ID (required)
+ * @returns {Promise<{content: Array<{type: string, text: string}>}>}
+ */
+export async function deleteIssue(args) {
+  const { issueId } = args;
+
+  if (!issueId) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: "Error: issueId is required",
+        },
+      ],
+    };
+  }
+
+  const mutation = `
+    mutation {
+      updateIssue(input: {
+        id: "${issueId}",
+        patch: {
+          stateId: "DELETED"
+        }
+      }) {
+        issue {
+          id
+          name
+          stateId
+        }
+      }
+    }
+  `;
+
+  const result = await callSuccessCoGraphQL(mutation);
+  if (!result.ok) {
+    return { content: [{ type: "text", text: result.error }] };
+  }
+
+  const issue = result.data?.data?.updateIssue?.issue;
+
+  if (!issue) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error: Issue deletion failed. ${JSON.stringify(result.data, null, 2)}`,
+        },
+      ],
+    };
+  }
+
+  return {
+    content: [
+      {
+        type: "text",
+        text: JSON.stringify(
+          {
+            success: true,
+            message: `Issue deleted successfully`,
+            issue: {
+              id: issue.id,
+              name: issue.name,
+              status: issue.stateId,
+            },
+          },
+          null,
+          2
+        ),
+      },
+    ],
+  };
+}
