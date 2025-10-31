@@ -36,22 +36,28 @@ export { getTeams } from "./teamsTools.js";
 export { getUsers } from "./usersTools.js";
 
 // Todos
-export { getTodos, createTodo, updateTodo } from "./todosTools.js";
+export { getTodos, createTodo, updateTodo, deleteTodo } from "./todosTools.js";
 
-// Rocks - These need to be created
-export { getRocks, createRock, updateRock } from "./rocksTools.js";
+// Rocks
+export { getRocks, createRock, updateRock, deleteRock } from "./rocksTools.js";
 
-// Issues - These need to be created
-export { getIssues, createIssue, updateIssue } from "./issuesTools.js";
+// Issues
+export {
+  getIssues,
+  createIssue,
+  updateIssue,
+  deleteIssue,
+} from "./issuesTools.js";
 
-// Headlines - These need to be created
+// Headlines
 export {
   getHeadlines,
   createHeadline,
   updateHeadline,
+  deleteHeadline,
 } from "./headlinesTools.js";
 
-// Meetings - These need to be created
+// Meetings
 export {
   getMeetings,
   getMeetingInfos,
@@ -62,7 +68,12 @@ export {
 } from "./meetingsTools.js";
 
 // Milestones
-export { getMilestones } from "./milestonesTools.js";
+export {
+  getMilestones,
+  createMilestone,
+  updateMilestone,
+  deleteMilestone,
+} from "./milestonesTools.js";
 
 // Scorecard/Measurables - These need to be created
 export {
@@ -83,5 +94,13 @@ export { getLeadershipVTO } from "./vtoTools.js";
 // Accountability Chart
 export { getAccountabilityChart } from "./accountabilityChartTools.js";
 
-// Search and Fetch - These need to be created
+// Search and Fetch
 export { search, fetch } from "./searchAndFetchTools.js";
+
+// Comments
+export {
+  getComments,
+  createComment,
+  updateComment,
+  deleteComment,
+} from "./commentsTools.js";

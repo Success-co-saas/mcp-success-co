@@ -545,3 +545,80 @@ export async function updateHeadline(args) {
     ],
   };
 }
+
+/**
+ * Delete a headline in Success.co
+ * @param {Object} args - Arguments object
+ * @param {string} args.headlineId - Headline ID (required)
+ * @returns {Promise<{content: Array<{type: string, text: string}>}>}
+ */
+export async function deleteHeadline(args) {
+  const { headlineId } = args;
+
+  if (!headlineId) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: "Error: headlineId is required",
+        },
+      ],
+    };
+  }
+
+  const mutation = `
+    mutation {
+      updateHeadline(input: {
+        id: "${headlineId}",
+        patch: {
+          stateId: "DELETED"
+        }
+      }) {
+        headline {
+          id
+          name
+          stateId
+        }
+      }
+    }
+  `;
+
+  const result = await callSuccessCoGraphQL(mutation);
+  if (!result.ok) {
+    return { content: [{ type: "text", text: result.error }] };
+  }
+
+  const headline = result.data?.data?.updateHeadline?.headline;
+
+  if (!headline) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error: Headline deletion failed. ${JSON.stringify(result.data, null, 2)}`,
+        },
+      ],
+    };
+  }
+
+  return {
+    content: [
+      {
+        type: "text",
+        text: JSON.stringify(
+          {
+            success: true,
+            message: `Headline deleted successfully`,
+            headline: {
+              id: headline.id,
+              name: headline.name,
+              status: headline.stateId,
+            },
+          },
+          null,
+          2
+        ),
+      },
+    ],
+  };
+}

@@ -30,6 +30,17 @@ import {
   updateMeeting,
   createScorecardMeasurableEntry,
   updateScorecardMeasurableEntry,
+  deleteTodo,
+  deleteIssue,
+  deleteRock,
+  deleteHeadline,
+  deleteMilestone,
+  createMilestone,
+  updateMilestone,
+  getComments,
+  createComment,
+  updateComment,
+  deleteComment,
 } from "./tools.js";
 
 /**
@@ -43,7 +54,12 @@ export const toolDefinitions = [
     handler: async ({ first, offset, keyword }) =>
       await getTeams({ first, offset, keyword }),
     schema: {
-      first: z.number().int().optional().describe("Optional page size"),
+      first: z
+        .number()
+        .int()
+        .optional()
+        .default(50)
+        .describe("Optional page size (defaults to 50)"),
       offset: z.number().int().optional().describe("Optional offset"),
       keyword: z
         .string()
@@ -61,7 +77,12 @@ export const toolDefinitions = [
     handler: async ({ first, offset, teamId, leadershipTeam }) =>
       await getUsers({ first, offset, teamId, leadershipTeam }),
     schema: {
-      first: z.number().int().optional().describe("Optional page size"),
+      first: z
+        .number()
+        .int()
+        .optional()
+        .default(50)
+        .describe("Optional page size (defaults to 50)"),
       offset: z.number().int().optional().describe("Optional offset"),
       teamId: z.string().optional().describe("Filter by team ID"),
       leadershipTeam: z
@@ -106,7 +127,12 @@ export const toolDefinitions = [
         completedBefore,
       }),
     schema: {
-      first: z.number().int().optional().describe("Optional page size"),
+      first: z
+        .number()
+        .int()
+        .optional()
+        .default(50)
+        .describe("Optional page size (defaults to 50)"),
       offset: z.number().int().optional().describe("Optional offset"),
       fromMeetings: z
         .boolean()
@@ -165,7 +191,7 @@ export const toolDefinitions = [
   {
     name: "getRocks",
     description:
-      "List Success.co rocks with ownership and team information. Use leadershipTeam=true to automatically filter by the leadership team. Returns userId (rock owner) and teamIds (associated teams) for each rock. Perfect for analyzing accountability and team execution. Supports keyword search.",
+      "List Success.co rocks with ownership, team information, and milestones. By default, returns rocks for 'this_year' with milestones included. Use leadershipTeam=true to automatically filter by the leadership team. Returns userId (rock owner), teamIds (associated teams), and milestones for each rock. Perfect for analyzing accountability, team execution, and rock progress. Supports keyword search and flexible time period filtering.",
     handler: async ({
       first,
       offset,
@@ -174,6 +200,8 @@ export const toolDefinitions = [
       teamId,
       leadershipTeam,
       keyword,
+      includeMilestones,
+      timePeriod,
     }) =>
       await getRocks({
         first,
@@ -183,9 +211,16 @@ export const toolDefinitions = [
         teamId,
         leadershipTeam,
         keyword,
+        includeMilestones,
+        timePeriod,
       }),
     schema: {
-      first: z.number().int().optional().describe("Optional page size"),
+      first: z
+        .number()
+        .int()
+        .optional()
+        .default(50)
+        .describe("Optional page size (defaults to 50)"),
       offset: z.number().int().optional().describe("Optional offset"),
       status: z
         .enum(["ONTRACK", "OFFTRACK", "COMPLETE", "INCOMPLETE"])
@@ -212,6 +247,20 @@ export const toolDefinitions = [
         .optional()
         .describe(
           "Search for rocks with names containing this keyword (case-insensitive)"
+        ),
+      includeMilestones: z
+        .boolean()
+        .optional()
+        .default(true)
+        .describe(
+          "Include milestones for each rock (defaults to true). Set to false to exclude milestones for faster queries."
+        ),
+      timePeriod: z
+        .enum(["this_year", "current_quarter", "previous_quarter", "all"])
+        .optional()
+        .default("this_year")
+        .describe(
+          "Filter rocks by time period (defaults to 'this_year'): 'this_year' for rocks due this calendar year, 'current_quarter' for rocks due in the current quarter, 'previous_quarter' for rocks from last quarter, 'all' for all rocks regardless of due date."
         ),
     },
     required: [],
@@ -241,7 +290,12 @@ export const toolDefinitions = [
         dateBefore,
       }),
     schema: {
-      first: z.number().int().optional().describe("Optional page size"),
+      first: z
+        .number()
+        .int()
+        .optional()
+        .default(50)
+        .describe("Optional page size (defaults to 50)"),
       offset: z.number().int().optional().describe("Optional offset"),
       teamId: z
         .string()
@@ -313,7 +367,12 @@ export const toolDefinitions = [
         statusUpdatedBefore,
       }),
     schema: {
-      first: z.number().int().optional().describe("Optional page size"),
+      first: z
+        .number()
+        .int()
+        .optional()
+        .default(50)
+        .describe("Optional page size (defaults to 50)"),
       offset: z.number().int().optional().describe("Optional offset"),
       teamId: z.string().optional().describe("Filter by team ID"),
       leadershipTeam: z
@@ -393,7 +452,12 @@ export const toolDefinitions = [
         status,
       }),
     schema: {
-      first: z.number().int().optional().describe("Optional page size"),
+      first: z
+        .number()
+        .int()
+        .optional()
+        .default(50)
+        .describe("Optional page size (defaults to 50)"),
       offset: z.number().int().optional().describe("Optional offset"),
       headlineId: z
         .string()
@@ -457,7 +521,12 @@ export const toolDefinitions = [
         leadershipTeam,
       }),
     schema: {
-      first: z.number().int().optional().describe("Optional page size"),
+      first: z
+        .number()
+        .int()
+        .optional()
+        .default(50)
+        .describe("Optional page size (defaults to 50)"),
       offset: z.number().int().optional().describe("Optional offset"),
       rockId: z.string().optional().describe("Filter by rock ID"),
       userId: z.string().optional().describe("Filter by user ID"),
@@ -525,7 +594,12 @@ export const toolDefinitions = [
         status,
       }),
     schema: {
-      first: z.number().int().optional().describe("Optional page size"),
+      first: z
+        .number()
+        .int()
+        .optional()
+        .default(50)
+        .describe("Optional page size (defaults to 50)"),
       offset: z.number().int().optional().describe("Optional offset"),
       teamId: z.string().optional().describe("Filter by team ID"),
       leadershipTeam: z
@@ -592,7 +666,12 @@ export const toolDefinitions = [
         meetingInfoStatusId,
       }),
     schema: {
-      first: z.number().int().optional().describe("Optional page size"),
+      first: z
+        .number()
+        .int()
+        .optional()
+        .default(50)
+        .describe("Optional page size (defaults to 50)"),
       offset: z.number().int().optional().describe("Optional offset"),
       teamId: z.string().optional().describe("Filter by team ID"),
       leadershipTeam: z
@@ -631,7 +710,12 @@ export const toolDefinitions = [
         builtIn,
       }),
     schema: {
-      first: z.number().int().optional().describe("Optional page size"),
+      first: z
+        .number()
+        .int()
+        .optional()
+        .default(50)
+        .describe("Optional page size (defaults to 50)"),
       offset: z.number().int().optional().describe("Optional offset"),
       teamId: z.string().optional().describe("Filter by team ID"),
       leadershipTeam: z
@@ -681,17 +765,42 @@ export const toolDefinitions = [
   {
     name: "getMeetingDetails",
     description:
-      "Get comprehensive meeting details including all related items (headlines, todos, issues, ratings) for a specific meeting. Returns the meeting with its associated headlines, todos, and issues in a single call.",
-    handler: async ({ meetingId }) =>
+      "Get comprehensive meeting details including all related items (headlines, todos, issues, ratings) for a specific meeting. Can fetch by specific meetingId OR use lastFinishedL10=true to automatically get the most recent FINISHED L10 meeting for a team. Only returns meetings with status 'FINISHED' when using lastFinishedL10. Returns the meeting with its associated headlines, todos, and issues in a single call. Perfect for queries like 'Show me the last L10 meeting for the leadership team' or 'What happened in our most recent Level 10 meeting?'",
+    handler: async ({ meetingId, lastFinishedL10, teamId, leadershipTeam }) =>
       await getMeetingDetails({
         meetingId,
+        lastFinishedL10,
+        teamId,
+        leadershipTeam,
       }),
     schema: {
       meetingId: z
         .string()
-        .describe("Meeting ID to fetch details for (required)"),
+        .optional()
+        .describe(
+          "Meeting ID to fetch details for (required unless lastFinishedL10 is true)"
+        ),
+      lastFinishedL10: z
+        .boolean()
+        .optional()
+        .default(false)
+        .describe(
+          "If true, automatically fetch the most recent FINISHED L10 (Level 10) meeting for the specified team. Only returns meetings with status 'FINISHED'. Requires teamId or leadershipTeam to be provided."
+        ),
+      teamId: z
+        .string()
+        .optional()
+        .describe(
+          "Team ID to find the last finished L10 meeting for (required when lastFinishedL10=true, unless leadershipTeam is true)"
+        ),
+      leadershipTeam: z
+        .boolean()
+        .optional()
+        .describe(
+          "If true, automatically use the leadership team ID (shortcut instead of providing teamId). Use with lastFinishedL10=true to get the last finished L10 meeting for the leadership team."
+        ),
     },
-    required: ["meetingId"],
+    required: [],
   },
   {
     name: "getPeopleAnalyzerSessions",
@@ -720,6 +829,7 @@ export const toolDefinitions = [
         .number()
         .int()
         .optional()
+        .default(50)
         .describe("Optional page size (defaults to 50)"),
       offset: z.number().int().optional().describe("Optional offset"),
       teamId: z.string().optional().describe("Filter by team ID"),
@@ -771,6 +881,7 @@ export const toolDefinitions = [
         .number()
         .int()
         .optional()
+        .default(50)
         .describe("Optional page size (defaults to 50)"),
       offset: z.number().int().optional().describe("Optional offset"),
       checkupId: z
@@ -1360,6 +1471,248 @@ export const toolDefinitions = [
         ),
     },
     required: ["entryId"],
+  },
+  {
+    name: "deleteTodo",
+    description:
+      "Delete a todo in Success.co. This marks the todo as DELETED. Perfect for queries like 'Delete the todo about follow up with vendor'. Use getTodos first to find the todo ID by searching for the todo name.",
+    handler: async ({ todoId }) => await deleteTodo({ todoId }),
+    schema: {
+      todoId: z
+        .string()
+        .describe(
+          "Todo ID (required). Use getTodos with keyword search to find the ID."
+        ),
+    },
+    required: ["todoId"],
+  },
+  {
+    name: "deleteIssue",
+    description:
+      "Delete an issue in Success.co. This marks the issue as DELETED. Perfect for queries like 'Delete the issue about customer churn'. Use getIssues first to find the issue ID by searching for the issue name.",
+    handler: async ({ issueId }) => await deleteIssue({ issueId }),
+    schema: {
+      issueId: z
+        .string()
+        .describe(
+          "Issue ID (required). Use getIssues with keyword search to find the ID."
+        ),
+    },
+    required: ["issueId"],
+  },
+  {
+    name: "deleteRock",
+    description:
+      "Delete a rock in Success.co. This marks the rock as DELETED. Perfect for queries like 'Delete the marketing rock'. Use getRocks first to find the rock ID by searching for the rock name.",
+    handler: async ({ rockId }) => await deleteRock({ rockId }),
+    schema: {
+      rockId: z
+        .string()
+        .describe(
+          "Rock ID (required). Use getRocks with keyword search to find the ID."
+        ),
+    },
+    required: ["rockId"],
+  },
+  {
+    name: "deleteHeadline",
+    description:
+      "Delete a headline in Success.co. This marks the headline as DELETED. Perfect for queries like 'Delete the headline about ABC Corp'. Use getHeadlines first to find the headline ID by searching for the headline text.",
+    handler: async ({ headlineId }) => await deleteHeadline({ headlineId }),
+    schema: {
+      headlineId: z
+        .string()
+        .describe(
+          "Headline ID (required). Use getHeadlines with keyword search to find the ID."
+        ),
+    },
+    required: ["headlineId"],
+  },
+  {
+    name: "createMilestone",
+    description:
+      "Create a new milestone on a rock in Success.co. Milestones are checkpoints or sub-tasks within a rock. Perfect for queries like 'Add a milestone to the referral program rock'. Use getRocks to find the rock ID.",
+    handler: async ({ name, rockId, dueDate, userId }) =>
+      await createMilestone({ name, rockId, dueDate, userId }),
+    schema: {
+      name: z.string().describe("Milestone name/description (required)"),
+      rockId: z
+        .string()
+        .describe(
+          "Rock ID to add this milestone to (required). Use getRocks to find the rock ID."
+        ),
+      dueDate: z
+        .string()
+        .optional()
+        .describe("Due date in YYYY-MM-DD format (e.g., 2024-12-31)"),
+      userId: z
+        .string()
+        .optional()
+        .describe(
+          "User ID to assign the milestone to (optional - use getUsers to find the user ID)"
+        ),
+    },
+    required: ["name", "rockId"],
+  },
+  {
+    name: "updateMilestone",
+    description:
+      "Update a milestone in Success.co. Perfect for queries like 'Mark the milestone complete' or 'Change the due date of the milestone'. Use getMilestones to find the milestone ID.",
+    handler: async ({ milestoneId, name, dueDate, userId, milestoneStatusId }) =>
+      await updateMilestone({
+        milestoneId,
+        name,
+        dueDate,
+        userId,
+        milestoneStatusId,
+      }),
+    schema: {
+      milestoneId: z
+        .string()
+        .describe(
+          "Milestone ID (required). Use getMilestones to search for the milestone."
+        ),
+      name: z.string().optional().describe("Update the milestone name"),
+      dueDate: z
+        .string()
+        .optional()
+        .describe("Update due date (YYYY-MM-DD format)"),
+      userId: z
+        .string()
+        .optional()
+        .describe("Reassign to a different user (use getUsers to find ID)"),
+      milestoneStatusId: z
+        .enum(["TODO", "COMPLETE"])
+        .optional()
+        .describe("Update status: 'TODO' for open, 'COMPLETE' for completed"),
+    },
+    required: ["milestoneId"],
+  },
+  {
+    name: "deleteMilestone",
+    description:
+      "Delete a milestone in Success.co. This marks the milestone as DELETED. Perfect for queries like 'Delete the first milestone on the marketing rock'. Use getMilestones to find the milestone ID.",
+    handler: async ({ milestoneId }) => await deleteMilestone({ milestoneId }),
+    schema: {
+      milestoneId: z
+        .string()
+        .describe(
+          "Milestone ID (required). Use getMilestones to search for the milestone."
+        ),
+    },
+    required: ["milestoneId"],
+  },
+  {
+    name: "getComments",
+    description:
+      "Get comments for entities in Success.co. Comments can be attached to todos, issues, rocks, milestones, meetings, and other entities. Perfect for queries like 'Show me comments on this issue' or 'Get all comments from last week'. Use specific entity filters to narrow results.",
+    handler: async ({
+      first,
+      offset,
+      entityType,
+      entityId,
+      userId,
+      createdAfter,
+      createdBefore,
+    }) =>
+      await getComments({
+        first,
+        offset,
+        entityType,
+        entityId,
+        userId,
+        createdAfter,
+        createdBefore,
+      }),
+    schema: {
+      first: z
+        .number()
+        .int()
+        .optional()
+        .default(50)
+        .describe("Optional page size (defaults to 50)"),
+      offset: z.number().int().optional().describe("Optional offset"),
+      entityType: z
+        .enum(["issue", "rock", "todo", "milestone", "meeting"])
+        .optional()
+        .describe(
+          "Filter by entity type: 'issue', 'rock', 'todo', 'milestone', 'meeting'"
+        ),
+      entityId: z
+        .string()
+        .optional()
+        .describe(
+          "Filter by specific entity ID (e.g., get all comments for a specific issue)"
+        ),
+      userId: z
+        .string()
+        .optional()
+        .describe("Filter by comment author (user ID)"),
+      createdAfter: z
+        .string()
+        .optional()
+        .describe(
+          "Filter comments created after this date (ISO 8601 format, e.g., 2024-01-01T00:00:00Z)"
+        ),
+      createdBefore: z
+        .string()
+        .optional()
+        .describe(
+          "Filter comments created before this date (ISO 8601 format, e.g., 2024-12-31T23:59:59Z)"
+        ),
+    },
+    required: [],
+  },
+  {
+    name: "createComment",
+    description:
+      "Create a new comment on an entity in Success.co. Comments can be added to todos, issues, rocks, milestones, meetings, and other entities. Perfect for queries like 'Add a comment to the issue about customer churn' or 'Comment on the marketing rock'.",
+    handler: async ({ comment, entityType, entityId }) =>
+      await createComment({ comment, entityType, entityId }),
+    schema: {
+      comment: z.string().describe("Comment text (required)"),
+      entityType: z
+        .enum(["issue", "rock", "todo", "milestone", "meeting"])
+        .describe(
+          "Entity type to comment on (required): 'issue', 'rock', 'todo', 'milestone', 'meeting'"
+        ),
+      entityId: z
+        .string()
+        .describe(
+          "Entity ID to comment on (required). Use the appropriate get tool to find the entity ID."
+        ),
+    },
+    required: ["comment", "entityType", "entityId"],
+  },
+  {
+    name: "updateComment",
+    description:
+      "Update an existing comment in Success.co. Perfect for queries like 'Edit my comment on the issue' or 'Update the comment text'. Use getComments to find the comment ID.",
+    handler: async ({ commentId, comment }) =>
+      await updateComment({ commentId, comment }),
+    schema: {
+      commentId: z
+        .string()
+        .describe(
+          "Comment ID (required). Use getComments to find the comment ID."
+        ),
+      comment: z.string().describe("Updated comment text (required)"),
+    },
+    required: ["commentId", "comment"],
+  },
+  {
+    name: "deleteComment",
+    description:
+      "Delete a comment in Success.co. This marks the comment as DELETED. Perfect for queries like 'Delete my comment on the issue'. Use getComments to find the comment ID.",
+    handler: async ({ commentId }) => await deleteComment({ commentId }),
+    schema: {
+      commentId: z
+        .string()
+        .describe(
+          "Comment ID (required). Use getComments to find the comment ID."
+        ),
+    },
+    required: ["commentId"],
   },
 ];
 

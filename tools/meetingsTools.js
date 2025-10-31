@@ -550,25 +550,165 @@ export async function getMeetingAgendas(args) {
 /**
  * Get detailed information about a specific meeting
  * @param {Object} args - Arguments object
- * @param {string} args.meetingId - Meeting ID (required)
+ * @param {string} [args.meetingId] - Meeting ID (required unless lastFinishedL10 is true)
+ * @param {boolean} [args.lastFinishedL10] - If true, automatically fetch the most recent FINISHED L10 meeting for the team
+ * @param {string} [args.teamId] - Team ID (required when using lastFinishedL10)
+ * @param {boolean} [args.leadershipTeam] - If true, automatically use the leadership team ID (shortcut for teamId with lastFinishedL10)
  * @param {string} [args.stateId] - State filter (defaults to 'ACTIVE')
  * @returns {Promise<{content: Array<{type: string, text: string}>}>}
  */
 export async function getMeetingDetails(args) {
-  const { meetingId, stateId = "ACTIVE" } = args;
+  const { 
+    meetingId: providedMeetingId, 
+    stateId = "ACTIVE",
+    lastFinishedL10 = false,
+    teamId: providedTeamId,
+    leadershipTeam = false,
+  } = args;
 
-  if (!meetingId) {
+  // Resolve teamId if leadershipTeam is true
+  let teamId = providedTeamId;
+  if (leadershipTeam && !providedTeamId) {
+    teamId = await getLeadershipTeamId();
+    if (!teamId) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: "Error: Could not find leadership team. Please ensure a team is marked as the leadership team.",
+          },
+        ],
+      };
+    }
+  }
+
+  // Validate parameters
+  if (!providedMeetingId && !lastFinishedL10) {
     return {
       content: [
         {
           type: "text",
-          text: "Error: meetingId is required",
+          text: "Error: Either meetingId or lastFinishedL10=true (with teamId or leadershipTeam) is required",
         },
       ],
     };
   }
 
+  if (lastFinishedL10 && !teamId) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: "Error: When using lastFinishedL10=true, you must provide teamId or leadershipTeam=true",
+        },
+      ],
+    };
+  }
+
+  let meetingId = providedMeetingId;
+
   try {
+    // If lastFinishedL10 is true, find the most recent FINISHED L10 meeting for the team
+    if (lastFinishedL10 && teamId) {
+      // First get the L10 meeting agenda for this team
+      const meetingInfosQuery = `
+        query {
+          meetingInfos(filter: {teamId: {equalTo: "${teamId}"}, stateId: {equalTo: "ACTIVE"}}) {
+            nodes {
+              id
+              meetingAgendaId
+              meetingAgenda {
+                meetingAgendaTypeId
+              }
+            }
+          }
+        }
+      `;
+
+      const meetingInfosResult = await callSuccessCoGraphQL(meetingInfosQuery);
+      if (!meetingInfosResult.ok) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Error fetching meeting infos: ${meetingInfosResult.error}`,
+            },
+          ],
+        };
+      }
+
+      const meetingInfos = meetingInfosResult.data.data.meetingInfos.nodes;
+      
+      // Find L10 meeting info (WEEKLY-L10 type)
+      const l10MeetingInfo = meetingInfos.find(
+        (mi) => mi.meetingAgenda?.meetingAgendaTypeId === "WEEKLY-L10"
+      );
+
+      if (!l10MeetingInfo) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                error: "No L10 meeting found for this team",
+                teamId: teamId,
+                suggestion: "This team may not have a Level 10 meeting set up.",
+              }),
+            },
+          ],
+        };
+      }
+
+      // Get the most recent FINISHED meeting for this meeting info
+      const recentMeetingQuery = `
+        query {
+          meetings(
+            first: 1, 
+            orderBy: DATE_DESC,
+            filter: {
+              meetingInfoId: {equalTo: "${l10MeetingInfo.id}"}, 
+              stateId: {equalTo: "${stateId}"},
+              meetingStatusId: {equalTo: "FINISHED"}
+            }
+          ) {
+            nodes {
+              id
+            }
+          }
+        }
+      `;
+
+      const recentMeetingResult = await callSuccessCoGraphQL(recentMeetingQuery);
+      if (!recentMeetingResult.ok) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Error fetching recent meeting: ${recentMeetingResult.error}`,
+            },
+          ],
+        };
+      }
+
+      const recentMeetings = recentMeetingResult.data.data.meetings.nodes;
+      if (recentMeetings.length === 0) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                error: "No finished L10 meetings found for this team",
+                teamId: teamId,
+                suggestion: "This team may not have had any completed Level 10 meetings yet, or they are still in progress.",
+              }),
+            },
+          ],
+        };
+      }
+
+      meetingId = recentMeetings[0].id;
+    }
+
     // Step 1: Get the specific meeting
     const meetingsQuery = `
       query {

@@ -24,7 +24,9 @@ import {
  * @param {string} [args.userId] - Filter by user ID (rock owner)
  * @param {string} [args.teamId] - Filter by team ID
  * @param {string} [args.keyword] - Search for rocks with names containing this keyword (case-insensitive)
- * @returns {Promise<{content: Array<{type: string, text: string}>}>}
+ * @param {boolean} [args.includeMilestones] - Include milestones for each rock (defaults to true)
+ * @param {string} [args.timePeriod] - Filter by time period: 'this_year' (default), 'current_quarter', 'previous_quarter', 'all'
+ * @returns {Promise<{content: Array<{type: string, text: string}>>>}
  */
 export async function getRocks(args) {
   const {
@@ -36,6 +38,8 @@ export async function getRocks(args) {
     teamId: providedTeamId,
     leadershipTeam = false,
     keyword,
+    includeMilestones = true,
+    timePeriod = "this_year",
   } = args;
 
   // Resolve teamId if leadershipTeam is true
@@ -75,11 +79,63 @@ export async function getRocks(args) {
     };
   }
 
+  // Validate timePeriod
+  if (!["this_year", "current_quarter", "previous_quarter", "all"].includes(timePeriod)) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: "Invalid timePeriod - must be 'this_year', 'current_quarter', 'previous_quarter', or 'all'",
+        },
+      ],
+    };
+  }
+
+  // Calculate date filters based on timePeriod
+  let dueDateFilter = "";
+  if (timePeriod !== "all") {
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    
+    if (timePeriod === "this_year") {
+      const startOfYear = `${currentYear}-01-01`;
+      const endOfYear = `${currentYear}-12-31`;
+      dueDateFilter = `dueDate: {greaterThanOrEqualTo: "${startOfYear}", lessThanOrEqualTo: "${endOfYear}"}`;
+    } else if (timePeriod === "current_quarter" || timePeriod === "previous_quarter") {
+      // Determine current quarter (1-4)
+      const currentMonth = now.getMonth() + 1; // 1-12
+      const currentQuarter = Math.ceil(currentMonth / 3);
+      
+      let targetQuarter = currentQuarter;
+      let targetYear = currentYear;
+      
+      if (timePeriod === "previous_quarter") {
+        targetQuarter = currentQuarter - 1;
+        if (targetQuarter < 1) {
+          targetQuarter = 4;
+          targetYear = currentYear - 1;
+        }
+      }
+      
+      // Calculate quarter start and end dates
+      const quarterStartMonth = (targetQuarter - 1) * 3 + 1;
+      const quarterEndMonth = targetQuarter * 3;
+      const quarterStartDate = `${targetYear}-${String(quarterStartMonth).padStart(2, '0')}-01`;
+      
+      // Get last day of quarter end month
+      const lastDayOfMonth = new Date(targetYear, quarterEndMonth, 0).getDate();
+      const quarterEndDate = `${targetYear}-${String(quarterEndMonth).padStart(2, '0')}-${String(lastDayOfMonth).padStart(2, '0')}`;
+      
+      dueDateFilter = `dueDate: {greaterThanOrEqualTo: "${quarterStartDate}", lessThanOrEqualTo: "${quarterEndDate}"}`;
+    }
+  }
+
   const filterStr = [
     `stateId: {equalTo: "${stateId}"}`,
     rockStatusId ? `rockStatusId: {equalTo: "${rockStatusId}"}` : "",
     userId ? `userId: {equalTo: "${userId}"}` : "",
     keyword ? `name: {includesInsensitive: "${keyword}"}` : "",
+    dueDateFilter,
     first !== undefined ? `first: ${first}` : "",
     offset !== undefined ? `offset: ${offset}` : "",
   ]
@@ -141,9 +197,12 @@ export async function getRocks(args) {
   // For each rock, get its team associations
   const rockIds = rocks.map((r) => r.id);
   const teamsByRock = {};
+  const milestonesByRock = {};
 
   if (rockIds.length > 0) {
     const rockIdsStr = rockIds.map((id) => `"${id}"`).join(", ");
+    
+    // Get team associations
     const teamsOnRocksQuery = `
       query {
         teamsOnRocks(filter: {rockId: {in: [${rockIdsStr}]}, stateId: {equalTo: "${stateId}"}}) {
@@ -166,6 +225,43 @@ export async function getRocks(args) {
         teamsByRock[tor.rockId].push(tor.teamId);
       });
     }
+
+    // Get milestones if requested
+    if (includeMilestones) {
+      const milestonesQuery = `
+        query {
+          milestones(filter: {rockId: {in: [${rockIdsStr}]}, stateId: {equalTo: "ACTIVE"}}) {
+            nodes {
+              id
+              rockId
+              name
+              dueDate
+              userId
+              milestoneStatusId
+              createdAt
+            }
+          }
+        }
+      `;
+
+      const milestonesResult = await callSuccessCoGraphQL(milestonesQuery);
+      if (milestonesResult.ok) {
+        const milestones = milestonesResult.data?.data?.milestones?.nodes || [];
+        milestones.forEach((milestone) => {
+          if (!milestonesByRock[milestone.rockId]) {
+            milestonesByRock[milestone.rockId] = [];
+          }
+          milestonesByRock[milestone.rockId].push({
+            id: milestone.id,
+            name: milestone.name,
+            dueDate: milestone.dueDate,
+            userId: milestone.userId,
+            status: milestone.milestoneStatusId,
+            createdAt: milestone.createdAt,
+          });
+        });
+      }
+    }
   }
 
   return {
@@ -174,6 +270,7 @@ export async function getRocks(args) {
         type: "text",
         text: JSON.stringify({
           totalCount: rocks.length,
+          timePeriod: timePeriod,
           results: rocks.map((rock) => ({
             id: rock.id,
             name: rock.name,
@@ -185,6 +282,7 @@ export async function getRocks(args) {
             statusUpdatedAt: rock.statusUpdatedAt,
             userId: rock.userId,
             teamIds: teamsByRock[rock.id] || [],
+            milestones: includeMilestones ? (milestonesByRock[rock.id] || []) : undefined,
           })),
         }),
       },
@@ -970,6 +1068,83 @@ export async function updateRock(args) {
                   stateId: rock.stateId,
                 }
               : { id: rockId },
+          },
+          null,
+          2
+        ),
+      },
+    ],
+  };
+}
+
+/**
+ * Delete a rock in Success.co
+ * @param {Object} args - Arguments object
+ * @param {string} args.rockId - Rock ID (required)
+ * @returns {Promise<{content: Array<{type: string, text: string}>}>}
+ */
+export async function deleteRock(args) {
+  const { rockId } = args;
+
+  if (!rockId) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: "Error: rockId is required",
+        },
+      ],
+    };
+  }
+
+  const mutation = `
+    mutation {
+      updateRock(input: {
+        id: "${rockId}",
+        patch: {
+          stateId: "DELETED"
+        }
+      }) {
+        rock {
+          id
+          name
+          stateId
+        }
+      }
+    }
+  `;
+
+  const result = await callSuccessCoGraphQL(mutation);
+  if (!result.ok) {
+    return { content: [{ type: "text", text: result.error }] };
+  }
+
+  const rock = result.data?.data?.updateRock?.rock;
+
+  if (!rock) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error: Rock deletion failed. ${JSON.stringify(result.data, null, 2)}`,
+        },
+      ],
+    };
+  }
+
+  return {
+    content: [
+      {
+        type: "text",
+        text: JSON.stringify(
+          {
+            success: true,
+            message: `Rock deleted successfully`,
+            rock: {
+              id: rock.id,
+              name: rock.name,
+              status: rock.stateId,
+            },
           },
           null,
           2
