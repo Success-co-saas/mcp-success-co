@@ -178,13 +178,36 @@ export async function getIssues(args) {
   }
 
   const data = result.data;
+  const issues = data.data.issues.nodes;
+
+  // Calculate summary statistics
+  const summary = {
+    totalCount: data.data.issues.totalCount,
+    todoCount: issues.filter(i => i.issueStatusId === 'TODO').length,
+    completeCount: issues.filter(i => i.issueStatusId === 'COMPLETE').length,
+  };
+
+  // Calculate stuck issues (status not updated in 30+ days and still TODO)
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  summary.stuckCount = issues.filter(i => 
+    i.issueStatusId === 'TODO' && 
+    new Date(i.statusUpdatedAt) < thirtyDaysAgo
+  ).length;
+
+  // Count high priority issues
+  summary.highPriorityCount = issues.filter(i => 
+    i.issueStatusId === 'TODO' && 
+    i.priorityNo <= 1
+  ).length;
+
   return {
     content: [
       {
         type: "text",
         text: JSON.stringify({
-          totalCount: data.data.issues.totalCount,
-          results: data.data.issues.nodes.map((issue) => ({
+          summary,
+          results: issues.map((issue) => ({
             id: issue.id,
             name: issue.name,
             description: issue.desc || "",

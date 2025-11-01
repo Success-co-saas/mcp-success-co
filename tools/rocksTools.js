@@ -264,12 +264,37 @@ export async function getRocks(args) {
     }
   }
 
+  // Calculate summary statistics
+  const summary = {
+    totalCount: rocks.length,
+    onTrackCount: rocks.filter(r => r.rockStatusId === 'ONTRACK').length,
+    offTrackCount: rocks.filter(r => r.rockStatusId === 'OFFTRACK').length,
+    completeCount: rocks.filter(r => r.rockStatusId === 'COMPLETE').length,
+    incompleteCount: rocks.filter(r => r.rockStatusId === 'INCOMPLETE').length,
+  };
+
+  // Calculate at-risk rocks (off track or status not updated in 14+ days)
+  const fourteenDaysAgo = new Date();
+  fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
+  summary.atRiskCount = rocks.filter(r => 
+    r.rockStatusId === 'OFFTRACK' || 
+    (r.rockStatusId === 'ONTRACK' && new Date(r.statusUpdatedAt) < fourteenDaysAgo)
+  ).length;
+
+  // Calculate overdue rocks (past due date and not complete)
+  const now = new Date();
+  summary.overdueCount = rocks.filter(r => 
+    r.dueDate && 
+    new Date(r.dueDate) < now && 
+    r.rockStatusId !== 'COMPLETE'
+  ).length;
+
   return {
     content: [
       {
         type: "text",
         text: JSON.stringify({
-          totalCount: rocks.length,
+          summary,
           timePeriod: timePeriod,
           results: rocks.map((rock) => ({
             id: rock.id,
