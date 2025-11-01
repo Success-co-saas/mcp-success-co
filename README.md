@@ -279,15 +279,31 @@ This introspection query returns the complete schema including all types, fields
 
 ## Features
 
+### Core Data Access
 - **EOS Data Access:** Complete access to Success.co's EOS framework data including teams, users, todos, rocks, meetings, issues, headlines, visions, and meeting agendas
 - **Level 10 Meeting Analysis:** Specialized tools for analyzing Level 10 meetings, including issue tracking, facilitator/scribe information, and agenda sections
 - **Scorecard measurables Analysis:** Comprehensive KPI analysis including target flagging, trend analysis, and performance tracking
-- **Advanced Analytics:** Sophisticated analysis tools for at-risk rocks, overdue items, team performance, progress tracking, and meeting insights
-- **GraphQL Integration:** Full integration with Success.co's GraphQL API
-- **API Key Management:** Secure storage and retrieval of Success.co API keys
-- **Input Validation:** Uses [Zod](https://github.com/colinhacks/zod) for schema validation
-- **Multiple Transports:** Supports both STDIO and HTTP transports
 - **Comprehensive Search:** Intelligent search across all EOS data types
+
+### 🆕 Intelligent Insights & Analytics
+- **Execution Health Analysis:** Get comprehensive health score (0-100) with blockers and recommendations via `getExecutionHealth`
+- **Summary Statistics:** All get operations return aggregated metrics (counts by status, at-risk items, stuck issues)
+- **Workload Analysis:** Identify overloaded team members with automatic workload distribution analysis via `getUserWorkload`
+- **Company Insights:** One-call comprehensive company overview with quarterly progress via `getCompanyInsights`
+- **Smart Detection:** Automatic identification of at-risk rocks (off track or stale), stuck issues (30+ days), and overdue items
+- **Pre-calculated Metrics:** Eliminates need for LLM counting/aggregation, improving response time and accuracy
+
+### Technical Features
+- **GraphQL Integration:** Full integration with Success.co's GraphQL API
+- **Input Validation:** Uses [Zod](https://github.com/colinhacks/zod) for schema validation
+- **Multiple Transports:** Supports STDIO, HTTP (Streamable), and SSE transports
+- **OAuth 2.0 Authentication:** Secure authentication with long-lived tokens (90 days)
+- **API Key Support:** Development mode option for local testing
+
+### Voice & LLM Optimization
+- **Natural Language Ready:** Optimized tool descriptions and responses for voice interactions
+- **Smart Shortcuts:** `leadershipTeam=true`, `lastFinishedL10=true` for common queries
+- **Aggregate Tools:** Single-call complex insights reduce latency and token usage
 - **Real-time Analysis:** Dynamic analysis of rock statuses, milestones, team performance, and KPI metrics
 
 ## Connection Architecture

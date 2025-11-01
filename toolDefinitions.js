@@ -41,6 +41,9 @@ import {
   createComment,
   updateComment,
   deleteComment,
+  getExecutionHealth,
+  getUserWorkload,
+  getCompanyInsights,
 } from "./tools.js";
 
 /**
@@ -51,6 +54,7 @@ export const toolDefinitions = [
     name: "getTeams",
     description:
       "List Success.co teams. Each team includes an 'isLeadership' flag indicating if it's the leadership team. Use this to find the leadership team ID before querying for leadership-specific data. Supports keyword search.",
+    readOnly: true,
     handler: async ({ first, offset, keyword }) =>
       await getTeams({ first, offset, keyword }),
     schema: {
@@ -74,6 +78,7 @@ export const toolDefinitions = [
     name: "getUsers",
     description:
       "List Success.co users. Use leadershipTeam=true to automatically filter by the leadership team. Filter by teamId to get users on a specific team.",
+    readOnly: true,
     handler: async ({ first, offset, teamId, leadershipTeam }) =>
       await getUsers({ first, offset, teamId, leadershipTeam }),
     schema: {
@@ -98,6 +103,7 @@ export const toolDefinitions = [
     name: "getTodos",
     description:
       "List Success.co todos. Use leadershipTeam=true to automatically filter by the leadership team. Use fromMeetings=true to get only todos from Level 10 meetings. Filter by teamId, userId, status (TODO, COMPLETE, OVERDUE, ALL), or keyword. Supports date filtering for creation and completion dates.",
+    readOnly: true,
     handler: async ({
       first,
       offset,
@@ -192,6 +198,7 @@ export const toolDefinitions = [
     name: "getRocks",
     description:
       "List Success.co rocks with ownership, team information, and milestones. By default, returns rocks for 'this_year' with milestones included. Use leadershipTeam=true to automatically filter by the leadership team. Returns userId (rock owner), teamIds (associated teams), and milestones for each rock. Perfect for analyzing accountability, team execution, and rock progress. Supports keyword search and flexible time period filtering.",
+    readOnly: true,
     handler: async ({
       first,
       offset,
@@ -269,6 +276,7 @@ export const toolDefinitions = [
     name: "getMeetings",
     description:
       "List Success.co meetings. IMPORTANT: Either teamId or leadershipTeam is REQUIRED. Use leadershipTeam=true to automatically filter by the leadership team. Supports filtering by team, meeting agenda, and dates. Note: Only one of meetingAgendaId or meetingAgendaType can be used.",
+    readOnly: true,
     handler: async ({
       first,
       offset,
@@ -340,6 +348,7 @@ export const toolDefinitions = [
     name: "getIssues",
     description:
       "List Success.co issues. Use leadershipTeam=true to automatically filter by the leadership team. Supports filtering by team, user, status, type, meeting linkage, and dates.",
+    readOnly: true,
     handler: async ({
       first,
       offset,
@@ -425,6 +434,7 @@ export const toolDefinitions = [
     name: "getHeadlines",
     description:
       "List Success.co headlines. Use leadershipTeam=true to automatically filter by the leadership team. Supports filtering by date, keyword, status, team, user, and meeting linkage. Perfect for queries like 'Show me all people headlines from this week' or 'List company headlines related to hiring'. Can also fetch a specific headline by ID.",
+    readOnly: true,
     handler: async ({
       first,
       offset,
@@ -504,6 +514,7 @@ export const toolDefinitions = [
     name: "getMilestones",
     description:
       "List Success.co milestones on rocks. Use leadershipTeam=true to automatically filter by the leadership team.",
+    readOnly: true,
     handler: async ({
       first,
       offset,
@@ -544,6 +555,7 @@ export const toolDefinitions = [
     name: "search",
     description:
       "Search Success.co data (supports: teams, users, todos, rocks, meetings, issues, headlines, visions).",
+    readOnly: true,
     handler: async (args) => await search(args),
     schema: {
       query: z
@@ -557,6 +569,7 @@ export const toolDefinitions = [
   {
     name: "fetch",
     description: "Fetch a single Success.co item by id returned from search.",
+    readOnly: true,
     handler: async ({ id }) => await fetch({ id }),
     schema: {
       id: z.string().describe("The id from a previous search hit."),
@@ -567,6 +580,7 @@ export const toolDefinitions = [
     name: "getScorecardMeasurables",
     description:
       "Get scorecard data (KPIs) with their values. Use leadershipTeam=true to automatically filter by the leadership team. Provides comprehensive scorecard analysis with data fields and their corresponding values. Supports flexible date filtering: use startDate/endDate for precise ranges, or use periods/type for relative periods (e.g., 'last 13 weeks', 'last 6 months'). Defaults to last 13 weeks of data when no date parameters are provided. Use status to filter by ACTIVE (default), ARCHIVED, or ALL measurables.",
+    readOnly: true,
     handler: async ({
       first,
       offset,
@@ -651,6 +665,7 @@ export const toolDefinitions = [
     name: "getMeetingInfos",
     description:
       "List Success.co meeting infos. Use leadershipTeam=true to automatically filter by the leadership team.",
+    readOnly: true,
     handler: async ({
       first,
       offset,
@@ -691,6 +706,7 @@ export const toolDefinitions = [
     name: "getMeetingAgendas",
     description:
       "List Success.co meeting agendas (templates for meetings). These are used to create meeting series. Use leadershipTeam=true to automatically filter by the leadership team. Use this to find agenda IDs needed for creating meeting infos or understanding meeting structure.",
+    readOnly: true,
     handler: async ({
       first,
       offset,
@@ -745,6 +761,7 @@ export const toolDefinitions = [
     name: "getLeadershipVTO",
     description:
       "Get the complete leadership Vision/Traction Organizer in one call. Fetches all VTO components (core values, core focus, goals, market strategies) in parallel for maximum efficiency.",
+    readOnly: true,
     handler: async () => await getLeadershipVTO({}),
     schema: {},
     required: [],
@@ -753,6 +770,7 @@ export const toolDefinitions = [
     name: "getAccountabilityChart",
     description:
       "Get the complete accountability chart (organizational structure) for the company. Fetches all users, their roles, teams, and reporting relationships to answer questions like 'Who reports to the Integrator?' or 'What is the organizational structure?'. This tool provides a comprehensive view of the company's organizational hierarchy including key EOS roles like Integrator and Visionary.",
+    readOnly: true,
     handler: async ({ teamId }) => await getAccountabilityChart({ teamId }),
     schema: {
       teamId: z
@@ -766,6 +784,7 @@ export const toolDefinitions = [
     name: "getMeetingDetails",
     description:
       "Get comprehensive meeting details including all related items (headlines, todos, issues, ratings) for a specific meeting. Can fetch by specific meetingId OR use lastFinishedL10=true to automatically get the most recent FINISHED L10 meeting for a team. Only returns meetings with status 'FINISHED' when using lastFinishedL10. Returns the meeting with its associated headlines, todos, and issues in a single call. Perfect for queries like 'Show me the last L10 meeting for the leadership team' or 'What happened in our most recent Level 10 meeting?'",
+    readOnly: true,
     handler: async ({ meetingId, lastFinishedL10, teamId, leadershipTeam }) =>
       await getMeetingDetails({
         meetingId,
@@ -806,6 +825,7 @@ export const toolDefinitions = [
     name: "getPeopleAnalyzerSessions",
     description:
       "Get People Analyzer sessions with user scores including 'Gets it', 'Wants it', 'Capacity to do it', 'Right person', and 'Right seat' ratings. Use leadershipTeam=true to automatically filter by the leadership team. Perfect for queries like 'Show me the people analyzer results for the leadership team', 'Who's rated below a 3 on Gets it?', or 'Summarize people analyzer trends for the last quarter'.",
+    readOnly: true,
     handler: async ({
       first,
       offset,
@@ -862,6 +882,7 @@ export const toolDefinitions = [
     name: "getOrgCheckups",
     description:
       "Get Organization Checkup sessions with question scores. Perfect for queries like 'What's our current organization checkup score?', 'Which statements scored lowest?', or 'Compare this quarter's checkup to last quarter's'. Returns checkup sessions with all question answers and scores.",
+    readOnly: true,
     handler: async ({
       first,
       offset,
@@ -907,6 +928,7 @@ export const toolDefinitions = [
     name: "createIssue",
     description:
       "Create a new issue in Success.co. Use leadershipTeam=true to automatically assign to the leadership team. Perfect for queries like 'Add a new issue for customer churn increase to the leadership team'. Either teamId or leadershipTeam is REQUIRED.",
+    readOnly: false,
     handler: async ({
       name,
       desc,
@@ -968,6 +990,7 @@ export const toolDefinitions = [
     name: "createRock",
     description:
       "Create a new Rock (90-day priority) in Success.co. IMPORTANT: Rocks MUST be assigned to at least one team - either provide 'teamId' or set 'leadershipTeam=true'. Supports assigning to multiple teams with comma-separated IDs. New rocks always start with status 'ONTRACK'. Perfect for queries like 'Create a Rock for marketing and sales teams to launch referral program due next quarter'.",
+    readOnly: false,
     handler: async ({
       name,
       desc,
@@ -1026,6 +1049,7 @@ export const toolDefinitions = [
     name: "createTodo",
     description:
       "Create a new to-do in Success.co. Use leadershipTeam=true to automatically assign to the leadership team. Perfect for queries like 'Add a to-do to follow up with vendor' or 'Create a to-do for the leadership team to review Q4 budget'. Either teamId or leadershipTeam is REQUIRED.",
+    readOnly: false,
     handler: async ({ name, desc, teamId, leadershipTeam, userId, dueDate }) =>
       await createTodo({ name, desc, teamId, leadershipTeam, userId, dueDate }),
     schema: {
@@ -1063,6 +1087,7 @@ export const toolDefinitions = [
     name: "updateTodo",
     description:
       "Update an existing to-do in Success.co. Perfect for queries like 'Mark the to-do follow up with vendor as complete'. Use getTodos first to find the specific to-do ID by searching for the to-do name.",
+    readOnly: false,
     handler: async ({ todoId, todoStatusId, name, desc, dueDate }) =>
       await updateTodo({ todoId, todoStatusId, name, desc, dueDate }),
     schema: {
@@ -1088,6 +1113,7 @@ export const toolDefinitions = [
     name: "createHeadline",
     description:
       "Create a new headline in Success.co. Use leadershipTeam=true to automatically associate with the leadership team. Perfect for queries like 'Add a headline: Won major client contract with ABC Corp'. Headlines are good news or updates shared during meetings. IMPORTANT: You must provide either 'teamId' or 'leadershipTeam=true'.",
+    readOnly: false,
     handler: async ({
       name,
       desc,
@@ -1151,6 +1177,7 @@ export const toolDefinitions = [
     name: "createMeeting",
     description:
       "Create a new meeting instance in Success.co. Perfect for queries like 'Schedule a Level 10 meeting for the leadership team next Monday'. Provide either meetingAgendaId or meetingAgendaType (e.g., 'WEEKLY-L10', 'QUARTERLY-PULSING-AGENDA'). The tool will create a meeting info and then the meeting automatically. Meeting status defaults to 'NOT-STARTED', and start/end times are set when the meeting is started/ended.",
+    readOnly: false,
     handler: async ({
       date,
       meetingAgendaId,
@@ -1217,6 +1244,7 @@ export const toolDefinitions = [
     name: "updateIssue",
     description:
       "Update an existing issue in Success.co. Use leadershipTeam=true to reassign to the leadership team. Perfect for queries like 'Close the issue about pricing inconsistencies' or 'Change the priority of the customer churn issue to High'. Use getIssues first to find the issue ID.",
+    readOnly: false,
     handler: async ({
       issueId,
       name,
@@ -1275,6 +1303,7 @@ export const toolDefinitions = [
     name: "updateRock",
     description:
       "Update an existing Rock in Success.co. Perfect for queries like 'Mark the referral program rock as complete', 'Change the due date for the marketing rock to next month', or 'Reassign this rock to the Sales and Marketing teams'. Use getRocks first to find the rock ID. IMPORTANT: When updating team assignments, the teamId parameter REPLACES all existing team assignments - any teams not listed will be removed. Omit teamId to leave team assignments unchanged.",
+    readOnly: false,
     handler: async ({ rockId, name, desc, status, dueDate, userId, teamId }) =>
       await updateRock({
         rockId,
@@ -1318,6 +1347,7 @@ export const toolDefinitions = [
     name: "updateHeadline",
     description:
       "Update an existing headline in Success.co. Use leadershipTeam=true to reassign to the leadership team. Perfect for queries like 'Edit the ABC Corp headline to add more details' or 'Change the headline status'. Use getHeadlines first to find the headline ID.",
+    readOnly: false,
     handler: async ({
       headlineId,
       name,
@@ -1372,6 +1402,7 @@ export const toolDefinitions = [
     name: "updateMeeting",
     description:
       "Update an existing meeting in Success.co. Perfect for queries like 'Reschedule next Monday's L10 to Tuesday' or 'Cancel tomorrow's meeting'. Use getMeetings or getMeetingDetails first to find the meeting ID. To cancel a meeting, set state to 'DELETED'.",
+    readOnly: false,
     handler: async ({ meetingId, date, state }) =>
       await updateMeeting({
         meetingId,
@@ -1401,6 +1432,7 @@ export const toolDefinitions = [
     name: "createScorecardMeasurableEntry",
     description:
       "Create or update a scorecard measurable entry. Perfect for natural language commands like 'Set Bugs reported by customers to 15' or 'Set Revenue to 5000'. The start date is automatically calculated based on the metric's frequency (weekly=Monday, monthly=1st of month, quarterly=quarter start, annually=Jan 1). With overwrite=true, it will update existing entries for the same period instead of erroring. Use getScorecardMeasurables to find the dataFieldId, or search by metric name.",
+    readOnly: false,
     handler: async ({ dataFieldId, value, startDate, note, overwrite }) =>
       await createScorecardMeasurableEntry({
         dataFieldId,
@@ -1445,6 +1477,7 @@ export const toolDefinitions = [
     name: "updateScorecardMeasurableEntry",
     description:
       "Update an existing scorecard measurable entry (data value). Perfect for queries like 'Change the Revenue entry from last week to 300' or 'Update the note on this month's leads entry'. Note: Entries cannot be moved to different periods - only value and note can be updated. Use getScorecardMeasurables to find entries and their IDs.",
+    readOnly: false,
     handler: async ({ entryId, value, note }) =>
       await updateScorecardMeasurableEntry({
         entryId,
@@ -1476,6 +1509,7 @@ export const toolDefinitions = [
     name: "deleteTodo",
     description:
       "Delete a todo in Success.co. This marks the todo as DELETED. Perfect for queries like 'Delete the todo about follow up with vendor'. Use getTodos first to find the todo ID by searching for the todo name.",
+    readOnly: false,
     handler: async ({ todoId }) => await deleteTodo({ todoId }),
     schema: {
       todoId: z
@@ -1490,6 +1524,7 @@ export const toolDefinitions = [
     name: "deleteIssue",
     description:
       "Delete an issue in Success.co. This marks the issue as DELETED. Perfect for queries like 'Delete the issue about customer churn'. Use getIssues first to find the issue ID by searching for the issue name.",
+    readOnly: false,
     handler: async ({ issueId }) => await deleteIssue({ issueId }),
     schema: {
       issueId: z
@@ -1504,6 +1539,7 @@ export const toolDefinitions = [
     name: "deleteRock",
     description:
       "Delete a rock in Success.co. This marks the rock as DELETED. Perfect for queries like 'Delete the marketing rock'. Use getRocks first to find the rock ID by searching for the rock name.",
+    readOnly: false,
     handler: async ({ rockId }) => await deleteRock({ rockId }),
     schema: {
       rockId: z
@@ -1518,6 +1554,7 @@ export const toolDefinitions = [
     name: "deleteHeadline",
     description:
       "Delete a headline in Success.co. This marks the headline as DELETED. Perfect for queries like 'Delete the headline about ABC Corp'. Use getHeadlines first to find the headline ID by searching for the headline text.",
+    readOnly: false,
     handler: async ({ headlineId }) => await deleteHeadline({ headlineId }),
     schema: {
       headlineId: z
@@ -1532,6 +1569,7 @@ export const toolDefinitions = [
     name: "createMilestone",
     description:
       "Create a new milestone on a rock in Success.co. Milestones are checkpoints or sub-tasks within a rock. Perfect for queries like 'Add a milestone to the referral program rock'. Use getRocks to find the rock ID.",
+    readOnly: false,
     handler: async ({ name, rockId, dueDate, userId }) =>
       await createMilestone({ name, rockId, dueDate, userId }),
     schema: {
@@ -1558,6 +1596,7 @@ export const toolDefinitions = [
     name: "updateMilestone",
     description:
       "Update a milestone in Success.co. Perfect for queries like 'Mark the milestone complete' or 'Change the due date of the milestone'. Use getMilestones to find the milestone ID.",
+    readOnly: false,
     handler: async ({ milestoneId, name, dueDate, userId, milestoneStatusId }) =>
       await updateMilestone({
         milestoneId,
@@ -1592,6 +1631,7 @@ export const toolDefinitions = [
     name: "deleteMilestone",
     description:
       "Delete a milestone in Success.co. This marks the milestone as DELETED. Perfect for queries like 'Delete the first milestone on the marketing rock'. Use getMilestones to find the milestone ID.",
+    readOnly: false,
     handler: async ({ milestoneId }) => await deleteMilestone({ milestoneId }),
     schema: {
       milestoneId: z
@@ -1606,6 +1646,7 @@ export const toolDefinitions = [
     name: "getComments",
     description:
       "Get comments for entities in Success.co. Comments can be attached to todos, issues, rocks, milestones, meetings, and other entities. Perfect for queries like 'Show me comments on this issue' or 'Get all comments from last week'. Use specific entity filters to narrow results.",
+    readOnly: true,
     handler: async ({
       first,
       offset,
@@ -1667,6 +1708,7 @@ export const toolDefinitions = [
     name: "createComment",
     description:
       "Create a new comment on an entity in Success.co. Comments can be added to todos, issues, rocks, milestones, meetings, and other entities. Perfect for queries like 'Add a comment to the issue about customer churn' or 'Comment on the marketing rock'.",
+    readOnly: false,
     handler: async ({ comment, entityType, entityId }) =>
       await createComment({ comment, entityType, entityId }),
     schema: {
@@ -1688,6 +1730,7 @@ export const toolDefinitions = [
     name: "updateComment",
     description:
       "Update an existing comment in Success.co. Perfect for queries like 'Edit my comment on the issue' or 'Update the comment text'. Use getComments to find the comment ID.",
+    readOnly: false,
     handler: async ({ commentId, comment }) =>
       await updateComment({ commentId, comment }),
     schema: {
@@ -1704,6 +1747,7 @@ export const toolDefinitions = [
     name: "deleteComment",
     description:
       "Delete a comment in Success.co. This marks the comment as DELETED. Perfect for queries like 'Delete my comment on the issue'. Use getComments to find the comment ID.",
+    readOnly: false,
     handler: async ({ commentId }) => await deleteComment({ commentId }),
     schema: {
       commentId: z
@@ -1713,6 +1757,61 @@ export const toolDefinitions = [
         ),
     },
     required: ["commentId"],
+  },
+  {
+    name: "getExecutionHealth",
+    description:
+      "Get comprehensive execution health overview across rocks, issues, and todos. Returns health score (0-100), status breakdown by entity type, blockers, and recommendations. Perfect for answering 'How is my company executing?', 'What's blocking us?', or 'Give me an execution overview'. Use leadershipTeam=true to focus on leadership team. This is the best tool for high-level insights about company execution.",
+    readOnly: true,
+    handler: async ({ teamId, leadershipTeam }) =>
+      await getExecutionHealth({ teamId, leadershipTeam }),
+    schema: {
+      teamId: z
+        .string()
+        .optional()
+        .describe("Filter by specific team ID (optional)"),
+      leadershipTeam: z
+        .boolean()
+        .optional()
+        .describe(
+          "If true, automatically use the leadership team ID (shortcut for leadership team execution)"
+        ),
+    },
+    required: [],
+  },
+  {
+    name: "getUserWorkload",
+    description:
+      "Get aggregated workload analysis by user showing counts of open rocks, issues, and todos. Returns summary statistics including average workload and overloaded users (those with 150% more than average). Perfect for answering 'Who's overloaded?', 'Show me team workload distribution', or 'How many items does each person have?'. Use leadershipTeam=true to analyze leadership team workload.",
+    readOnly: true,
+    handler: async ({ teamId, leadershipTeam, userId }) =>
+      await getUserWorkload({ teamId, leadershipTeam, userId }),
+    schema: {
+      teamId: z
+        .string()
+        .optional()
+        .describe("Filter by specific team ID (optional)"),
+      leadershipTeam: z
+        .boolean()
+        .optional()
+        .describe(
+          "If true, automatically use the leadership team ID (shortcut for leadership team workload)"
+        ),
+      userId: z
+        .string()
+        .optional()
+        .describe("Get workload for specific user (optional)"),
+    },
+    required: [],
+  },
+  {
+    name: "getCompanyInsights",
+    description:
+      "Get high-level company insights combining execution health, quarterly rock progress, and key metrics. Returns overall health score, current quarter completion rate, days remaining in quarter, execution metrics across all entity types, blockers, and actionable insights. Perfect for answering 'Based on the data you can see, give me some insights about my company', 'How are we doing overall?', or 'What should I focus on?'. This is the best tool for comprehensive company overview and strategic insights.",
+    readOnly: true,
+    handler: async () => await getCompanyInsights({}),
+    schema: {},
+    required: [],
   },
 ];
 
@@ -1733,6 +1832,7 @@ export function getToolsAsJsonSchema() {
     .map((tool) => ({
       name: tool.name,
       description: tool.description,
+      readOnly: tool.readOnly,
       inputSchema: {
         type: "object",
         properties: Object.keys(tool.schema).reduce((props, key) => {

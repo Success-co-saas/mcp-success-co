@@ -149,24 +149,33 @@ export async function createComment(args) {
     };
   }
 
+  // Get user context for userId and companyId
+  const userContext = await getUserContext();
+  const userId = userContext.userId;
+  const companyId = userContext.companyId;
+
+  // Note: GraphQL schema uses 'objectId' for the input, but 'entityId' in the output
+  // The comment text field is 'text' in the input schema
+  // entityType is not needed in input - it's inferred from the objectId
   const mutation = `
     mutation {
       createComment(input: {
         comment: {
-          comment: "${comment.replace(/"/g, '\\"')}"
-          entityType: "${entityType}"
-          entityId: "${entityId}"
+          text: "${comment.replace(/"/g, '\\"')}"
+          objectId: "${entityId}"
+          userId: "${userId}"
+          companyId: "${companyId}"
           stateId: "ACTIVE"
         }
       }) {
         comment {
           id
-          entityType
-          entityId
+          objectId
           userId
-          comment
+          text
           createdAt
           stateId
+          companyId
         }
       }
     }
@@ -235,15 +244,14 @@ export async function updateComment(args) {
       updateComment(input: {
         id: "${commentId}",
         patch: {
-          comment: "${comment.replace(/"/g, '\\"')}"
+          text: "${comment.replace(/"/g, '\\"')}"
         }
       }) {
         comment {
           id
-          entityType
-          entityId
+          objectId
           userId
-          comment
+          text
           updatedAt
           stateId
         }
@@ -317,7 +325,7 @@ export async function deleteComment(args) {
       }) {
         comment {
           id
-          comment
+          text
           stateId
         }
       }
@@ -352,7 +360,7 @@ export async function deleteComment(args) {
             message: `Comment deleted successfully`,
             comment: {
               id: commentData.id,
-              comment: commentData.comment,
+              text: commentData.text,
               status: commentData.stateId,
             },
           },
