@@ -47,17 +47,21 @@ export async function getUsers(args) {
     };
   }
 
-  const filterStr = [
-    `stateId: {equalTo: "${stateId}"}`,
+  // Build filter parameters (inside filter object)
+  const filterStr = `stateId: {equalTo: "${stateId}"}`;
+  
+  // Build query-level parameters (outside filter object)
+  const queryParams = [
     first !== undefined ? `first: ${first}` : "",
     offset !== undefined ? `offset: ${offset}` : "",
+    `filter: {${filterStr}}`,
   ]
     .filter(Boolean)
     .join(", ");
 
   const query = `
     query {
-      users(${filterStr ? `filter: {${filterStr}}` : ""}) {
+      users(${queryParams}) {
         nodes {
           id
           userName

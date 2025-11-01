@@ -414,7 +414,23 @@ export async function getCompanyInsights(args = {}) {
 
   // Get execution health
   const executionHealth = await getExecutionHealth({ teamId });
-  const healthData = JSON.parse(executionHealth.content[0].text);
+  const healthText = executionHealth.content[0].text;
+  
+  // Try to parse as JSON, if it fails it's probably an error message
+  let healthData;
+  try {
+    healthData = JSON.parse(healthText);
+  } catch (error) {
+    // If parsing fails, it's likely an error message - return it as-is
+    return {
+      content: [
+        {
+          type: "text",
+          text: healthText,
+        },
+      ],
+    };
+  }
 
   // Get current quarter rocks
   const now = new Date();

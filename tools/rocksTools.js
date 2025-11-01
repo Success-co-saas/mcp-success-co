@@ -130,21 +130,29 @@ export async function getRocks(args) {
     }
   }
 
-  const filterStr = [
+  // Build filter parameters (inside filter object)
+  const filterParts = [
     `stateId: {equalTo: "${stateId}"}`,
     rockStatusId ? `rockStatusId: {equalTo: "${rockStatusId}"}` : "",
     userId ? `userId: {equalTo: "${userId}"}` : "",
     keyword ? `name: {includesInsensitive: "${keyword}"}` : "",
     dueDateFilter,
+  ]
+    .filter(Boolean)
+    .join(", ");
+
+  // Build query-level parameters (outside filter object)
+  const queryParams = [
     first !== undefined ? `first: ${first}` : "",
     offset !== undefined ? `offset: ${offset}` : "",
+    `filter: {${filterParts}}`,
   ]
     .filter(Boolean)
     .join(", ");
 
   const query = `
     query {
-      rocks(${filterStr ? `filter: {${filterStr}}` : ""}) {
+      rocks(${queryParams}) {
         nodes {
           id
           rockStatusId
