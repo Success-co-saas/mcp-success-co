@@ -104,3 +104,10 @@ export {
   updateComment,
   deleteComment,
 } from "./commentsTools.js";
+
+// Insights & Analytics
+export {
+  getExecutionHealth,
+  getUserWorkload,
+  getCompanyInsights,
+} from "./insightsTools.js";

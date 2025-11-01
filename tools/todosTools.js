@@ -181,13 +181,40 @@ export async function getTodos(args) {
   }
 
   const data = result.data;
+  const todos = data.data.todos.nodes;
+
+  // Calculate summary statistics
+  const now = new Date();
+  const summary = {
+    totalCount: data.data.todos.totalCount,
+    todoCount: todos.filter(t => t.todoStatusId === 'TODO').length,
+    completeCount: todos.filter(t => t.todoStatusId === 'COMPLETE').length,
+  };
+
+  // Calculate overdue count
+  summary.overdueCount = todos.filter(t => 
+    t.todoStatusId === 'TODO' && 
+    t.dueDate && 
+    new Date(t.dueDate) < now
+  ).length;
+
+  // Calculate due soon count (due within 7 days)
+  const sevenDaysFromNow = new Date();
+  sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
+  summary.dueSoonCount = todos.filter(t => 
+    t.todoStatusId === 'TODO' && 
+    t.dueDate && 
+    new Date(t.dueDate) >= now &&
+    new Date(t.dueDate) <= sevenDaysFromNow
+  ).length;
+
   return {
     content: [
       {
         type: "text",
         text: JSON.stringify({
-          totalCount: data.data.todos.totalCount,
-          results: data.data.todos.nodes.map((todo) => ({
+          summary,
+          results: todos.map((todo) => ({
             id: todo.id,
             name: todo.name,
             description: todo.desc || "",

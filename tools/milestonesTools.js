@@ -1,7 +1,7 @@
 // Milestones Tools
 // Tools for working with rock milestones
 
-import { callSuccessCoGraphQL, getLeadershipTeamId } from "./core.js";
+import { callSuccessCoGraphQL, getLeadershipTeamId, getUserContext } from "./core.js";
 import { validateStateId } from "../helpers.js";
 
 /**
@@ -51,19 +51,27 @@ export async function getMilestones(args) {
     };
   }
 
+  // Build filter parameters (inside filter object)
   const filterParts = [`stateId: {equalTo: "${stateId}"}`];
   if (rockId) filterParts.push(`rockId: {equalTo: "${rockId}"}`);
   if (userId) filterParts.push(`userId: {equalTo: "${userId}"}`);
   if (teamId) filterParts.push(`teamId: {equalTo: "${teamId}"}`);
   if (keyword) filterParts.push(`name: {includesInsensitive: "${keyword}"}`);
-  if (first !== undefined) filterParts.push(`first: ${first}`);
-  if (offset !== undefined) filterParts.push(`offset: ${offset}`);
 
   const filterStr = filterParts.join(", ");
 
+  // Build query-level parameters (outside filter object)
+  const queryParams = [
+    first !== undefined ? `first: ${first}` : "",
+    offset !== undefined ? `offset: ${offset}` : "",
+    `filter: {${filterStr}}`,
+  ]
+    .filter(Boolean)
+    .join(", ");
+
   const query = `
     query {
-      milestones(${filterStr ? `filter: {${filterStr}}` : ""}) {
+      milestones(${queryParams}) {
         nodes {
           id
           rockId
@@ -118,7 +126,7 @@ export async function getMilestones(args) {
  * @returns {Promise<{content: Array<{type: string, text: string}>}>}
  */
 export async function createMilestone(args) {
-  const { name, rockId, dueDate, userId } = args;
+  const { name, rockId, dueDate, userId: providedUserId } = args;
 
   if (!name) {
     return {
@@ -132,13 +140,27 @@ export async function createMilestone(args) {
     };
   }
 
+  // Get user context for userId and companyId
+  const userContext = await getUserContext();
+  const userId = providedUserId || userContext.userId;
+  const companyId = userContext.companyId;
+
+  // If dueDate is not provided, default to 30 days from now
+  let finalDueDate = dueDate;
+  if (!finalDueDate) {
+    const defaultDate = new Date();
+    defaultDate.setDate(defaultDate.getDate() + 30);
+    finalDueDate = defaultDate.toISOString().split('T')[0]; // YYYY-MM-DD
+  }
+
   const mutation = `
     mutation {
       createMilestone(input: {
         milestone: {
           name: "${name}"
           rockId: "${rockId}"
-          ${dueDate ? `dueDate: "${dueDate}"` : ""}
+          dueDate: "${finalDueDate}"
+          companyId: "${companyId}"
           ${userId ? `userId: "${userId}"` : ""}
           stateId: "ACTIVE"
           milestoneStatusId: "TODO"
