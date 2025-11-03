@@ -280,12 +280,14 @@ This introspection query returns the complete schema including all types, fields
 ## Features
 
 ### Core Data Access
+
 - **EOS Data Access:** Complete access to Success.co's EOS framework data including teams, users, todos, rocks, meetings, issues, headlines, visions, and meeting agendas
 - **Level 10 Meeting Analysis:** Specialized tools for analyzing Level 10 meetings, including issue tracking, facilitator/scribe information, and agenda sections
 - **Scorecard measurables Analysis:** Comprehensive KPI analysis including target flagging, trend analysis, and performance tracking
 - **Comprehensive Search:** Intelligent search across all EOS data types
 
 ### 🆕 Intelligent Insights & Analytics
+
 - **Execution Health Analysis:** Get comprehensive health score (0-100) with blockers and recommendations via `getExecutionHealth`
 - **Summary Statistics:** All get operations return aggregated metrics (counts by status, at-risk items, stuck issues)
 - **Workload Analysis:** Identify overloaded team members with automatic workload distribution analysis via `getUserWorkload`
@@ -294,6 +296,7 @@ This introspection query returns the complete schema including all types, fields
 - **Pre-calculated Metrics:** Eliminates need for LLM counting/aggregation, improving response time and accuracy
 
 ### Technical Features
+
 - **GraphQL Integration:** Full integration with Success.co's GraphQL API
 - **Input Validation:** Uses [Zod](https://github.com/colinhacks/zod) for schema validation
 - **Multiple Transports:** Supports STDIO, HTTP (Streamable), and SSE transports
@@ -301,6 +304,7 @@ This introspection query returns the complete schema including all types, fields
 - **API Key Support:** Development mode option for local testing
 
 ### Voice & LLM Optimization
+
 - **Natural Language Ready:** Optimized tool descriptions and responses for voice interactions
 - **Smart Shortcuts:** `leadershipTeam=true`, `lastFinishedL10=true` for common queries
 - **Aggregate Tools:** Single-call complex insights reduce latency and token usage
@@ -1191,10 +1195,17 @@ This opens the inspector interface in your browser at `http://localhost:6274/`
 
 ### Connect to Your MCP Server
 
-In the inspector interface, connect using either:
+In the inspector interface, configure the connection:
+
+**Connection URL:**
 
 - **Local:** `http://localhost:5174/mcp`
 - **Ngrok:** `https://your-ngrok-url.ngrok.app/mcp`
+
+**OAuth 2.0 Configuration:**
+
+- **Client ID:** `mcp-client-default`
+- **Client Secret:** `mcp-secret-this-in-production`
 
 The inspector will automatically handle the OAuth authentication flow when you first connect.
 

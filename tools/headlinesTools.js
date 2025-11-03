@@ -7,6 +7,7 @@ import {
   getUserContext,
 } from "./core.js";
 import { validateStateId } from "../helpers.js";
+import { getCompanyCode, generateObjectUrl } from "./commonHelpers.js";
 
 /**
  * List Success.co headlines
@@ -165,6 +166,10 @@ export async function getHeadlines(args) {
     DISCUSS: "Not shared",
   };
 
+  // Get company code for URL generation
+  const context = await getUserContext();
+  const companyCode = context ? await getCompanyCode(context.companyId) : null;
+
   return {
     content: [
       {
@@ -184,6 +189,7 @@ export async function getHeadlines(args) {
             isCascadingMessage: headline.isCascadingMessage,
             createdAt: headline.createdAt,
             statusUpdatedAt: headline.statusUpdatedAt,
+            url: companyCode ? generateObjectUrl('headlines', headline.id, companyCode) : null,
           })),
         }),
       },
@@ -347,6 +353,9 @@ export async function createHeadline(args) {
     DISCUSS: "Not shared",
   };
 
+  // Get company code for URL generation
+  const companyCode = await getCompanyCode(companyId);
+
   return {
     content: [
       {
@@ -360,6 +369,7 @@ export async function createHeadline(args) {
               headlineStatusId:
                 externalStatusMapping[headline.headlineStatusId] ||
                 headline.headlineStatusId,
+              url: companyCode ? generateObjectUrl('headlines', headline.id, companyCode) : null,
             },
           },
           null,
@@ -523,6 +533,9 @@ export async function updateHeadline(args) {
     DISCUSS: "Not shared",
   };
 
+  // Get company code for URL generation (context already declared at top of function)
+  const companyCode = context ? await getCompanyCode(context.companyId) : null;
+
   return {
     content: [
       {
@@ -536,6 +549,7 @@ export async function updateHeadline(args) {
               headlineStatusId:
                 externalStatusMapping[headline.headlineStatusId] ||
                 headline.headlineStatusId,
+              url: companyCode ? generateObjectUrl('headlines', headline.id, companyCode) : null,
             },
           },
           null,
