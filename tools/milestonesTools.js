@@ -3,6 +3,7 @@
 
 import { callSuccessCoGraphQL, getLeadershipTeamId, getUserContext } from "./core.js";
 import { validateStateId } from "../helpers.js";
+import { getCompanyCode, generateObjectUrl } from "./commonHelpers.js";
 
 /**
  * List Success.co milestones
@@ -94,6 +95,11 @@ export async function getMilestones(args) {
   }
 
   const data = result.data;
+
+  // Get company code for URL generation
+  const context = await getUserContext();
+  const companyCode = context ? await getCompanyCode(context.companyId) : null;
+
   return {
     content: [
       {
@@ -109,6 +115,8 @@ export async function getMilestones(args) {
             milestoneStatusId: milestone.milestoneStatusId,
             createdAt: milestone.createdAt,
             status: milestone.stateId,
+            // Milestones are viewed within their parent rock, so link to the rock
+            url: companyCode ? generateObjectUrl('rocks', milestone.rockId, companyCode) : null,
           })),
         }),
       },

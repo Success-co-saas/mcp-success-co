@@ -13,6 +13,7 @@ import {
   mapRockTypeToLowercase,
   getLastDateOfCurrentQuarter,
 } from "../helpers.js";
+import { getCompanyCode, generateObjectUrl } from "./commonHelpers.js";
 
 /**
  * List Success.co rocks
@@ -297,6 +298,10 @@ export async function getRocks(args) {
     r.rockStatusId !== 'COMPLETE'
   ).length;
 
+  // Get company code for URL generation
+  const context = await getUserContext();
+  const companyCode = context ? await getCompanyCode(context.companyId) : null;
+
   return {
     content: [
       {
@@ -316,6 +321,7 @@ export async function getRocks(args) {
             userId: rock.userId,
             teamIds: teamsByRock[rock.id] || [],
             milestones: includeMilestones ? (milestonesByRock[rock.id] || []) : undefined,
+            url: companyCode ? generateObjectUrl('rocks', rock.id, companyCode) : null,
           })),
         }),
       },
@@ -608,6 +614,9 @@ export async function createRock(args) {
         : ` and linked to team ${teamIds[0]}`;
   }
 
+  // Get company code for URL generation
+  const companyCode = await getCompanyCode(companyId);
+
   return {
     content: [
       {
@@ -627,6 +636,7 @@ export async function createRock(args) {
               createdAt: rock.createdAt,
               stateId: rock.stateId,
               companyId: rock.companyId,
+              url: companyCode ? generateObjectUrl('rocks', rock.id, companyCode) : null,
             },
           },
           null,
@@ -1081,6 +1091,9 @@ export async function updateRock(args) {
     message += ` (${details.join(", ")})`;
   }
 
+  // Get company code for URL generation (context already declared at top of function)
+  const companyCode = context ? await getCompanyCode(context.companyId) : null;
+
   return {
     content: [
       {
@@ -1099,8 +1112,9 @@ export async function updateRock(args) {
                   userId: rock.userId,
                   statusUpdatedAt: rock.statusUpdatedAt,
                   stateId: rock.stateId,
+                  url: companyCode ? generateObjectUrl('rocks', rock.id, companyCode) : null,
                 }
-              : { id: rockId },
+              : { id: rockId, url: companyCode ? generateObjectUrl('rocks', rockId, companyCode) : null },
           },
           null,
           2

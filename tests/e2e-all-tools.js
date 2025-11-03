@@ -12,8 +12,13 @@
  * 
  * Environment variables required (in .env file):
  *   DEVMODE_SUCCESS_API_KEY - API key for authentication
+ *   DEVMODE_SUCCESS_USE_API_KEY=true - REQUIRED to enable API key mode
+ *   NODE_ENV=development - Required for API key mode
  *   GRAPHQL_ENDPOINT - GraphQL endpoint
  *   DB_* - Database credentials
+ * 
+ * ⚠️ IMPORTANT: You MUST set DEVMODE_SUCCESS_USE_API_KEY=true in your .env file
+ *    for these tests to work. API key mode is disabled by default as a safety feature.
  */
 
 import dotenv from "dotenv";

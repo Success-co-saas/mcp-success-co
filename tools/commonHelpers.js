@@ -5,6 +5,7 @@ import {
   getUserContext,
   getLeadershipTeamId,
   callSuccessCoGraphQL,
+  getDatabase,
 } from "./core.js";
 import {
   APIKeyNotFoundError,
@@ -17,6 +18,7 @@ import {
   successResponse,
   errorResponse,
 } from "./errors.js";
+import { OAUTH_SERVER_URL } from "../config.js";
 
 /**
  * Validate and get user context (OAuth or API key)
@@ -392,4 +394,57 @@ export function formatOperationMessage(entityType, operation, details = {}) {
   }
 
   return message;
+}
+
+// Cache for company codes to avoid repeated database queries
+const companyCodeCache = new Map();
+
+/**
+ * Get company code from company ID
+ * @param {string} companyId - Company UUID
+ * @returns {Promise<string|null>} Company code or null
+ */
+export async function getCompanyCode(companyId) {
+  if (!companyId) return null;
+
+  // Check cache first
+  if (companyCodeCache.has(companyId)) {
+    return companyCodeCache.get(companyId);
+  }
+
+  const db = getDatabase();
+  if (!db) return null;
+
+  try {
+    const result = await db`
+      SELECT code 
+      FROM companies 
+      WHERE id = ${companyId}
+      LIMIT 1
+    `;
+
+    if (result.length > 0 && result[0].code) {
+      const code = result[0].code;
+      // Cache the result
+      companyCodeCache.set(companyId, code);
+      return code;
+    }
+
+    return null;
+  } catch (error) {
+    console.error(`[ERROR] Failed to get company code: ${error.message}`);
+    return null;
+  }
+}
+
+/**
+ * Generate Success.co URL for an object
+ * @param {string} entityType - Type of entity (todos, rocks, issues, headlines, meetings, etc.)
+ * @param {string} objectId - Object UUID
+ * @param {string} companyCode - Company code
+ * @returns {string|null} Full URL to the object or null if missing parameters
+ */
+export function generateObjectUrl(entityType, objectId, companyCode) {
+  if (!companyCode || !entityType || !objectId) return null;
+  return `${OAUTH_SERVER_URL}/${companyCode}/${entityType}/${objectId}`;
 }

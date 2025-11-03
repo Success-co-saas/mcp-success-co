@@ -7,6 +7,7 @@ import {
   getUserContext,
 } from "./core.js";
 import { validateStateId } from "../helpers.js";
+import { getCompanyCode, generateObjectUrl } from "./commonHelpers.js";
 
 /**
  * List Success.co meetings
@@ -227,6 +228,10 @@ export async function getMeetings(args) {
     }
   }
 
+  // Get company code for URL generation
+  const context = await getUserContext();
+  const companyCode = context ? await getCompanyCode(context.companyId) : null;
+
   return {
     content: [
       {
@@ -247,6 +252,7 @@ export async function getMeetings(args) {
               averageRating: meeting.averageRating,
               status: meeting.meetingStatusId,
               createdAt: meeting.createdAt,
+              url: companyCode ? generateObjectUrl('meetings', meeting.id, companyCode) : null,
             };
           }),
         }),
@@ -834,6 +840,10 @@ export async function getMeetingDetails(args) {
         )
       : [];
 
+    // Get company code for URL generation
+    const context = await getUserContext();
+    const companyCode = context ? await getCompanyCode(context.companyId) : null;
+
     const meetingDetails = {
       meeting: {
         id: meeting.id,
@@ -844,6 +854,7 @@ export async function getMeetingDetails(args) {
         averageRating: meeting.averageRating,
         status: meeting.meetingStatusId,
         createdAt: meeting.createdAt,
+        url: companyCode ? generateObjectUrl('meetings', meeting.id, companyCode) : null,
       },
       headlines: headlines.map((h) => ({
         id: h.id,
@@ -1188,6 +1199,9 @@ export async function createMeeting(args) {
     };
   }
 
+  // Get company code for URL generation
+  const companyCode = await getCompanyCode(companyId);
+
   return {
     content: [
       {
@@ -1197,7 +1211,10 @@ export async function createMeeting(args) {
             success: true,
             message: "Meeting created successfully",
             meetingInfo: meetingInfo,
-            meeting: meeting,
+            meeting: {
+              ...meeting,
+              url: companyCode ? generateObjectUrl('meetings', meeting.id, companyCode) : null,
+            },
           },
           null,
           2

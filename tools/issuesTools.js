@@ -12,6 +12,7 @@ import {
   mapPriorityToText,
   mapIssueTypeToLowercase,
 } from "../helpers.js";
+import { getCompanyCode, generateObjectUrl } from "./commonHelpers.js";
 
 /**
  * List Success.co issues
@@ -201,6 +202,10 @@ export async function getIssues(args) {
     i.priorityNo <= 1
   ).length;
 
+  // Get company code for URL generation
+  const context = await getUserContext();
+  const companyCode = context ? await getCompanyCode(context.companyId) : null;
+
   return {
     content: [
       {
@@ -222,6 +227,7 @@ export async function getIssues(args) {
             meetingId: issue.meetingId,
             createdAt: issue.createdAt,
             statusUpdatedAt: issue.statusUpdatedAt,
+            url: companyCode ? generateObjectUrl('issues', issue.id, companyCode) : null,
           })),
         }),
       },
@@ -381,6 +387,9 @@ export async function createIssue(args) {
     };
   }
 
+  // Get company code for URL generation
+  const companyCode = await getCompanyCode(companyId);
+
   return {
     content: [
       {
@@ -389,7 +398,10 @@ export async function createIssue(args) {
           {
             success: true,
             message: "Issue created successfully",
-            issue: issue,
+            issue: {
+              ...issue,
+              url: companyCode ? generateObjectUrl('issues', issue.id, companyCode) : null,
+            },
           },
           null,
           2
@@ -542,6 +554,9 @@ export async function updateIssue(args) {
     };
   }
 
+  // Get company code for URL generation (context already declared at top of function)
+  const companyCode = context ? await getCompanyCode(context.companyId) : null;
+
   return {
     content: [
       {
@@ -550,7 +565,10 @@ export async function updateIssue(args) {
           {
             success: true,
             message: "Issue updated successfully",
-            issue: issue,
+            issue: {
+              ...issue,
+              url: companyCode ? generateObjectUrl('issues', issue.id, companyCode) : null,
+            },
           },
           null,
           2
