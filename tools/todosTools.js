@@ -11,6 +11,7 @@ import {
   mapPriorityToNumber,
   mapPriorityToText,
 } from "../helpers.js";
+import { getCompanyCode, generateObjectUrl } from "./commonHelpers.js";
 
 /**
  * List Success.co todos
@@ -183,6 +184,10 @@ export async function getTodos(args) {
   const data = result.data;
   const todos = data.data.todos.nodes;
 
+  // Get company code for URL generation
+  const context = await getUserContext();
+  const companyCode = context ? await getCompanyCode(context.companyId) : null;
+
   // Calculate summary statistics
   const now = new Date();
   const summary = {
@@ -227,6 +232,7 @@ export async function getTodos(args) {
             meetingId: todo.meetingId,
             createdAt: todo.createdAt,
             statusUpdatedAt: todo.statusUpdatedAt,
+            url: companyCode ? generateObjectUrl('todos', todo.id, companyCode) : null,
           })),
         }),
       },
@@ -384,6 +390,9 @@ export async function createTodo(args) {
     };
   }
 
+  // Get company code for URL generation
+  const companyCode = await getCompanyCode(companyId);
+
   return {
     content: [
       {
@@ -392,7 +401,10 @@ export async function createTodo(args) {
           {
             success: true,
             message: "Todo created successfully",
-            todo: todo,
+            todo: {
+              ...todo,
+              url: companyCode ? generateObjectUrl('todos', todo.id, companyCode) : null,
+            },
           },
           null,
           2
@@ -509,6 +521,9 @@ export async function updateTodo(args) {
     };
   }
 
+  // Get company code for URL generation
+  const companyCode = context ? await getCompanyCode(context.companyId) : null;
+
   return {
     content: [
       {
@@ -517,7 +532,10 @@ export async function updateTodo(args) {
           {
             success: true,
             message: "Todo updated successfully",
-            todo: todo,
+            todo: {
+              ...todo,
+              url: companyCode ? generateObjectUrl('todos', todo.id, companyCode) : null,
+            },
           },
           null,
           2

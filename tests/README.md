@@ -22,6 +22,8 @@ Ensure your `.env` file is properly configured with:
 ```env
 # Required for all tests
 DEVMODE_SUCCESS_API_KEY=your-api-key-here
+DEVMODE_SUCCESS_USE_API_KEY=true  # ⚠️ REQUIRED - enables API key mode for testing
+NODE_ENV=development
 GRAPHQL_ENDPOINT=http://localhost:5174/graphql
 
 # Required for write operations (create/update/delete)
@@ -34,6 +36,15 @@ DB_PASS=your_password
 # OR use connection string
 DATABASE_URL=postgresql://user:password@host:port/database
 ```
+
+⚠️ **IMPORTANT**: Tests require `DEVMODE_SUCCESS_USE_API_KEY=true` to be set in your `.env` file. 
+
+Without this setting, API key authentication is disabled by default and tests will fail with:
+```
+Error: Authentication required. No valid OAuth token or API key found.
+```
+
+This is a safety feature - API key mode is only available when explicitly enabled in development mode.
 
 ## Running Tests
 
@@ -175,6 +186,12 @@ Each write tool is tested with:
 
 ## Troubleshooting
 
+### "Authentication required. No valid OAuth token or API key found" errors
+- **Most common cause**: Missing `DEVMODE_SUCCESS_USE_API_KEY=true` in `.env`
+- API key mode is disabled by default as a safety feature
+- Add `DEVMODE_SUCCESS_USE_API_KEY=true` to your `.env` file
+- Ensure `NODE_ENV=development` is also set
+
 ### "No team ID available" errors
 - The test requires at least one active team in the database
 - Create a team using the Success.co app first
@@ -184,6 +201,7 @@ Each write tool is tested with:
 - Verify GraphQL endpoint is accessible
 - Ensure database credentials are correct
 - Check API key is valid
+- **Ensure `DEVMODE_SUCCESS_USE_API_KEY=true` is set**
 
 ### Database connection errors
 - Verify database is running
@@ -193,6 +211,7 @@ Each write tool is tested with:
 ### API Key errors
 - Generate a valid API key in Success.co
 - Add to `.env` as `DEVMODE_SUCCESS_API_KEY`
+- **Add `DEVMODE_SUCCESS_USE_API_KEY=true` to enable API key mode**
 
 ## Development
 
