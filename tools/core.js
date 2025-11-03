@@ -211,42 +211,6 @@ export async function getContextForApiKey(apiKey) {
 }
 
 /**
- * Get a user's API key from the database based on their user ID
- * Used to fetch API key for users authenticated via OAuth
- * @param {string} userId - The user's UUID
- * @returns {Promise<string|null>} - The user's API key with suc_api_ prefix, or null
- */
-async function getUserApiKey(userId) {
-  const db = getDatabase();
-  if (!db) {
-    return null;
-  }
-
-  try {
-    const result = await db`
-      SELECT key, name
-      FROM user_api_keys
-      WHERE user_id = ${userId}
-        AND revoked = false
-      ORDER BY created_at DESC
-      LIMIT 1
-    `;
-
-    if (result.length > 0 && result[0].key) {
-      // Build the full API key with prefix
-      const name = result[0].name || 'suc_api';
-      const key = result[0].key;
-      return `${name}_${key}`;
-    }
-
-    return null;
-  } catch (error) {
-    console.error(`[AUTH] Error fetching user API key: ${error.message}`);
-    return null;
-  }
-}
-
-/**
  * Get user context (company ID, user ID, email) for the current request
  * Automatically handles OAuth access tokens or API key mode
  * @returns {Promise<{companyId: string, userId: string, userEmail?: string}|null>} - User context or null
@@ -518,7 +482,7 @@ export function logToolCallEnd(toolName, result, error = null) {
 
 /**
  * Calls the Success.co GraphQL API
- * Uses user's API key (looked up from OAuth context) or falls back to dev API key
+ * Uses OAuth access token or falls back to dev API key
  * @param {string} query - The GraphQL query string
  * @param {Object} [variables] - Optional variables for the GraphQL query
  * @returns {Promise<{ok: boolean, data?: any, error?: string}>}
@@ -529,20 +493,13 @@ export async function callSuccessCoGraphQL(query, variables = null) {
   let authToken = null;
   let authMode = "none";
 
-  // If OAuth authenticated, look up the user's API key from database
-  // GraphQL API expects API keys (suc_api_*), not OAuth tokens
-  if (auth && auth.userId) {
-    const apiKey = await getUserApiKey(auth.userId);
-    if (apiKey) {
-      authToken = apiKey;
-      authMode = "oauth_user_api_key";
-      if (isDevMode) {
-        console.error(`[AUTH] Using user's API key (from OAuth user ID) for GraphQL call`);
-      }
-    } else {
-      if (isDevMode) {
-        console.error(`[AUTH] No API key found for OAuth user ${auth.userId}`);
-      }
+  // If OAuth authenticated, use the access token directly
+  // GraphQL API supports OAuth tokens as Bearer tokens
+  if (auth && auth.accessToken) {
+    authToken = auth.accessToken;
+    authMode = "oauth";
+    if (isDevMode) {
+      console.error(`[AUTH] Using OAuth access token for GraphQL call`);
     }
   }
   
@@ -564,7 +521,7 @@ export async function callSuccessCoGraphQL(query, variables = null) {
     return {
       ok: false,
       error:
-        "No API key available. User must have an active API key in user_api_keys table, or set DEVMODE_SUCCESS_API_KEY in dev mode with DEVMODE_SUCCESS_USE_API_KEY=true.",
+        "No authentication available. User must provide a valid OAuth token, or set DEVMODE_SUCCESS_API_KEY in dev mode with DEVMODE_SUCCESS_USE_API_KEY=true.",
     };
   }
 
