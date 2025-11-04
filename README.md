@@ -21,7 +21,17 @@ This MCP server provides comprehensive access to Success.co's EOS (Entrepreneuri
    npm install
    ```
 
-2. **Configure Claude Desktop:**
+2. **Create a `.env` file** in the project root with dev-mode API key:
+
+   ```bash
+   # DEV-MODE API KEY (required for Claude Desktop)
+   DEVMODE_SUCCESS_USE_API_KEY=true
+   DEVMODE_SUCCESS_API_KEY=suc_api_2dff029c8e7a170e95f01e41a750ec94d0fd3abc
+   ```
+
+   **Why?** Claude Desktop connects directly to the MCP server via STDIO, bypassing the OAuth flow. You must use the dev-mode API key method for authentication.
+
+3. **Configure Claude Desktop:**
 
    Edit `~/Library/Application Support/Claude/claude_desktop_config.json`:
 
@@ -44,9 +54,9 @@ This MCP server provides comprehensive access to Success.co's EOS (Entrepreneuri
    - **Do not run the server manually** when using Claude Desktop
    - Claude uses STDIO transport, so **avoid console.log/console.info** (use the built-in logger instead)
 
-3. **Restart Claude Desktop** to load the MCP server
+4. **Restart Claude Desktop** to load the MCP server
 
-4. **Start required services** (for local testing with live data):
+5. **Start required services** (for local testing with live data):
 
    ```bash
    # Terminal 1: Start ServiceAPI (port 4001)
@@ -58,7 +68,7 @@ This MCP server provides comprehensive access to Success.co's EOS (Entrepreneuri
    npm run dev
    ```
 
-5. **Test in Claude:** Ask questions like "Show me all open rocks" or "What issues need attention?"
+6. **Test in Claude:** Ask questions like "Show me all open rocks" or "What issues need attention?"
 
 ### Option 2: Test with MCP Inspector
 
@@ -147,6 +157,30 @@ DEVMODE_SUCCESS_API_KEY=your-api-key-here
 ```
 
 **Note:** Without database configuration, you can still use read-only tools, but create/update operations will fail.
+
+---
+
+## 🔍 Under the Hood
+
+Behind the scenes, the MCP server connects to the Success.co GraphQL API to retrieve and update your EOS data.
+
+**How Authentication Works:**
+
+- **With OAuth (MCP Inspector):** When you connect via the MCP Inspector, an OAuth flow is initiated. Your access token is stored securely and used for all API requests.
+- **With Dev-Mode API Key (Claude Desktop):** Since Claude Desktop connects directly via STDIO, it bypasses the OAuth web flow. Instead, you provide your API key in the `.env` file, which is used to authenticate all API requests.
+
+**What Happens When You Ask a Question:**
+
+1. Claude (or the MCP Inspector) sends your query to the MCP server
+2. The MCP server determines which tools to use (e.g., `getRocks`, `getIssues`, `getTodos`)
+3. The server makes authenticated requests to the Success.co GraphQL API using:
+   - Your OAuth access token (if connected via MCP Inspector)
+   - Your dev-mode API key (if using Claude Desktop with `DEVMODE_SUCCESS_USE_API_KEY=true`)
+4. The API returns your EOS data
+5. The MCP server processes and formats the response
+6. The answer is returned to Claude (or the MCP Inspector)
+
+All data remains secure - OAuth tokens are stored in your local database, and API keys are only stored in your local `.env` file.
 
 ---
 

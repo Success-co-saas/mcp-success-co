@@ -9,6 +9,7 @@ import {
 } from "../utils/transportHelpers.js";
 import { runWithAuthContext } from "../tools.js";
 import { registerToolsOnServer } from "../toolDefinitions.js";
+import { VERSION } from "../config.js";
 
 /**
  * Create a fresh MCP server instance with all tools registered
@@ -16,7 +17,9 @@ import { registerToolsOnServer } from "../toolDefinitions.js";
 function createFreshMcpServer() {
   const freshServer = new McpServer({
     name: "Success.co MCP Server",
-    version: "0.0.3",
+    version: VERSION,
+    title: "Success.co MCP Server",
+    websiteUrl: "https://www.success.co/",
   });
 
   registerToolsOnServer(freshServer);

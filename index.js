@@ -5,6 +5,7 @@ import { initOAuthValidator } from "./oauth-validator.js";
 import { init, testDatabaseConnection } from "./tools.js";
 import { initLogger, logger } from "./logger.js";
 import config, {
+  VERSION,
   PORT,
   GRAPHQL_ENDPOINT,
   DB_CONFIG,
@@ -90,7 +91,9 @@ initOAuthValidator(DB_CONFIG);
 // Create main MCP server
 const server = new McpServer({
   name: "Success.co MCP Server",
-  version: "0.0.3",
+  version: VERSION,
+  title: "Success.co MCP Server",
+  websiteUrl: "https://www.success.co/",
 });
 
 // Register all tools
