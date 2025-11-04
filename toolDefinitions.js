@@ -1050,8 +1050,24 @@ export const toolDefinitions = [
     description:
       "Create a new to-do in Success.co. Use leadershipTeam=true to automatically assign to the leadership team. Perfect for queries like 'Add a to-do to follow up with vendor' or 'Create a to-do for the leadership team to review Q4 budget'. Either teamId or leadershipTeam is REQUIRED.",
     readOnly: false,
-    handler: async ({ name, desc, teamId, leadershipTeam, userId, dueDate }) =>
-      await createTodo({ name, desc, teamId, leadershipTeam, userId, dueDate }),
+    handler: async ({
+      name,
+      desc,
+      teamId,
+      leadershipTeam,
+      userId,
+      dueDate,
+      type,
+    }) =>
+      await createTodo({
+        name,
+        desc,
+        teamId,
+        leadershipTeam,
+        userId,
+        dueDate,
+        type,
+      }),
     schema: {
       name: z.string().describe("Todo name/title (required)"),
       desc: z
@@ -1079,7 +1095,13 @@ export const toolDefinitions = [
       dueDate: z
         .string()
         .optional()
-        .describe("Due date in YYYY-MM-DD format (e.g., 2024-12-31)"),
+        .describe("Due date in YYYY-MM-DD format (e.g., 2024-12-31). Defaults to 7 days from now if not provided."),
+      type: z
+        .enum(["team", "private"])
+        .optional()
+        .describe(
+          "Todo type: 'team' for team todos or 'private' for private todos (defaults to 'team')"
+        ),
     },
     required: ["name"],
   },
@@ -1597,7 +1619,13 @@ export const toolDefinitions = [
     description:
       "Update a milestone in Success.co. Perfect for queries like 'Mark the milestone complete' or 'Change the due date of the milestone'. Use getMilestones to find the milestone ID.",
     readOnly: false,
-    handler: async ({ milestoneId, name, dueDate, userId, milestoneStatusId }) =>
+    handler: async ({
+      milestoneId,
+      name,
+      dueDate,
+      userId,
+      milestoneStatusId,
+    }) =>
       await updateMilestone({
         milestoneId,
         name,
