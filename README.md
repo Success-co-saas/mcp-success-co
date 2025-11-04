@@ -28,7 +28,6 @@ The MCP server supports two authentication methods:
 - **Token Usage:** Automatically passed to GraphQL API as `Bearer <access_token>`
 - **Endpoints:** All under `/mcp/*` prefix
 - **Setup Required:** Database tables + OAuth client registration
-- **See:** [OAUTH_SETUP.md](docs/OAUTH_SETUP.md) for complete setup instructions
 
 **How it works:**
 
@@ -1215,6 +1214,9 @@ The project comprises the following key parts:
 
 - **MCP Server Initialization:**  
   The MCP server is instantiated using `McpServer` from the MCP SDK and connected via `StdioServerTransport` and `StreamableHTTPServerTransport`.
+  
+- **Main MCP Route Handler:**  
+  See [routes/mcp.js](routes/mcp.js) for the core MCP endpoint implementation that handles JSON-RPC requests, session management, and authentication context.
 
 - **Tool Definitions:**
 
@@ -1438,6 +1440,19 @@ Which users have the most overdue todos?
 ```
 
 The AI agent will automatically infer the appropriate tools to use based on your request and may combine multiple tools to provide comprehensive answers.
+
+## Sample Questions
+
+For a comprehensive list of sample questions and example prompts you can use with the Success.co AI MCP Server, see:
+
+**[Sample Questions for Success.co AI MCP Server](https://docs.google.com/document/d/1f303DI0X56r9HmUCgFlDUhwCeHdwyquUTXoHr-Hhj74/edit?tab=t.0)**
+
+This document includes real-world examples of:
+- EOS data queries (Rocks, Issues, Todos)
+- Level 10 meeting analysis
+- Scorecard and KPI analysis
+- Team performance tracking
+- Cross-functional insights
 
 ## References & Resources
 
