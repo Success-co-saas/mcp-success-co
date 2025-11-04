@@ -248,7 +248,7 @@ export async function getTodos(args) {
  * @param {string} [args.teamId] - Team ID to assign the todo to (REQUIRED unless leadershipTeam is true)
  * @param {boolean} [args.leadershipTeam] - If true, automatically use the leadership team ID (REQUIRED unless teamId is provided)
  * @param {string} [args.userId] - User ID to assign the todo to (defaults to current user from API key)
- * @param {string} [args.dueDate] - Due date in YYYY-MM-DD format
+ * @param {string} [args.dueDate] - Due date in YYYY-MM-DD format (defaults to 7 days from now if not provided)
  * @param {string} [args.type] - Todo type: "team" or "private" (defaults to "team")
  * @returns {Promise<{content: Array<{type: string, text: string}>}>}
  */
@@ -259,13 +259,21 @@ export async function createTodo(args) {
     leadershipTeam = false,
     desc = "",
     userId: providedUserId,
-    dueDate,
+    dueDate: providedDueDate,
     priority = "Medium",
     type = "team",
   } = args;
 
   // Always set todoStatusId to TODO for new todos
   const todoStatusId = "TODO";
+
+  // Set default due date to 7 days from now if not provided
+  let dueDate = providedDueDate;
+  if (!dueDate) {
+    const sevenDaysFromNow = new Date();
+    sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
+    dueDate = sevenDaysFromNow.toISOString().split('T')[0]; // Format as YYYY-MM-DD
+  }
 
   if (!name || name.trim() === "") {
     return {
@@ -351,12 +359,8 @@ export async function createTodo(args) {
     companyId,
     stateId: "ACTIVE",
     type,
+    dueDate, // Always include dueDate (defaults to 7 days from now)
   };
-
-  // Add optional dueDate if provided
-  if (dueDate) {
-    todoInput.dueDate = dueDate;
-  }
 
   const variables = {
     input: {

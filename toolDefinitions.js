@@ -1095,7 +1095,7 @@ export const toolDefinitions = [
       dueDate: z
         .string()
         .optional()
-        .describe("Due date in YYYY-MM-DD format (e.g., 2024-12-31)"),
+        .describe("Due date in YYYY-MM-DD format (e.g., 2024-12-31). Defaults to 7 days from now if not provided."),
       type: z
         .enum(["team", "private"])
         .optional()
