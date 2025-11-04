@@ -1,433 +1,247 @@
 # 🟢 Success.co MCP Server
 
-![MCP Server in Node.js banner](https://github.com/user-attachments/assets/6608286c-0dd2-4f15-a797-ed63d902a38a)
+This MCP server provides comprehensive access to Success.co's EOS (Entrepreneurial Operating System) data, enabling AI assistants like Claude and ChatGPT to answer complex questions about company operations, team performance, rocks, issues, todos, and Level 10 meetings.
 
-## Success.co EOS Framework MCP Server
+**[Model Context Protocol (MCP)](https://modelcontextprotocol.io/introduction)** allows you to integrate custom tools into AI assistants, giving them access to your Success.co data for intelligent analysis and assistance.
 
-This MCP server provides comprehensive access to Success.co's EOS (Entrepreneurial Operating System) data, enabling AI assistants like ChatGPT and Claude to answer complex questions about company operations, team performance, project management, and Level 10 meetings.
+---
 
-[Overview](#overview) · [Quick dev setup and notes](#quick-dev-setup-and-notes) · [Features](#features) · [MCP Transport Mechanisms](#mcp-transport-mechanisms) · [Installation](#installation) · [EOS Analysis Tools](#eos-analysis-tools) · [Testing with MCP Inspector](#testing-with-mcp-inspector) · [Setting Environment Variables for Testing](#setting-environment-variables-for-testing) · [Integrating with Cursor AI](#integrating-with-cursor-ai) · [Using the MCP Tool in Cursor (Agent Mode)](#using-the-mcp-tool-in-cursor-agent-mode) · [Code Overview](#code-overview) · [References & Resources](#references--resources) · [License](#license)
+## 📋 About This Repository
 
-## Overview
+**Repository Purpose**: This codebase contains the implementation of our hosted MCP service. It is maintained for:
 
-**MCP (Model Context Protocol)** is a framework that allows you to integrate custom tools into AI-assisted development environments—such as Cursor AI. MCP servers expose functionality (like data retrieval or code analysis) so that an LLM-based IDE can call these tools on demand. Learn more about MCP in the [Model Context Protocol Introduction](https://modelcontextprotocol.io/introduction).
+- **Internal Development**: Development and maintenance by Success.co engineering team
+- **Partner Review**: Available for review by integration partners (e.g., Anthropic for MCP Directory)
+- **Compliance & Auditing**: Security reviews and compliance verification
 
-This project demonstrates an MCP server implemented in JavaScript using Node.js that provides comprehensive access to Success.co's EOS framework data. It includes tools for retrieving teams, users, todos, rocks, meetings, issues, headlines, visions, and Scorecard measurables. Most importantly, it includes advanced analytical tools that can answer complex EOS-related questions like "Which company Rocks are at risk of missing their due dates this quarter, and who owns them?", Scorecard questions like "Give me the last 12 weeks of Scorecard measurables for my team and flag any KPI below target", and Level 10 meeting questions like "What are the top 5 open Issues for this week's Level 10 meeting and their owners?"
+**Service Model**: 
 
-## Authentication
+- ✅ **Customers connect to**: `https://www.success.co/mcp` (hosted by Success.co)
+- ✅ **Authentication**: OAuth 2.0 via Success.co account
+- ❌ **Customers do NOT**: Deploy or manage this code themselves
 
-The MCP server supports two authentication methods:
+Think of this like reviewing the codebase for Stripe or Twilio - customers use the API/service, but this repository is for transparency and partner integration purposes.
 
-### 1. OAuth 2.0 (Recommended for Production - DEFAULT)
+---
 
-**This is now the default authentication method.** All GraphQL API calls use OAuth access tokens.
+## 🚀 Development Setup
 
-- **Authorization Flow:** Standard OAuth 2.0 authorization code flow
-- **Token Lifetime:** 90 days
-- **Token Storage:** Stored in `oauth_access_tokens` database table
-- **Token Usage:** Automatically passed to GraphQL API as `Bearer <access_token>`
-- **Endpoints:** All under `/mcp/*` prefix
-- **Setup Required:** Database tables + OAuth client registration
-- **See:** [OAUTH_SETUP.md](docs/OAUTH_SETUP.md) for complete setup instructions
-
-**How it works:**
-
-1. User authenticates via OAuth flow
-2. Server stores access token in database
-3. Server validates token on each request
-4. Token is automatically used for all GraphQL API calls
-5. No API key needed in production
-
-### 2. API Key (Development Only - Opt-in)
-
-Simple API key authentication for local development and testing.
-
-⚠️ **Only available in development mode when explicitly enabled.**
-
-**Configuration:**
-
-Add to your `.env` file:
-
-```bash
-# Enable API key mode (defaults to false)
-DEVMODE_SUCCESS_USE_API_KEY=true
-
-# Your API key (you should already have this)
-DEVMODE_SUCCESS_API_KEY=your-api-key-here
-
-# Must be in development mode
-NODE_ENV=development
-```
-
-**Usage:**
-
-- Include in Authorization header: `Bearer your-api-key`
-- Only works when `DEVMODE_SUCCESS_USE_API_KEY=true` AND `NODE_ENV=development`
-- All GraphQL API calls use the API key instead of OAuth token
-
-**Security:**
-
-- Not recommended for production use
-- Will not work in production (NODE_ENV=production)
-- Useful for local testing without OAuth setup
-
-**Database:** Both methods use your existing database configuration (`DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USER`, `DB_PASS`)
-
-## Quick Start
+**Note**: These instructions are for Success.co developers and integration partners reviewing the codebase. End users connect to the hosted service and do not need to follow these steps.
 
 ### Prerequisites
 
-- **Node.js:** Version 20 or higher
-- **Success.co Account:** OAuth authentication required
+- **Node.js 20+**
+- **Success.co Account** with API access
 
-### Connecting to the MCP Server
+### For End Users: Connecting to the Hosted Service
 
-The MCP server supports two connection methods that work seamlessly:
+End users connect to our hosted MCP service at `https://www.success.co/mcp` using OAuth 2.0 authentication. No local setup is required.
 
-#### 1. **Local Connection** (Development)
+**Connection URL**: `https://www.success.co/mcp`  
+**Authentication**: OAuth 2.0 (automatic via Success.co account)
 
-```text
-http://localhost:5174/mcp
-```
+---
 
-Perfect for local testing without external dependencies.
+### For Developers: Local Development with Claude Desktop
 
-#### 2. **Ngrok Connection** (Remote Access)
-
-```text
-https://successcodev.ngrok.app/mcp
-```
-
-Use ngrok when you need external access or testing from remote tools.
-
-### Setup Steps
-
-1. **Start all required services:**
-
-   ```bash
-   # Start ServiceAPI (port 4001)
-   cd serviceapi-success-co
-   npm start
-
-   # Start MCP Server (port 3001)
-   cd mcp-success-co
-   node index.js
-
-   # Start Vite proxy (port 5174)
-   cd app.success.co
-   npm run dev
-   ```
-
-2. **For remote access, start ngrok (optional):**
-
-   ```bash
-   # Install ngrok if needed
-   brew install ngrok
-
-   # Expose Vite proxy
-   ngrok http 5174
-   ```
-
-3. **Connect with MCP Inspector:**
-   ```bash
-   npx @modelcontextprotocol/inspector
-   ```
-   Then connect to either `http://localhost:5174/mcp` (local) or your ngrok URL.
-
-If you have issues due to port in use, you can use:
-sof -ti:6277 | xargs kill -9
-
-### How It Works
-
-- **Vite (port 5174)** acts as a unified proxy for all services
-- **ServiceAPI (port 4001)** handles OAuth authentication
-- **MCP Server (port 3001)** provides the actual MCP tools
-- **Connections are automatically routed** based on the URL you use
-
-Both local and ngrok connections use the same OAuth flow and work identically.
-
-## API & Database Schemas
-
-The `schema/` directory contains comprehensive schema documentation that can be provided to AI assistants to help analyze the data structure and generate effective code:
-
-- **`schema/graphql_schema.json`** - Complete GraphQL API schema from Success.co
-- **`schema/database_schema.sql`** - Database schema definitions
-
-### Using Schemas for AI-Assisted Development
-
-These schema files are invaluable when working with AI assistants to:
-
-- Understand the complete data model and relationships
-- Generate accurate GraphQL queries
-- Validate query parameters and response structures
-- Develop new tools and features
-- Debug API integration issues
-
-Simply reference these files when asking AI to help with development tasks related to the Success.co API.
-
-### Generating the GraphQL Schema
-
-The GraphQL schema was generated using the following introspection query run in the GraphiQL tool at `http://localhost:4000/graphiql`:
-
-```graphql
-query IntrospectionQuery {
-  __schema {
-    queryType {
-      name
-    }
-    mutationType {
-      name
-    }
-    subscriptionType {
-      name
-    }
-    types {
-      ...FullType
-    }
-    directives {
-      name
-      description
-      locations
-      args {
-        ...InputValue
-      }
-    }
-  }
-}
-
-fragment FullType on __Type {
-  kind
-  name
-  description
-  fields(includeDeprecated: true) {
-    name
-    description
-    args {
-      ...InputValue
-    }
-    type {
-      ...TypeRef
-    }
-    isDeprecated
-    deprecationReason
-  }
-  inputFields {
-    ...InputValue
-  }
-  interfaces {
-    ...TypeRef
-  }
-  enumValues(includeDeprecated: true) {
-    name
-    description
-    isDeprecated
-    deprecationReason
-  }
-  possibleTypes {
-    ...TypeRef
-  }
-}
-
-fragment InputValue on __InputValue {
-  name
-  description
-  type {
-    ...TypeRef
-  }
-  defaultValue
-}
-
-fragment TypeRef on __Type {
-  kind
-  name
-  ofType {
-    kind
-    name
-    ofType {
-      kind
-      name
-      ofType {
-        kind
-        name
-        ofType {
-          kind
-          name
-          ofType {
-            kind
-            name
-            ofType {
-              kind
-              name
-              ofType {
-                kind
-                name
-                ofType {
-                  kind
-                  name
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-}
-```
-
-This introspection query returns the complete schema including all types, fields, mutations, and their documentation, which is then saved to `schema/graphql_schema.json` for reference.
-
-## Features
-
-### Core Data Access
-
-- **EOS Data Access:** Complete access to Success.co's EOS framework data including teams, users, todos, rocks, meetings, issues, headlines, visions, and meeting agendas
-- **Level 10 Meeting Analysis:** Specialized tools for analyzing Level 10 meetings, including issue tracking, facilitator/scribe information, and agenda sections
-- **Scorecard measurables Analysis:** Comprehensive KPI analysis including target flagging, trend analysis, and performance tracking
-- **Comprehensive Search:** Intelligent search across all EOS data types
-
-### 🆕 Intelligent Insights & Analytics
-
-- **Execution Health Analysis:** Get comprehensive health score (0-100) with blockers and recommendations via `getExecutionHealth`
-- **Summary Statistics:** All get operations return aggregated metrics (counts by status, at-risk items, stuck issues)
-- **Workload Analysis:** Identify overloaded team members with automatic workload distribution analysis via `getUserWorkload`
-- **Company Insights:** One-call comprehensive company overview with quarterly progress via `getCompanyInsights`
-- **Smart Detection:** Automatic identification of at-risk rocks (off track or stale), stuck issues (30+ days), and overdue items
-- **Pre-calculated Metrics:** Eliminates need for LLM counting/aggregation, improving response time and accuracy
-
-### Technical Features
-
-- **GraphQL Integration:** Full integration with Success.co's GraphQL API
-- **Input Validation:** Uses [Zod](https://github.com/colinhacks/zod) for schema validation
-- **Multiple Transports:** Supports STDIO, HTTP (Streamable), and SSE transports
-- **OAuth 2.0 Authentication:** Secure authentication with long-lived tokens (90 days)
-- **API Key Support:** Development mode option for local testing
-
-### Voice & LLM Optimization
-
-- **Natural Language Ready:** Optimized tool descriptions and responses for voice interactions
-- **Smart Shortcuts:** `leadershipTeam=true`, `lastFinishedL10=true` for common queries
-- **Aggregate Tools:** Single-call complex insights reduce latency and token usage
-- **Real-time Analysis:** Dynamic analysis of rock statuses, milestones, team performance, and KPI metrics
-
-## Connection Architecture
-
-The MCP server uses a multi-tier architecture that allows flexible connectivity:
-
-```text
-MCP Client → Vite Proxy (5174) → ServiceAPI (4001) + MCP Server (3001)
-             ↓
-        [OAuth Auth]
-```
-
-### Key Components
-
-1. **Vite Proxy (port 5174)** - Unified entry point
-
-   - Routes `/mcp` requests to MCP Server
-   - Routes `/.well-known/*` and `/oauth/*` to ServiceAPI
-   - Preserves URL context for both local and ngrok connections
-
-2. **ServiceAPI (port 4001)** - Authentication & OAuth
-
-   - Handles OAuth 2.0 authorization flow
-   - Stores and validates access tokens
-   - Provides OAuth metadata endpoints
-
-3. **MCP Server (port 3001)** - MCP Protocol Implementation
-   - Implements Model Context Protocol
-   - Validates OAuth tokens
-   - Executes tool calls with authenticated context
-
-### Supported Transports
-
-- **HTTP (Streamable):** Full support for HTTP-based MCP protocol
-- **STDIO:** For direct IDE integration (Cursor, VS Code)
-- **SSE:** Legacy support for backwards compatibility
-
-### Why This Architecture?
-
-This design allows:
-
-- ✅ Single connection URL for both local and remote access
-- ✅ Proper OAuth discovery without hardcoded URLs
-- ✅ Easy ngrok integration without configuration changes
-- ✅ Consistent authentication across all connection methods
-
-## Installation
-
-1. **Clone the Repository**
-
-   ```bash
-   git clone <repository_url>
-   cd <repository_directory>
-   ```
-
-2. **Install Dependencies**
-
-   You can install the project dependencies in one of two ways:
-
-   **Option 1: Install using the existing `package.json`**
-
-   Simply run:
+1. **Install dependencies:**
 
    ```bash
    npm install
    ```
 
-   **Option 2: Install dependencies manually**
-
-   If you prefer, delete the existing `package.json` and install the required packages manually:
+2. **Create a `.env` file** in the project root with dev-mode API key:
 
    ```bash
-   npm install @modelcontextprotocol/sdk zod
+   # DEV-MODE API KEY (required for Claude Desktop)
+   DEVMODE_SUCCESS_USE_API_KEY=true
+   DEVMODE_SUCCESS_API_KEY=suc_api_2dff029c8e7a170e95f01e41a750ec94d0fd3abc
    ```
 
-   Then, update the newly generated `package.json` file to include the following lines, which enables ES Modules and adds the mcp inspector command:
+   **Why?** Claude Desktop connects directly to the MCP server via STDIO, bypassing the OAuth flow. You must use the dev-mode API key method for authentication.
+   
+   ⚠️ **SECURITY WARNING**: Dev-mode API keys are for LOCAL DEVELOPMENT ONLY. Never use API key mode in production or commit your API key to version control.
+
+3. **Configure Claude Desktop:**
+
+   Edit `~/Library/Application Support/Claude/claude_desktop_config.json`:
 
    ```json
-   "type": "module",
-   "scripts": {
-    "inspector": "npx @modelcontextprotocol/inspector node index.js"
+   {
+     "mcpServers": {
+       "success": {
+         "command": "node",
+         "args": ["/Users/YOUR_USERNAME/path/to/mcp-success-co/index.js"],
+         "cwd": "/Users/YOUR_USERNAME/path/to/mcp-success-co"
+       }
+     }
    }
    ```
 
-3. **Set up your Success.co API Key**
+   **Important Notes:**
 
-   You'll need to set your Success.co API key. You can do this in two ways:
+   - Replace paths with your actual installation directory
+   - Claude Desktop will start the MCP server automatically on launch
+   - **Do not run the server manually** when using Claude Desktop
+   - Claude uses STDIO transport, so **avoid console.log/console.info** (use the built-in logger instead)
 
-   **Option 1: Set environment variable**
+4. **Restart Claude Desktop** to load the MCP server
 
-   ```bash
-   export DEVMODE_SUCCESS_API_KEY="your-success-co-api-key"
-   ```
-
-   **Option 2: Use the MCP tool to set it**
-   Once the server is running, you can use the `setSuccessCoApiKey` tool to store your API key securely.
-
-4. **Configure Database Connection (Required for Mutations)**
-
-   For creating and updating data (issues, rocks, todos, headlines, meetings), you need to configure database access. This allows the server to automatically determine the company ID from your API key.
-
-   Create a `.env` file in the project root with your database connection details:
-
-   **Option 1: Using DATABASE_URL**
+5. **Start required services** (for local testing with live data):
 
    ```bash
-   DATABASE_URL=postgresql://user:password@host:port/database
+   # Terminal 1: Start ServiceAPI (port 4001)
+   cd serviceapi-success-co
+   npm start
+
+   # Terminal 2: Start Vite proxy (port 5174)
+   cd app.success.co
+   npm run dev
    ```
 
-   **Option 2: Using individual parameters**
+6. **Test in Claude:** Ask questions like "Show me all open rocks" or "What issues need attention?"
+
+### For Developers: Testing with MCP Inspector
+
+Use the MCP Inspector for interactive testing and debugging of the local development server.
+
+1. **Start required services:**
 
    ```bash
-   DB_HOST=localhost
-   DB_PORT=5432
-   DB_DATABASE=successco
-   DB_USER=postgres
-   DB_PASS=your-password
+   # Terminal 1: Start ServiceAPI
+   cd serviceapi-success-co
+   npm start
+
+   # Terminal 2: Start MCP Server
+   cd mcp-success-co
+   node index.js
+
+   # Terminal 3: Start Vite proxy
+   cd app.success.co
+   npm run dev
    ```
 
-   **Note:** Without database configuration, you can still use all read-only tools (get/search operations), but create/update operations will fail with "Could not determine company ID" error.
+2. **Launch MCP Inspector:**
+
+   ```bash
+   npx @modelcontextprotocol/inspector
+   ```
+
+3. **Connect to:** `http://localhost:5174/mcp`
+
+4. **Authenticate** using OAuth when prompted
+
+---
+
+## 🧪 Running Tests
+
+```bash
+# Run all tests
+npm test
+
+# Run specific test
+node tests/test-scorecard-analysis.js
+```
+
+---
+
+## Authentication
+
+### Production (Hosted Service)
+
+The hosted MCP service uses **OAuth 2.0** for all customer authentication:
+
+- **Token Lifetime:** 90 days
+- **Authentication Flow:** Handled automatically when connecting AI assistants
+- **User Experience:** Seamless - users authorize via Success.co account
+- **Security:** Industry-standard OAuth 2.0 with JWT validation and token revocation
+
+### Development Mode: API Key (Internal Only)
+
+For internal development and local testing, developers can use API key authentication:
+
+```bash
+# .env file
+DEVMODE_SUCCESS_USE_API_KEY=true
+DEVMODE_SUCCESS_API_KEY=your-api-key-here
+NODE_ENV=development
+```
+
+⚠️ **SECURITY WARNING**: 
+- API key mode is **STRICTLY FOR LOCAL DEVELOPMENT ONLY**
+- **NEVER** use API key mode in production environments
+- **NEVER** commit your API key to version control
+- API key mode is automatically disabled when `NODE_ENV=production`
+- For production use, always use OAuth 2.0 authentication
+
+## Configuration
+
+Create a `.env` file in the project root:
+
+```bash
+# Database (required for mutations)
+DB_HOST=localhost
+DB_PORT=5432
+DB_DATABASE=successco
+DB_USER=postgres
+DB_PASS=your-password
+
+# Or use DATABASE_URL
+DATABASE_URL=postgresql://user:password@host:port/database
+
+# Development mode with API key (optional)
+NODE_ENV=development
+DEVMODE_SUCCESS_USE_API_KEY=true
+DEVMODE_SUCCESS_API_KEY=your-api-key-here
+```
+
+**Note:** Without database configuration, you can still use read-only tools, but create/update operations will fail.
+
+---
+
+## 🔍 How It Works
+
+### For End Users (Production)
+
+Behind the scenes, our hosted MCP server connects to the Success.co GraphQL API to retrieve and update your EOS data.
+
+**Authentication Flow:**
+
+1. User connects their AI assistant (e.g., Claude) to Success.co MCP
+2. OAuth 2.0 flow initiates - user logs in with Success.co credentials
+3. Access token is securely stored on our servers (90-day lifetime)
+4. All subsequent requests use this token automatically
+
+**Query Flow:**
+
+1. User asks their AI assistant a question about EOS data
+2. AI assistant calls the MCP server with appropriate tools (e.g., `getRocks`, `getIssues`)
+3. MCP server makes authenticated requests to Success.co GraphQL API
+4. Data is processed and returned to the AI assistant
+5. AI assistant provides an intelligent answer based on the data
+
+All data remains secure - OAuth tokens are stored in our encrypted database, and all communication uses TLS encryption.
+
+### For Developers (Local Development)
+
+When running locally for development:
+
+- **OAuth Mode:** Connect via MCP Inspector to test the full OAuth flow
+- **API Key Mode:** Use dev-mode API keys for faster local testing (Claude Desktop STDIO)
+- Both modes connect to the same GraphQL API endpoints
+
+---
+
+## 📚 API & Database Schemas
+
+The `schema/` directory contains schema documentation for AI-assisted development:
+
+- **`schema/graphql_schema.json`** - Complete GraphQL API schema
+- **`schema/database_schema.sql`** - Database schema definitions
+
+These files help AI assistants understand the data model and generate accurate queries.
+
+---
 
 ## Level 10 Meeting & EOS Data Analysis
 
@@ -1181,68 +995,6 @@ node test-scorecard-analysis.js
 
 This will run comprehensive tests of all Scorecard tools and analysis capabilities.
 
-## Testing with MCP Inspector
-
-The MCP Inspector is a debugging tool that lets you test your server's tools interactively.
-
-### Start the Inspector
-
-```bash
-npx @modelcontextprotocol/inspector
-```
-
-This opens the inspector interface in your browser at `http://localhost:6274/`
-
-### Connect to Your MCP Server
-
-In the inspector interface, configure the connection:
-
-**Connection URL:**
-
-- **Local:** `http://localhost:5174/mcp`
-- **Ngrok:** `https://your-ngrok-url.ngrok.app/mcp`
-
-**OAuth 2.0 Configuration:**
-
-- **Client ID:** `mcp-client-default`
-- **Client Secret:** `mcp-secret-this-in-production`
-
-The inspector will automatically handle the OAuth authentication flow when you first connect.
-
-## Code Overview
-
-The project comprises the following key parts:
-
-- **MCP Server Initialization:**  
-  The MCP server is instantiated using `McpServer` from the MCP SDK and connected via `StdioServerTransport` and `StreamableHTTPServerTransport`.
-
-- **Tool Definitions:**
-
-  - **API Key Management:**
-
-    - `setSuccessCoApiKey`: Stores the Success.co API key securely for future use
-    - `getSuccessCoApiKey`: Retrieves the stored Success.co API key
-
-  - **Data Retrieval Tools:**
-
-    - `getTeams`: Fetches teams from the Success.co GraphQL API
-    - `getUsers`: Fetches users from the Success.co GraphQL API
-    - `getTodos`: Fetches todos from the Success.co GraphQL API
-    - `getRocks`: Fetches rocks from the Success.co GraphQL API
-    - `getMeetings`: Fetches meetings from the Success.co GraphQL API
-    - `getIssues`: Fetches issues from the Success.co GraphQL API
-    - `getHeadlines`: Fetches headlines from the Success.co GraphQL API
-    - `getVisions`: Fetches visions from the Success.co GraphQL API
-    - `getRockStatuses`: Fetches rock statuses from the Success.co GraphQL API
-    - `getMilestones`: Fetches milestones from the Success.co GraphQL API
-    - `getMilestoneStatuses`: Fetches milestone statuses from the Success.co GraphQL API
-
-- **Error Handling:**
-  Comprehensive error handling for API failures, invalid parameters, and data validation issues.
-
-- **Input Validation:**
-  Uses Zod schemas for all tool parameters to ensure data integrity and provide clear error messages.
-
 ## Using the MCP Tool in Cursor (Agent Mode)
 
 With the MCP server integrated into Cursor IDE and with Agent mode enabled, you can use the tools in several ways:
@@ -1435,14 +1187,126 @@ Find rocks due in the next 30 days and their owners
 Show me the progress of all rocks for the marketing team
 Which users have the most overdue todos?
 
-```
+````
 
 The AI agent will automatically infer the appropriate tools to use based on your request and may combine multiple tools to provide comprehensive answers.
 
-## References & Resources
+---
 
-- [Model Context Protocol: typescript-sdk](https://github.com/modelcontextprotocol/typescript-sdk)
-- [Use Your Own MCP on Cursor in 5 Minutes](https://dev.to/andyrewlee/use-your-own-mcp-on-cursor-in-5-minutes-1ag4)
-- [Model Context Protocol Introduction](https://modelcontextprotocol.io/introduction)
-- [Success.co API Documentation](https://coda.io/@successco/success-co-api)
+## 📖 Sample Questions
+
+For a comprehensive list of sample questions and example prompts, see:
+
+**[Sample Questions for Success.co AI MCP Server](https://docs.google.com/document/d/1f303DI0X56r9HmUCgFlDUhwCeHdwyquUTXoHr-Hhj74/edit?tab=t.0)**
+
+Examples include:
+- EOS data queries (Rocks, Issues, Todos)
+- Level 10 meeting analysis
+- Scorecard and KPI analysis
+- Team performance tracking
+- Cross-functional insights
+
+---
+
+## 🔧 Advanced: Remote Access with Ngrok
+
+To expose your local MCP server for remote testing or external access:
+
+1. **Install ngrok:**
+
+   ```bash
+   brew install ngrok
+````
+
+2. **Start all local services** (ServiceAPI, MCP Server, Vite proxy)
+
+3. **Expose the Vite proxy:**
+
+   ```bash
+   ngrok http 5174
+   ```
+
+4. **Connect using the ngrok URL:**
+
+   ```text
+   https://your-subdomain.ngrok.app/mcp
+   ```
+
+**Note:** Ngrok provides a public URL that tunnels to your local server. OAuth authentication works the same way as local connections.
+
+**Troubleshooting:** If you encounter port conflicts, kill processes on specific ports:
+
+```bash
+lsof -ti:6277 | xargs kill -9
 ```
+
+---
+
+## 🔒 Privacy & Data Handling
+
+Your privacy and data security are our top priorities. Our hosted MCP service is designed with privacy-first principles:
+
+### What Our Service Collects
+
+- **Authentication Data**: OAuth tokens, user IDs, and company IDs for secure access
+- **Access Logs**: Request metadata for security and debugging (retained for 30 days)
+
+### What We DON'T Collect
+
+- ❌ Your conversations with AI assistants
+- ❌ Query context or business intelligence
+- ❌ Personal data beyond authentication requirements
+- ❌ Tracking or analytics data
+
+### Your Rights
+
+- **Revoke Access**: Disconnect the MCP service anytime through your Success.co account settings
+- **Data Deletion**: Request deletion of all authentication data
+- **Transparency**: Full visibility into what data is stored and why
+
+### Security
+
+- **Encryption**: All data encrypted in transit (TLS) and at rest
+- **OAuth 2.0**: Industry-standard authentication with 90-day token expiration
+- **Token Revocation**: Immediate revocation capability
+- **Access Control**: Role-based database access
+
+### Learn More
+
+- **Full Privacy Policy**: [https://www.success.co/privacy](https://www.success.co/privacy)
+- **Technical Details**: See [PRIVACY.md](./PRIVACY.md) in this repository (for developers/partners)
+
+---
+
+## 📞 Support & Contact
+
+### For End Users
+- **General Support**: support@success.co
+- **Website**: [https://www.success.co](https://www.success.co)
+- **Help Center**: [https://www.success.co/help](https://www.success.co/help)
+
+### Privacy & Security
+- **Privacy Questions**: privacy@success.co
+- **Privacy Policy**: [https://www.success.co/privacy](https://www.success.co/privacy)
+- **Security Issues**: security@success.co (please do not disclose publicly)
+
+### For Integration Partners
+- **Partner Inquiries**: partners@success.co
+- **Technical Documentation**: This repository
+- **API Questions**: developers@success.co
+
+### For Anthropic MCP Directory Review
+For verification purposes, contact support@success.co with subject "Anthropic MCP Directory Review" to request:
+- Test account with sample EOS data
+- OAuth client credentials for testing
+- Technical support during review process
+
+---
+
+## 📚 References & Resources
+
+- [Model Context Protocol Introduction](https://modelcontextprotocol.io/introduction)
+- [Model Context Protocol SDK](https://github.com/modelcontextprotocol/typescript-sdk)
+- [Success.co API Documentation](https://coda.io/@successco/success-co-api)
+- [Privacy Policy](./PRIVACY.md)
+- [Success.co Terms of Service](https://www.success.co/terms)

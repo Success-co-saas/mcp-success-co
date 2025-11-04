@@ -9,6 +9,7 @@ import {
 } from "../utils/transportHelpers.js";
 import { runWithAuthContext } from "../tools.js";
 import { registerToolsOnServer } from "../toolDefinitions.js";
+import { VERSION } from "../config.js";
 
 /**
  * Create a fresh MCP server instance with all tools registered
@@ -16,7 +17,9 @@ import { registerToolsOnServer } from "../toolDefinitions.js";
 function createFreshMcpServer() {
   const freshServer = new McpServer({
     name: "Success.co MCP Server",
-    version: "0.0.3",
+    version: VERSION,
+    title: "Success.co MCP Server",
+    websiteUrl: "https://www.success.co/",
   });
 
   registerToolsOnServer(freshServer);
@@ -28,7 +31,9 @@ function createFreshMcpServer() {
  */
 export async function mcpHandler(req, res) {
   try {
+    const requestId = req.requestId || "unknown";
     logger.info(`[MCP-HANDLER] ${req.method} ${req.path}`, {
+      requestId,
       query: req.query,
       hasBody: !!req.body,
       hasAuth: !!req.oauth,
@@ -150,11 +155,20 @@ export async function mcpHandler(req, res) {
       await transport.handleRequest(req, res, req.body);
     });
   } catch (error) {
-    logger.error("[MCP] Error in /mcp endpoint:", error.message, error.stack);
+    const requestId = req.requestId || "unknown";
+    logger.error("[MCP] Error in /mcp endpoint:", error.message, {
+      requestId,
+      stack: error.stack,
+    });
     if (!res.headersSent) {
-      res
-        .status(500)
-        .json({ error: "Internal server error", details: error.message });
+      res.status(500).json({
+        error: "Internal server error",
+        errorCode: "MCP_500",
+        details: error.message,
+        requestId,
+        supportUrl: "https://www.success.co/support",
+        docs: "https://github.com/successco/mcp-success-co",
+      });
     }
   }
 }
@@ -179,9 +193,16 @@ export async function mcpGetHandler(req, res) {
       await transport.handleRequest(req, res);
     });
   } catch (error) {
-    logger.error("[MCP] Error in GET /mcp:", error.message);
+    const requestId = req.requestId || "unknown";
+    logger.error("[MCP] Error in GET /mcp:", error.message, { requestId });
     if (!res.headersSent) {
-      res.status(500).send("Internal server error");
+      res.status(500).json({
+        error: "Internal server error",
+        errorCode: "MCP_GET_500",
+        details: error.message,
+        requestId,
+        supportUrl: "https://www.success.co/support",
+      });
     }
   }
 }
@@ -209,9 +230,16 @@ export async function mcpDeleteHandler(req, res) {
     // Clean up session after DELETE
     sessionManager.remove("streamable", sessionId);
   } catch (error) {
-    logger.error("[MCP] Error in DELETE /mcp:", error.message);
+    const requestId = req.requestId || "unknown";
+    logger.error("[MCP] Error in DELETE /mcp:", error.message, { requestId });
     if (!res.headersSent) {
-      res.status(500).send("Internal server error");
+      res.status(500).json({
+        error: "Internal server error",
+        errorCode: "MCP_DELETE_500",
+        details: error.message,
+        requestId,
+        supportUrl: "https://www.success.co/support",
+      });
     }
   }
 }

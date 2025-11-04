@@ -1,8 +1,14 @@
 import path from "path";
 import { fileURLToPath } from "url";
+import { readFileSync } from "fs";
 import dotenv from "dotenv";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// Load package.json for version
+const packageJson = JSON.parse(
+  readFileSync(path.join(__dirname, "package.json"), "utf-8")
+);
 
 // Load environment variables from .env file
 const envPath = path.join(__dirname, ".env");
@@ -12,6 +18,10 @@ dotenv.config({
   quiet: true,
   override: false,
 });
+
+// Application metadata
+export const VERSION = packageJson.version;
+export const APP_NAME = packageJson.name;
 
 // Environment detection
 export const NODE_ENV = process.env.NODE_ENV || "development";
@@ -78,6 +88,8 @@ export function validateConfig() {
 }
 
 export default {
+  VERSION,
+  APP_NAME,
   NODE_ENV,
   IS_PRODUCTION,
   IS_DEVELOPMENT,

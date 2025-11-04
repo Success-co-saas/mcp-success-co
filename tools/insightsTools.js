@@ -41,12 +41,13 @@ export async function getExecutionHealth(args = {}) {
   fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
 
   // Build filter for team if provided
-  const teamFilter = teamId ? `teamId: {equalTo: "${teamId}"}` : "";
+  // Note: Issues and todos have direct teamId field, but rocks use teamsOnRocks junction table
+  const teamFilterForIssuesAndTodos = teamId ? `, teamId: {equalTo: "${teamId}"}` : "";
 
-  // Get rocks data
+  // Get rocks data (without team filter - we'll filter after getting team rock IDs)
   const rocksQuery = `
     query {
-      rocks(filter: {stateId: {equalTo: "ACTIVE"}, ${teamFilter}}) {
+      rocks(filter: {stateId: {equalTo: "ACTIVE"}}) {
         nodes {
           id
           rockStatusId
@@ -60,7 +61,7 @@ export async function getExecutionHealth(args = {}) {
   // Get issues data
   const issuesQuery = `
     query {
-      issues(filter: {stateId: {equalTo: "ACTIVE"}, issueStatusId: {equalTo: "TODO"}, ${teamFilter}}) {
+      issues(filter: {stateId: {equalTo: "ACTIVE"}, issueStatusId: {equalTo: "TODO"}${teamFilterForIssuesAndTodos}}) {
         nodes {
           id
           priorityNo
@@ -73,7 +74,7 @@ export async function getExecutionHealth(args = {}) {
   // Get todos data
   const todosQuery = `
     query {
-      todos(filter: {stateId: {equalTo: "ACTIVE"}, todoStatusId: {equalTo: "TODO"}, ${teamFilter}}) {
+      todos(filter: {stateId: {equalTo: "ACTIVE"}, todoStatusId: {equalTo: "TODO"}${teamFilterForIssuesAndTodos}}) {
         nodes {
           id
           dueDate
@@ -82,27 +83,59 @@ export async function getExecutionHealth(args = {}) {
     }
   `;
 
+  // Get team rocks if filtering by team
+  const teamsOnRocksQuery = teamId ? `
+    query {
+      teamsOnRocks(filter: {teamId: {equalTo: "${teamId}"}, stateId: {equalTo: "ACTIVE"}}) {
+        nodes {
+          rockId
+        }
+      }
+    }
+  ` : null;
+
   // Execute all queries in parallel
-  const [rocksResult, issuesResult, todosResult] = await Promise.all([
+  const queryPromises = [
     callSuccessCoGraphQL(rocksQuery),
     callSuccessCoGraphQL(issuesQuery),
     callSuccessCoGraphQL(todosQuery),
-  ]);
+  ];
+  
+  if (teamsOnRocksQuery) {
+    queryPromises.push(callSuccessCoGraphQL(teamsOnRocksQuery));
+  }
+  
+  const results = await Promise.all(queryPromises);
+  const [rocksResult, issuesResult, todosResult, teamsOnRocksResult] = results;
 
-  if (!rocksResult.ok || !issuesResult.ok || !todosResult.ok) {
+  if (!rocksResult.ok || !issuesResult.ok || !todosResult.ok || (teamsOnRocksResult && !teamsOnRocksResult.ok)) {
+    const errors = [];
+    if (!rocksResult.ok) errors.push(`Rocks: ${rocksResult.error}`);
+    if (!issuesResult.ok) errors.push(`Issues: ${issuesResult.error}`);
+    if (!todosResult.ok) errors.push(`Todos: ${todosResult.error}`);
+    if (teamsOnRocksResult && !teamsOnRocksResult.ok) errors.push(`TeamsOnRocks: ${teamsOnRocksResult.error}`);
+    
     return {
       content: [
         {
           type: "text",
-          text: "Error fetching execution health data",
+          text: `Error fetching execution health data:\n${errors.join("\n")}`,
         },
       ],
     };
   }
 
-  const rocks = rocksResult.data?.data?.rocks?.nodes || [];
+  let rocks = rocksResult.data?.data?.rocks?.nodes || [];
   const issues = issuesResult.data?.data?.issues?.nodes || [];
   const todos = todosResult.data?.data?.todos?.nodes || [];
+  
+  // Filter rocks by team if teamId was provided
+  if (teamId && teamsOnRocksResult) {
+    const teamRockIds = new Set(
+      teamsOnRocksResult.data?.data?.teamsOnRocks?.nodes?.map(tor => tor.rockId) || []
+    );
+    rocks = rocks.filter(rock => teamRockIds.has(rock.id));
+  }
 
   // Calculate rocks metrics
   const rocksMetrics = {
@@ -238,52 +271,56 @@ export async function getExecutionHealth(args = {}) {
  * @returns {Promise<{content: Array<{type: string, text: string}>}>}
  */
 export async function getUserWorkload(args = {}) {
-  const {
-    teamId: providedTeamId,
-    leadershipTeam = false,
-    userId,
-  } = args;
+  try {
+    const {
+      teamId: providedTeamId,
+      leadershipTeam = false,
+      userId,
+    } = args;
 
-  // Resolve teamId if leadershipTeam is true
-  let teamId = providedTeamId;
-  if (leadershipTeam && !providedTeamId) {
-    teamId = await getLeadershipTeamId();
-    if (!teamId) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: "Error: Could not find leadership team. Please ensure a team is marked as the leadership team.",
-          },
-        ],
-      };
+    // Resolve teamId if leadershipTeam is true
+    let teamId = providedTeamId;
+    if (leadershipTeam && !providedTeamId) {
+      teamId = await getLeadershipTeamId();
+      if (!teamId) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: "Error: Could not find leadership team. Please ensure a team is marked as the leadership team.",
+            },
+          ],
+        };
+      }
     }
-  }
 
   // Build filters
-  const teamFilter = teamId ? `teamId: {equalTo: "${teamId}"}` : "";
-  const userFilter = userId ? `userId: {equalTo: "${userId}"}` : "";
-  const filters = [teamFilter, userFilter].filter(Boolean).join(", ");
+  // Note: Issues and todos have direct teamId field, but rocks use teamsOnRocks junction table
+  const teamFilterForIssuesAndTodos = teamId ? `, teamId: {equalTo: "${teamId}"}` : "";
+  const userFilter = userId ? `, userId: {equalTo: "${userId}"}` : "";
+  const issuesAndTodosFilters = [teamFilterForIssuesAndTodos, userFilter].filter(Boolean).join("");
+  const rocksFilters = userFilter; // Only user filter for rocks
 
   // Get all active rocks, issues, and todos
   const query = `
     query {
-      rocks(filter: {stateId: {equalTo: "ACTIVE"}, rockStatusId: {notEqualTo: "COMPLETE"}, ${filters}}) {
+      rocks(filter: {stateId: {equalTo: "ACTIVE"}, rockStatusId: {notEqualTo: "COMPLETE"}${rocksFilters}}) {
+        nodes {
+          id
+          userId
+        }
+      }
+      issues(filter: {stateId: {equalTo: "ACTIVE"}, issueStatusId: {equalTo: "TODO"}${issuesAndTodosFilters}}) {
         nodes {
           userId
         }
       }
-      issues(filter: {stateId: {equalTo: "ACTIVE"}, issueStatusId: {equalTo: "TODO"}, ${filters}}) {
+      todos(filter: {stateId: {equalTo: "ACTIVE"}, todoStatusId: {equalTo: "TODO"}${issuesAndTodosFilters}}) {
         nodes {
           userId
         }
       }
-      todos(filter: {stateId: {equalTo: "ACTIVE"}, todoStatusId: {equalTo: "TODO"}, ${filters}}) {
-        nodes {
-          userId
-        }
-      }
-      users(filter: {stateId: {equalTo: "ACTIVE"}, ${teamFilter}}) {
+      users(filter: {stateId: {equalTo: "ACTIVE"}${teamFilterForIssuesAndTodos}}) {
         nodes {
           id
           firstName
@@ -293,56 +330,113 @@ export async function getUserWorkload(args = {}) {
       }
     }
   `;
+  
+  // Also query teamsOnRocks if filtering by team
+  const teamsOnRocksQuery = teamId ? `
+    query {
+      teamsOnRocks(filter: {teamId: {equalTo: "${teamId}"}, stateId: {equalTo: "ACTIVE"}}) {
+        nodes {
+          rockId
+        }
+      }
+    }
+  ` : null;
 
-  const result = await callSuccessCoGraphQL(query);
+  let result;
+  let teamsOnRocksResult = null;
+  
+  try {
+    const queryPromises = [callSuccessCoGraphQL(query)];
+    if (teamsOnRocksQuery) {
+      queryPromises.push(callSuccessCoGraphQL(teamsOnRocksQuery));
+    }
+    
+    const results = await Promise.all(queryPromises);
+    result = results[0];
+    if (teamsOnRocksQuery) {
+      teamsOnRocksResult = results[1];
+    }
+  } catch (error) {
+    console.error("[getUserWorkload] GraphQL call failed:", error);
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error calling GraphQL: ${error.message}`,
+        },
+      ],
+    };
+  }
+  
   if (!result.ok) {
     return {
       content: [
         {
           type: "text",
-          text: "Error fetching workload data",
+          text: `Error fetching workload data: ${result.error}`,
+        },
+      ],
+    };
+  }
+  
+  if (teamsOnRocksResult && !teamsOnRocksResult.ok) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error fetching team rocks data: ${teamsOnRocksResult.error}`,
         },
       ],
     };
   }
 
   const data = result.data?.data;
-  const rocks = data?.rocks?.nodes || [];
+  let rocks = data?.rocks?.nodes || [];
   const issues = data?.issues?.nodes || [];
   const todos = data?.todos?.nodes || [];
   const users = data?.users?.nodes || [];
+  
+  // Filter rocks by team if teamId was provided
+  if (teamId && teamsOnRocksResult) {
+    const teamRockIds = new Set(
+      teamsOnRocksResult.data?.data?.teamsOnRocks?.nodes?.map(tor => tor.rockId) || []
+    );
+    rocks = rocks.filter(rock => teamRockIds.has(rock.id));
+  }
 
   // Count items by user
   const workloadByUser = {};
 
   users.forEach((user) => {
-    workloadByUser[user.id] = {
-      userId: user.id,
-      userName: `${user.firstName} ${user.lastName}`,
-      email: user.email,
-      rocksCount: 0,
-      issuesCount: 0,
-      todosCount: 0,
-      totalItems: 0,
-    };
+    if (user && user.id) {
+      workloadByUser[user.id] = {
+        userId: user.id,
+        userName: `${user.firstName || ""} ${user.lastName || ""}`.trim(),
+        email: user.email || "",
+        rocksCount: 0,
+        issuesCount: 0,
+        todosCount: 0,
+        totalItems: 0,
+      };
+    }
   });
 
   rocks.forEach((rock) => {
-    if (workloadByUser[rock.userId]) {
+    if (rock && rock.userId && workloadByUser[rock.userId]) {
       workloadByUser[rock.userId].rocksCount++;
       workloadByUser[rock.userId].totalItems++;
     }
   });
 
   issues.forEach((issue) => {
-    if (workloadByUser[issue.userId]) {
+    if (issue && issue.userId && workloadByUser[issue.userId]) {
       workloadByUser[issue.userId].issuesCount++;
       workloadByUser[issue.userId].totalItems++;
     }
   });
 
   todos.forEach((todo) => {
-    if (workloadByUser[todo.userId]) {
+    if (todo && todo.userId && workloadByUser[todo.userId]) {
       workloadByUser[todo.userId].todosCount++;
       workloadByUser[todo.userId].totalItems++;
     }
@@ -388,6 +482,17 @@ export async function getUserWorkload(args = {}) {
       },
     ],
   };
+  } catch (error) {
+    console.error("[getUserWorkload] Error:", error);
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error in getUserWorkload: ${error.message}\nStack: ${error.stack}`,
+        },
+      ],
+    };
+  }
 }
 
 /**
