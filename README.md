@@ -6,14 +6,43 @@ This MCP server provides comprehensive access to Success.co's EOS (Entrepreneuri
 
 ---
 
-## 🚀 Fast Setup
+## 📋 About This Repository
+
+**Repository Purpose**: This codebase contains the implementation of our hosted MCP service. It is maintained for:
+
+- **Internal Development**: Development and maintenance by Success.co engineering team
+- **Partner Review**: Available for review by integration partners (e.g., Anthropic for MCP Directory)
+- **Compliance & Auditing**: Security reviews and compliance verification
+
+**Service Model**: 
+
+- ✅ **Customers connect to**: `https://www.success.co/mcp` (hosted by Success.co)
+- ✅ **Authentication**: OAuth 2.0 via Success.co account
+- ❌ **Customers do NOT**: Deploy or manage this code themselves
+
+Think of this like reviewing the codebase for Stripe or Twilio - customers use the API/service, but this repository is for transparency and partner integration purposes.
+
+---
+
+## 🚀 Development Setup
+
+**Note**: These instructions are for Success.co developers and integration partners reviewing the codebase. End users connect to the hosted service and do not need to follow these steps.
 
 ### Prerequisites
 
 - **Node.js 20+**
 - **Success.co Account** with API access
 
-### Option 1: Connect to Claude Desktop (Recommended)
+### For End Users: Connecting to the Hosted Service
+
+End users connect to our hosted MCP service at `https://www.success.co/mcp` using OAuth 2.0 authentication. No local setup is required.
+
+**Connection URL**: `https://www.success.co/mcp`  
+**Authentication**: OAuth 2.0 (automatic via Success.co account)
+
+---
+
+### For Developers: Local Development with Claude Desktop
 
 1. **Install dependencies:**
 
@@ -30,6 +59,8 @@ This MCP server provides comprehensive access to Success.co's EOS (Entrepreneuri
    ```
 
    **Why?** Claude Desktop connects directly to the MCP server via STDIO, bypassing the OAuth flow. You must use the dev-mode API key method for authentication.
+   
+   ⚠️ **SECURITY WARNING**: Dev-mode API keys are for LOCAL DEVELOPMENT ONLY. Never use API key mode in production or commit your API key to version control.
 
 3. **Configure Claude Desktop:**
 
@@ -70,9 +101,9 @@ This MCP server provides comprehensive access to Success.co's EOS (Entrepreneuri
 
 6. **Test in Claude:** Ask questions like "Show me all open rocks" or "What issues need attention?"
 
-### Option 2: Test with MCP Inspector
+### For Developers: Testing with MCP Inspector
 
-Use the MCP Inspector for interactive testing and debugging.
+Use the MCP Inspector for interactive testing and debugging of the local development server.
 
 1. **Start required services:**
 
@@ -116,15 +147,18 @@ node tests/test-scorecard-analysis.js
 
 ## Authentication
 
-The MCP server uses **OAuth 2.0** for authentication:
+### Production (Hosted Service)
+
+The hosted MCP service uses **OAuth 2.0** for all customer authentication:
 
 - **Token Lifetime:** 90 days
-- **Authentication Flow:** Handled automatically through the MCP Inspector or Claude Desktop
-- **Setup:** Database configuration required (see `.env` configuration below)
+- **Authentication Flow:** Handled automatically when connecting AI assistants
+- **User Experience:** Seamless - users authorize via Success.co account
+- **Security:** Industry-standard OAuth 2.0 with JWT validation and token revocation
 
-### Development Mode: API Key (Optional)
+### Development Mode: API Key (Internal Only)
 
-For local testing without OAuth, you can use API key authentication:
+For internal development and local testing, developers can use API key authentication:
 
 ```bash
 # .env file
@@ -133,7 +167,12 @@ DEVMODE_SUCCESS_API_KEY=your-api-key-here
 NODE_ENV=development
 ```
 
-⚠️ **API key mode only works in development and is not recommended for production.**
+⚠️ **SECURITY WARNING**: 
+- API key mode is **STRICTLY FOR LOCAL DEVELOPMENT ONLY**
+- **NEVER** use API key mode in production environments
+- **NEVER** commit your API key to version control
+- API key mode is automatically disabled when `NODE_ENV=production`
+- For production use, always use OAuth 2.0 authentication
 
 ## Configuration
 
@@ -160,27 +199,36 @@ DEVMODE_SUCCESS_API_KEY=your-api-key-here
 
 ---
 
-## 🔍 Under the Hood
+## 🔍 How It Works
 
-Behind the scenes, the MCP server connects to the Success.co GraphQL API to retrieve and update your EOS data.
+### For End Users (Production)
 
-**How Authentication Works:**
+Behind the scenes, our hosted MCP server connects to the Success.co GraphQL API to retrieve and update your EOS data.
 
-- **With OAuth (MCP Inspector):** When you connect via the MCP Inspector, an OAuth flow is initiated. Your access token is stored securely and used for all API requests.
-- **With Dev-Mode API Key (Claude Desktop):** Since Claude Desktop connects directly via STDIO, it bypasses the OAuth web flow. Instead, you provide your API key in the `.env` file, which is used to authenticate all API requests.
+**Authentication Flow:**
 
-**What Happens When You Ask a Question:**
+1. User connects their AI assistant (e.g., Claude) to Success.co MCP
+2. OAuth 2.0 flow initiates - user logs in with Success.co credentials
+3. Access token is securely stored on our servers (90-day lifetime)
+4. All subsequent requests use this token automatically
 
-1. Claude (or the MCP Inspector) sends your query to the MCP server
-2. The MCP server determines which tools to use (e.g., `getRocks`, `getIssues`, `getTodos`)
-3. The server makes authenticated requests to the Success.co GraphQL API using:
-   - Your OAuth access token (if connected via MCP Inspector)
-   - Your dev-mode API key (if using Claude Desktop with `DEVMODE_SUCCESS_USE_API_KEY=true`)
-4. The API returns your EOS data
-5. The MCP server processes and formats the response
-6. The answer is returned to Claude (or the MCP Inspector)
+**Query Flow:**
 
-All data remains secure - OAuth tokens are stored in your local database, and API keys are only stored in your local `.env` file.
+1. User asks their AI assistant a question about EOS data
+2. AI assistant calls the MCP server with appropriate tools (e.g., `getRocks`, `getIssues`)
+3. MCP server makes authenticated requests to Success.co GraphQL API
+4. Data is processed and returned to the AI assistant
+5. AI assistant provides an intelligent answer based on the data
+
+All data remains secure - OAuth tokens are stored in our encrypted database, and all communication uses TLS encryption.
+
+### For Developers (Local Development)
+
+When running locally for development:
+
+- **OAuth Mode:** Connect via MCP Inspector to test the full OAuth flow
+- **API Key Mode:** Use dev-mode API keys for faster local testing (Claude Desktop STDIO)
+- Both modes connect to the same GraphQL API endpoints
 
 ---
 
@@ -1194,8 +1242,71 @@ lsof -ti:6277 | xargs kill -9
 
 ---
 
+## 🔒 Privacy & Data Handling
+
+Your privacy and data security are our top priorities. Our hosted MCP service is designed with privacy-first principles:
+
+### What Our Service Collects
+
+- **Authentication Data**: OAuth tokens, user IDs, and company IDs for secure access
+- **Access Logs**: Request metadata for security and debugging (retained for 30 days)
+
+### What We DON'T Collect
+
+- ❌ Your conversations with AI assistants
+- ❌ Query context or business intelligence
+- ❌ Personal data beyond authentication requirements
+- ❌ Tracking or analytics data
+
+### Your Rights
+
+- **Revoke Access**: Disconnect the MCP service anytime through your Success.co account settings
+- **Data Deletion**: Request deletion of all authentication data
+- **Transparency**: Full visibility into what data is stored and why
+
+### Security
+
+- **Encryption**: All data encrypted in transit (TLS) and at rest
+- **OAuth 2.0**: Industry-standard authentication with 90-day token expiration
+- **Token Revocation**: Immediate revocation capability
+- **Access Control**: Role-based database access
+
+### Learn More
+
+- **Full Privacy Policy**: [https://www.success.co/privacy](https://www.success.co/privacy)
+- **Technical Details**: See [PRIVACY.md](./PRIVACY.md) in this repository (for developers/partners)
+
+---
+
+## 📞 Support & Contact
+
+### For End Users
+- **General Support**: support@success.co
+- **Website**: [https://www.success.co](https://www.success.co)
+- **Help Center**: [https://www.success.co/help](https://www.success.co/help)
+
+### Privacy & Security
+- **Privacy Questions**: privacy@success.co
+- **Privacy Policy**: [https://www.success.co/privacy](https://www.success.co/privacy)
+- **Security Issues**: security@success.co (please do not disclose publicly)
+
+### For Integration Partners
+- **Partner Inquiries**: partners@success.co
+- **Technical Documentation**: This repository
+- **API Questions**: developers@success.co
+
+### For Anthropic MCP Directory Review
+For verification purposes, contact support@success.co with subject "Anthropic MCP Directory Review" to request:
+- Test account with sample EOS data
+- OAuth client credentials for testing
+- Technical support during review process
+
+---
+
 ## 📚 References & Resources
 
 - [Model Context Protocol Introduction](https://modelcontextprotocol.io/introduction)
 - [Model Context Protocol SDK](https://github.com/modelcontextprotocol/typescript-sdk)
 - [Success.co API Documentation](https://coda.io/@successco/success-co-api)
+- [Privacy Policy](./PRIVACY.md)
+- [Success.co Terms of Service](https://www.success.co/terms)

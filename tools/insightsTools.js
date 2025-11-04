@@ -41,12 +41,12 @@ export async function getExecutionHealth(args = {}) {
   fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
 
   // Build filter for team if provided
-  const teamFilter = teamId ? `teamId: {equalTo: "${teamId}"}` : "";
+  const teamFilter = teamId ? `, teamId: {equalTo: "${teamId}"}` : "";
 
   // Get rocks data
   const rocksQuery = `
     query {
-      rocks(filter: {stateId: {equalTo: "ACTIVE"}, ${teamFilter}}) {
+      rocks(filter: {stateId: {equalTo: "ACTIVE"}${teamFilter}}) {
         nodes {
           id
           rockStatusId
@@ -60,7 +60,7 @@ export async function getExecutionHealth(args = {}) {
   // Get issues data
   const issuesQuery = `
     query {
-      issues(filter: {stateId: {equalTo: "ACTIVE"}, issueStatusId: {equalTo: "TODO"}, ${teamFilter}}) {
+      issues(filter: {stateId: {equalTo: "ACTIVE"}, issueStatusId: {equalTo: "TODO"}${teamFilter}}) {
         nodes {
           id
           priorityNo
@@ -73,7 +73,7 @@ export async function getExecutionHealth(args = {}) {
   // Get todos data
   const todosQuery = `
     query {
-      todos(filter: {stateId: {equalTo: "ACTIVE"}, todoStatusId: {equalTo: "TODO"}, ${teamFilter}}) {
+      todos(filter: {stateId: {equalTo: "ACTIVE"}, todoStatusId: {equalTo: "TODO"}${teamFilter}}) {
         nodes {
           id
           dueDate
@@ -238,52 +238,53 @@ export async function getExecutionHealth(args = {}) {
  * @returns {Promise<{content: Array<{type: string, text: string}>}>}
  */
 export async function getUserWorkload(args = {}) {
-  const {
-    teamId: providedTeamId,
-    leadershipTeam = false,
-    userId,
-  } = args;
+  try {
+    const {
+      teamId: providedTeamId,
+      leadershipTeam = false,
+      userId,
+    } = args;
 
-  // Resolve teamId if leadershipTeam is true
-  let teamId = providedTeamId;
-  if (leadershipTeam && !providedTeamId) {
-    teamId = await getLeadershipTeamId();
-    if (!teamId) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: "Error: Could not find leadership team. Please ensure a team is marked as the leadership team.",
-          },
-        ],
-      };
+    // Resolve teamId if leadershipTeam is true
+    let teamId = providedTeamId;
+    if (leadershipTeam && !providedTeamId) {
+      teamId = await getLeadershipTeamId();
+      if (!teamId) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: "Error: Could not find leadership team. Please ensure a team is marked as the leadership team.",
+            },
+          ],
+        };
+      }
     }
-  }
 
   // Build filters
-  const teamFilter = teamId ? `teamId: {equalTo: "${teamId}"}` : "";
-  const userFilter = userId ? `userId: {equalTo: "${userId}"}` : "";
-  const filters = [teamFilter, userFilter].filter(Boolean).join(", ");
+  const teamFilter = teamId ? `, teamId: {equalTo: "${teamId}"}` : "";
+  const userFilter = userId ? `, userId: {equalTo: "${userId}"}` : "";
+  const filters = [teamFilter, userFilter].filter(Boolean).join("");
 
   // Get all active rocks, issues, and todos
   const query = `
     query {
-      rocks(filter: {stateId: {equalTo: "ACTIVE"}, rockStatusId: {notEqualTo: "COMPLETE"}, ${filters}}) {
+      rocks(filter: {stateId: {equalTo: "ACTIVE"}, rockStatusId: {notEqualTo: "COMPLETE"}${filters}}) {
         nodes {
           userId
         }
       }
-      issues(filter: {stateId: {equalTo: "ACTIVE"}, issueStatusId: {equalTo: "TODO"}, ${filters}}) {
+      issues(filter: {stateId: {equalTo: "ACTIVE"}, issueStatusId: {equalTo: "TODO"}${filters}}) {
         nodes {
           userId
         }
       }
-      todos(filter: {stateId: {equalTo: "ACTIVE"}, todoStatusId: {equalTo: "TODO"}, ${filters}}) {
+      todos(filter: {stateId: {equalTo: "ACTIVE"}, todoStatusId: {equalTo: "TODO"}${filters}}) {
         nodes {
           userId
         }
       }
-      users(filter: {stateId: {equalTo: "ACTIVE"}, ${teamFilter}}) {
+      users(filter: {stateId: {equalTo: "ACTIVE"}${teamFilter}}) {
         nodes {
           id
           firstName
@@ -294,7 +295,20 @@ export async function getUserWorkload(args = {}) {
     }
   `;
 
-  const result = await callSuccessCoGraphQL(query);
+  let result;
+  try {
+    result = await callSuccessCoGraphQL(query);
+  } catch (error) {
+    console.error("[getUserWorkload] GraphQL call failed:", error);
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error calling GraphQL: ${error.message}`,
+        },
+      ],
+    };
+  }
   if (!result.ok) {
     return {
       content: [
@@ -316,33 +330,35 @@ export async function getUserWorkload(args = {}) {
   const workloadByUser = {};
 
   users.forEach((user) => {
-    workloadByUser[user.id] = {
-      userId: user.id,
-      userName: `${user.firstName} ${user.lastName}`,
-      email: user.email,
-      rocksCount: 0,
-      issuesCount: 0,
-      todosCount: 0,
-      totalItems: 0,
-    };
+    if (user && user.id) {
+      workloadByUser[user.id] = {
+        userId: user.id,
+        userName: `${user.firstName || ""} ${user.lastName || ""}`.trim(),
+        email: user.email || "",
+        rocksCount: 0,
+        issuesCount: 0,
+        todosCount: 0,
+        totalItems: 0,
+      };
+    }
   });
 
   rocks.forEach((rock) => {
-    if (workloadByUser[rock.userId]) {
+    if (rock && rock.userId && workloadByUser[rock.userId]) {
       workloadByUser[rock.userId].rocksCount++;
       workloadByUser[rock.userId].totalItems++;
     }
   });
 
   issues.forEach((issue) => {
-    if (workloadByUser[issue.userId]) {
+    if (issue && issue.userId && workloadByUser[issue.userId]) {
       workloadByUser[issue.userId].issuesCount++;
       workloadByUser[issue.userId].totalItems++;
     }
   });
 
   todos.forEach((todo) => {
-    if (workloadByUser[todo.userId]) {
+    if (todo && todo.userId && workloadByUser[todo.userId]) {
       workloadByUser[todo.userId].todosCount++;
       workloadByUser[todo.userId].totalItems++;
     }
@@ -388,6 +404,17 @@ export async function getUserWorkload(args = {}) {
       },
     ],
   };
+  } catch (error) {
+    console.error("[getUserWorkload] Error:", error);
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error in getUserWorkload: ${error.message}\nStack: ${error.stack}`,
+        },
+      ],
+    };
+  }
 }
 
 /**
