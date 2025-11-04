@@ -249,6 +249,7 @@ export async function getTodos(args) {
  * @param {boolean} [args.leadershipTeam] - If true, automatically use the leadership team ID (REQUIRED unless teamId is provided)
  * @param {string} [args.userId] - User ID to assign the todo to (defaults to current user from API key)
  * @param {string} [args.dueDate] - Due date in YYYY-MM-DD format
+ * @param {string} [args.type] - Todo type: "team" or "private" (defaults to "team")
  * @returns {Promise<{content: Array<{type: string, text: string}>}>}
  */
 export async function createTodo(args) {
@@ -260,6 +261,7 @@ export async function createTodo(args) {
     userId: providedUserId,
     dueDate,
     priority = "Medium",
+    type = "team",
   } = args;
 
   // Always set todoStatusId to TODO for new todos
@@ -333,6 +335,7 @@ export async function createTodo(args) {
           createdAt
           stateId
           companyId
+          type
         }
       }
     }
@@ -347,6 +350,7 @@ export async function createTodo(args) {
     userId,
     companyId,
     stateId: "ACTIVE",
+    type,
   };
 
   // Add optional dueDate if provided
