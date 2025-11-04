@@ -1,7 +1,8 @@
 import * as jose from "jose";
-import { IS_DEVELOPMENT, DEV_CONFIG, OAUTH_CONFIG } from "../config.js";
+import { IS_DEVELOPMENT, IS_PRODUCTION, DEV_CONFIG, OAUTH_CONFIG } from "../config.js";
 import { logger } from "../logger.js";
 import { checkTokenRevocation, extractBearerToken } from "../oauth-validator.js";
+import crypto from "crypto";
 
 // JWKS cache
 let jwksCache = null;
@@ -9,9 +10,26 @@ let jwksCacheTime = null;
 const JWKS_CACHE_TTL = 3600000; // 1 hour
 
 /**
+ * Generate a unique request ID for tracking
+ */
+function generateRequestId() {
+  return `req_${crypto.randomBytes(16).toString("hex")}`;
+}
+
+/**
+ * Security check: Prevent API key mode in production
+ */
+if (IS_PRODUCTION && DEV_CONFIG.USE_API_KEY) {
+  logger.error("[AUTH] SECURITY ERROR: API key mode is enabled in production!");
+  logger.error("[AUTH] This is a serious security risk. Exiting immediately.");
+  logger.error("[AUTH] Set DEVMODE_SUCCESS_USE_API_KEY=false or remove it from .env");
+  process.exit(1);
+}
+
+/**
  * Send OAuth challenge response
  */
-function sendOAuthChallenge(req, res, message, error) {
+function sendOAuthChallenge(req, res, message, error, errorCode = "AUTH_401") {
   const protocol =
     req.headers["x-forwarded-proto"] || (req.secure ? "https" : "http");
   const host = req.headers["x-forwarded-host"] || req.headers.host;
@@ -27,11 +45,13 @@ function sendOAuthChallenge(req, res, message, error) {
   }
 
   const resourceMetadataUrl = `${baseUrl}/.well-known/oauth-protected-resource`;
+  const requestId = req.requestId || generateRequestId();
 
   const wwwAuthHeader = `Bearer realm="mcp", resource_metadata="${resourceMetadataUrl}"`;
   res.setHeader("WWW-Authenticate", wwwAuthHeader);
 
   logger.warn("[AUTH] Sending 401 OAuth challenge", {
+    requestId,
     resourceMetadataUrl,
     error: error || "unauthorized",
     message,
@@ -39,8 +59,12 @@ function sendOAuthChallenge(req, res, message, error) {
 
   return res.status(401).json({
     error: error || "unauthorized",
+    errorCode,
     message:
       message || "Authentication required. Provide a valid OAuth Bearer token.",
+    requestId,
+    supportUrl: "https://www.success.co/support",
+    docs: "https://github.com/successco/mcp-success-co",
   });
 }
 
@@ -92,22 +116,26 @@ async function validateJWT(token) {
  * Combined authentication middleware for MCP endpoints
  */
 export async function authMiddleware(req, res, next) {
-  logger.debug(`[AUTH] ${req.method} ${req.path}`);
+  // Generate request ID for tracking
+  req.requestId = generateRequestId();
+  
+  logger.debug(`[AUTH] ${req.method} ${req.path}`, { requestId: req.requestId });
 
   // Skip authentication for health check and certain endpoints
   if (req.path === "/health" || req.method === "OPTIONS") {
-    logger.debug(`[AUTH] Skipping auth for ${req.path}`);
+    logger.debug(`[AUTH] Skipping auth for ${req.path}`, { requestId: req.requestId });
     return next();
   }
 
-  // Log authentication attempts
+  // Log authentication attempts (redacted for security)
   const authHeader = req.headers.authorization;
   if (authHeader) {
     logger.debug(
-      `[AUTH] Authorization header present: "${authHeader.substring(0, 20)}..."`
+      `[AUTH] Authorization header present: "${authHeader.substring(0, 12)}..."`,
+      { requestId: req.requestId }
     );
   } else {
-    logger.debug("[AUTH] No Authorization header present");
+    logger.debug("[AUTH] No Authorization header present", { requestId: req.requestId });
   }
 
   // Try dev API key first (if enabled)
@@ -149,13 +177,15 @@ export async function authMiddleware(req, res, next) {
       
       if (!revocationResult.valid) {
         logger.warn(
-          `[AUTH] Token revocation check failed: ${revocationResult.error}`
+          `[AUTH] Token revocation check failed: ${revocationResult.error}`,
+          { requestId: req.requestId }
         );
         return sendOAuthChallenge(
           req,
           res,
           revocationResult.message || "Token has been revoked",
-          revocationResult.error
+          revocationResult.error,
+          "AUTH_TOKEN_REVOKED"
         );
       }
 
@@ -169,29 +199,35 @@ export async function authMiddleware(req, res, next) {
       };
 
       logger.info("[AUTH] Authentication successful (OAuth)", {
-        user: revocationResult.userEmail,
-        company: revocationResult.companyId,
-        client: revocationResult.clientId,
+        requestId: req.requestId,
+        userId: revocationResult.userId ? `user_***${revocationResult.userId.slice(-4)}` : null,
+        companyId: revocationResult.companyId ? `comp_***${revocationResult.companyId.slice(-4)}` : null,
+        clientId: revocationResult.clientId,
       });
 
       return next();
     } catch (error) {
-      logger.warn(`[AUTH] JWT validation failed: ${error.message}`);
+      logger.warn(`[AUTH] JWT validation failed: ${error.message}`, { 
+        requestId: req.requestId,
+        errorType: error.name 
+      });
       return sendOAuthChallenge(
         req,
         res,
         error.message || "Invalid or expired OAuth token",
-        "invalid_token"
+        "invalid_token",
+        "AUTH_JWT_INVALID"
       );
     }
   }
 
   // No valid authentication found - send OAuth challenge
-  logger.warn("[AUTH] No valid authentication provided");
+  logger.warn("[AUTH] No valid authentication provided", { requestId: req.requestId });
   return sendOAuthChallenge(
     req,
     res,
     "Authentication required. Provide a valid OAuth Bearer token or API key.",
-    "unauthorized"
+    "unauthorized",
+    "AUTH_NO_CREDENTIALS"
   );
 }
