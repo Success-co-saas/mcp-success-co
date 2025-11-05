@@ -7,6 +7,7 @@ import {
   getUserContext,
   getDatabase,
   getIsDevMode,
+  getAuthContext,
 } from "./core.js";
 import {
   validateStateId,
@@ -302,6 +303,10 @@ export async function getRocks(args) {
   const context = await getUserContext();
   const companyCode = context ? await getCompanyCode(context.companyId) : null;
 
+  // Get current user context
+  const auth = getAuthContext();
+  const currentUserId = auth && !auth.isApiKeyMode ? auth.userId : null;
+
   return {
     content: [
       {
@@ -309,6 +314,7 @@ export async function getRocks(args) {
         text: JSON.stringify({
           summary,
           timePeriod: timePeriod,
+          currentUserId,
           results: rocks.map((rock) => ({
             id: rock.id,
             name: rock.name,

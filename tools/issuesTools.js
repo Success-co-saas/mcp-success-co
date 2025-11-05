@@ -5,6 +5,7 @@ import {
   callSuccessCoGraphQL,
   getLeadershipTeamId,
   getUserContext,
+  getAuthContext,
 } from "./core.js";
 import {
   validateStateId,
@@ -206,12 +207,17 @@ export async function getIssues(args) {
   const context = await getUserContext();
   const companyCode = context ? await getCompanyCode(context.companyId) : null;
 
+  // Get current user context
+  const auth = getAuthContext();
+  const currentUserId = auth && !auth.isApiKeyMode ? auth.userId : null;
+
   return {
     content: [
       {
         type: "text",
         text: JSON.stringify({
           summary,
+          currentUserId,
           results: issues.map((issue) => ({
             id: issue.id,
             name: issue.name,
