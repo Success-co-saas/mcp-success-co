@@ -47,6 +47,7 @@ import {
   getCompanyInsights,
   getAuthContext,
 } from "./tools.js";
+import { trackToolCall } from "./utils/statsTracker.js";
 
 /**
  * Tool definitions - Single Source of Truth
@@ -2659,11 +2660,49 @@ export const toolDefinitions = [
  */
 export function registerToolsOnServer(server) {
   toolDefinitions.forEach((tool) => {
+    // Wrap the handler to track stats
+    const wrappedHandler = async (params) => {
+      const startTime = Date.now();
+      let success = true;
+      let error = null;
+      let result;
+
+      try {
+        // Execute the original handler
+        result = await tool.handler(params);
+        return result;
+      } catch (err) {
+        success = false;
+        error = err.message;
+        throw err; // Re-throw to maintain original error behavior
+      } finally {
+        const duration = Date.now() - startTime;
+
+        // Get auth context for tracking
+        const auth = getAuthContext();
+        const userId = auth?.userId || null;
+        const companyId = auth?.companyId || null;
+
+        // Track the call asynchronously (fire-and-forget)
+        trackToolCall({
+          toolName: tool.name,
+          userId,
+          companyId,
+          parameters: params,
+          duration,
+          success,
+          error,
+        }).catch(() => {
+          // Silently ignore stats tracking errors
+        });
+      }
+    };
+
     server.tool(
       tool.name,
       tool.description,
       tool.schema,
-      tool.handler,
+      wrappedHandler,
       tool.annotations ? { annotations: tool.annotations } : undefined
     );
   });

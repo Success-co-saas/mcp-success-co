@@ -64,6 +64,17 @@ export const DEV_CONFIG = {
 // Debug configuration
 export const DEBUG = process.env.DEBUG === "true";
 
+// Redis configuration for stats tracking
+export const REDIS_CONN_STRING = process.env.REDIS_CONN_STRING;
+
+// Stats tracking configuration
+export const STATS_CONFIG = {
+  MAX_RECENT_CALLS: process.env.MCP_STATS_MAX_CALLS
+    ? parseInt(process.env.MCP_STATS_MAX_CALLS)
+    : 200,
+  ENABLED: process.env.MCP_STATS_ENABLED !== "false", // Enabled by default
+};
+
 // Validation
 export function validateConfig() {
   const errors = [];
@@ -78,6 +89,13 @@ export function validateConfig() {
   } catch (e) {
     errors.push(
       `GRAPHQL_ENDPOINT must be a valid URL, got: ${GRAPHQL_ENDPOINT}`
+    );
+  }
+
+  // Redis is required when stats tracking is enabled
+  if (STATS_CONFIG.ENABLED && !REDIS_CONN_STRING) {
+    errors.push(
+      "REDIS_CONN_STRING is required when MCP_STATS_ENABLED=true. Either set REDIS_CONN_STRING in .env or set MCP_STATS_ENABLED=false to disable stats tracking."
     );
   }
 
@@ -101,5 +119,7 @@ export default {
   DB_CONFIG,
   DEV_CONFIG,
   DEBUG,
+  REDIS_CONN_STRING,
+  STATS_CONFIG,
   validateConfig,
 };
