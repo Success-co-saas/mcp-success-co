@@ -1428,6 +1428,7 @@ export const toolDefinitions = [
       userId,
       currentUser,
       dueDate,
+      priority,
       type,
     }) => {
       // Validate that both userId and currentUser are not provided
@@ -1461,6 +1462,7 @@ export const toolDefinitions = [
         leadershipTeam,
         userId: effectiveUserId,
         dueDate,
+        priority,
         type,
       });
     },
@@ -1500,6 +1502,12 @@ export const toolDefinitions = [
         .describe(
           "Due date in YYYY-MM-DD format (e.g., 2024-12-31). Defaults to 7 days from now if not provided."
         ),
+      priority: z
+        .enum(["High", "Medium", "Low", "No priority"])
+        .optional()
+        .describe(
+          "Priority level: 'High', 'Medium', 'Low', or 'No priority' (defaults to 'No priority' if not provided)"
+        ),
       type: z
         .enum(["team", "private"])
         .optional()
@@ -1521,8 +1529,8 @@ export const toolDefinitions = [
       idempotentHint: true,
       openWorldHint: true,
     },
-    handler: async ({ todoId, todoStatusId, name, desc, dueDate }) =>
-      await updateTodo({ todoId, todoStatusId, name, desc, dueDate }),
+    handler: async ({ todoId, todoStatusId, name, desc, dueDate, priority }) =>
+      await updateTodo({ todoId, todoStatusId, name, desc, dueDate, priority }),
     schema: {
       todoId: z
         .string()
@@ -1539,6 +1547,12 @@ export const toolDefinitions = [
         .string()
         .optional()
         .describe("Update the due date (YYYY-MM-DD format)"),
+      priority: z
+        .enum(["High", "Medium", "Low", "No priority"])
+        .optional()
+        .describe(
+          "Priority level: 'High', 'Medium', 'Low', or 'No priority'"
+        ),
     },
     required: ["todoId"],
   },
