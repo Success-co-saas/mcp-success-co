@@ -70,6 +70,16 @@ export async function trackToolCall({
       // multi.expire(allTimeKey, 90 * 24 * 60 * 60); // 90 days TTL
     }
 
+    // 3. Track tool popularity (30-day and all-time)
+    if (toolName) {
+      // 30-day tool stats
+      multi.zIncrBy("mcp:tools:30d", 1, toolName);
+      multi.expire("mcp:tools:30d", 35 * 24 * 60 * 60); // 35 days TTL
+
+      // All-time tool stats
+      multi.zIncrBy("mcp:tools:alltime", 1, toolName);
+    }
+
     // Execute the multi command
     await multi.exec();
 
@@ -218,6 +228,74 @@ export async function getTopCompaniesAllTime(limit = 20) {
       "[STATS] Error getting top companies (all-time):",
       err.message
     );
+    return [];
+  }
+}
+
+/**
+ * Get top tools by usage (30-day period)
+ * @param {number} [limit=20] - Maximum number of tools to retrieve
+ * @returns {Promise<Array>} - Array of {toolName, calls} objects
+ */
+export async function getTopTools30d(limit = 20) {
+  if (!isStatsAvailable()) {
+    return [];
+  }
+
+  const redis = getStatsRedis();
+  if (!redis) {
+    return [];
+  }
+
+  try {
+    // Get top tools from sorted set (highest scores first)
+    const results = await redis.zRangeWithScores(
+      "mcp:tools:30d",
+      0,
+      limit - 1,
+      { REV: true }
+    );
+
+    return results.map((item) => ({
+      toolName: item.value,
+      calls: parseInt(item.score),
+    }));
+  } catch (err) {
+    logger.error("[STATS] Error getting top tools (30d):", err.message);
+    return [];
+  }
+}
+
+/**
+ * Get top tools by usage (all-time)
+ * @param {number} [limit=20] - Maximum number of tools to retrieve
+ * @returns {Promise<Array>} - Array of {toolName, calls} objects
+ */
+export async function getTopToolsAllTime(limit = 20) {
+  if (!isStatsAvailable()) {
+    return [];
+  }
+
+  const redis = getStatsRedis();
+  if (!redis) {
+    return [];
+  }
+
+  try {
+    // Get top tools from sorted set (highest scores first)
+    const results = await redis.zRangeWithScores(
+      "mcp:tools:alltime",
+      0,
+      limit - 1,
+      { REV: true }
+    );
+
+    return results.map((item) => ({
+      toolName: item.value,
+      calls: parseInt(item.score),
+    }));
+  } catch (err) {
+    logger.error("[STATS] Error getting top tools (all-time):", err.message);
     return [];
   }
 }
