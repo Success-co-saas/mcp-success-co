@@ -5,6 +5,7 @@ import {
   callSuccessCoGraphQL,
   getLeadershipTeamId,
   getUserContext,
+  getAuthContext,
 } from "./core.js";
 import {
   validateStateId,
@@ -213,12 +214,17 @@ export async function getTodos(args) {
     new Date(t.dueDate) <= sevenDaysFromNow
   ).length;
 
+  // Get current user context
+  const auth = getAuthContext();
+  const currentUserId = auth && !auth.isApiKeyMode ? auth.userId : null;
+
   return {
     content: [
       {
         type: "text",
         text: JSON.stringify({
           summary,
+          currentUserId,
           results: todos.map((todo) => ({
             id: todo.id,
             name: todo.name,

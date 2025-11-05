@@ -1,7 +1,11 @@
 // Users Tools
 // Tools for working with users
 
-import { callSuccessCoGraphQL, getLeadershipTeamId } from "./core.js";
+import {
+  callSuccessCoGraphQL,
+  getLeadershipTeamId,
+  getAuthContext,
+} from "./core.js";
 import { validateStateId } from "../helpers.js";
 
 /**
@@ -117,12 +121,17 @@ export async function getUsers(args) {
     users = users.filter((user) => userIdsInTeam.includes(user.id));
   }
 
+  // Get current user context
+  const auth = getAuthContext();
+  const currentUserId = auth && !auth.isApiKeyMode ? auth.userId : null;
+
   return {
     content: [
       {
         type: "text",
         text: JSON.stringify({
           totalCount: users.length,
+          currentUserId,
           results: users.map((user) => ({
             id: user.id,
             name: `${user.firstName} ${user.lastName}`,
@@ -136,6 +145,87 @@ export async function getUsers(args) {
             timeZone: user.timeZone,
           })),
         }),
+      },
+    ],
+  };
+}
+
+/**
+ * Get the currently authenticated user's information
+ * @returns {Promise<{content: Array<{type: string, text: string}>}>}
+ */
+export async function getCurrentUser() {
+  const auth = getAuthContext();
+
+  if (!auth || auth.isApiKeyMode) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: "User context not available (using API key mode)",
+        },
+      ],
+    };
+  }
+
+  // Fetch full user details from GraphQL
+  const query = `
+    query GetCurrentUser($userId: UUID!) {
+      user(id: $userId) {
+        id
+        firstName
+        lastName
+        email
+        jobTitle
+        desc
+        userName
+        avatar
+        companyId
+        userStatusId
+        languageId
+        timeZone
+      }
+    }
+  `;
+
+  const result = await callSuccessCoGraphQL(query, { userId: auth.userId });
+
+  if (!result.ok) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error fetching user info: ${result.error}`,
+        },
+      ],
+    };
+  }
+
+  const user = result.data.data.user;
+  
+  if (!user) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `User not found with ID: ${auth.userId}`,
+        },
+      ],
+    };
+  }
+
+  return {
+    content: [
+      {
+        type: "text",
+        text:
+          `**Current User**\n\n` +
+          `Name: ${user.firstName} ${user.lastName}\n` +
+          `Email: ${user.email}\n` +
+          `Job Title: ${user.jobTitle || "Not specified"}\n` +
+          `User ID: ${user.id}\n` +
+          `Company ID: ${user.companyId}\n\n` +
+          `This is YOU - the authenticated user making this request.`,
       },
     ],
   };

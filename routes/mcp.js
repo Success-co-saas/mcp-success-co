@@ -7,7 +7,7 @@ import {
   getTransportGuidance,
   generateSessionId,
 } from "../utils/transportHelpers.js";
-import { runWithAuthContext } from "../tools.js";
+import { runWithAuthContext, getAuthContext } from "../tools.js";
 import { registerToolsOnServer } from "../toolDefinitions.js";
 import { VERSION } from "../config.js";
 
@@ -21,6 +21,85 @@ function createFreshMcpServer() {
     title: "Success.co MCP Server",
     websiteUrl: "https://www.success.co/",
   });
+
+  // Register current user resource
+  freshServer.resource(
+    {
+      uri: "user://current",
+      name: "Current User",
+      description: "Information about the currently authenticated user",
+      mimeType: "application/json",
+    },
+    async () => {
+      const auth = getAuthContext();
+      if (!auth || auth.isApiKeyMode) {
+        return {
+          contents: [
+            {
+              uri: "user://current",
+              mimeType: "application/json",
+              text: JSON.stringify({
+                available: false,
+                reason: "Using API key mode or no auth context",
+              }),
+            },
+          ],
+        };
+      }
+
+      return {
+        contents: [
+          {
+            uri: "user://current",
+            mimeType: "application/json",
+            text: JSON.stringify({
+              available: true,
+              userId: auth.userId,
+              email: auth.userEmail,
+              companyId: auth.companyId,
+              hint: "This is YOU - the authenticated user making this request",
+            }),
+          },
+        ],
+      };
+    }
+  );
+
+  // Register current user prompt - provides persistent context to LLM
+  freshServer.prompt(
+    {
+      name: "current-user-context",
+      description: "Get context about the currently authenticated user",
+    },
+    async () => {
+      const auth = getAuthContext();
+      if (!auth || auth.isApiKeyMode) {
+        return {
+          messages: [
+            {
+              role: "user",
+              content: {
+                type: "text",
+                text: "You are using API key mode - no specific user context available.",
+              },
+            },
+          ],
+        };
+      }
+
+      return {
+        messages: [
+          {
+            role: "user",
+            content: {
+              type: "text",
+              text: `IMPORTANT: You are currently authenticated as user ${auth.userEmail} (ID: ${auth.userId}). When the user says "my", "I", or "me", they are referring to this user ID: ${auth.userId}. This user belongs to company ID: ${auth.companyId}.`,
+            },
+          },
+        ],
+      };
+    }
+  );
 
   registerToolsOnServer(freshServer);
   return freshServer;

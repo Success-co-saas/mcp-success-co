@@ -33,7 +33,7 @@ export * from "./commonHelpers.js";
 export { getTeams } from "./teamsTools.js";
 
 // Users
-export { getUsers } from "./usersTools.js";
+export { getUsers, getCurrentUser } from "./usersTools.js";
 
 // Todos
 export { getTodos, createTodo, updateTodo, deleteTodo } from "./todosTools.js";
