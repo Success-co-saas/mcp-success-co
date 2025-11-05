@@ -5,6 +5,7 @@ import {
   callSuccessCoGraphQL,
   getLeadershipTeamId,
   getUserContext,
+  getAuthContext,
 } from "./core.js";
 import { validateStateId } from "../helpers.js";
 import { getCompanyCode, generateObjectUrl } from "./commonHelpers.js";
@@ -170,12 +171,17 @@ export async function getHeadlines(args) {
   const context = await getUserContext();
   const companyCode = context ? await getCompanyCode(context.companyId) : null;
 
+  // Get current user context
+  const auth = getAuthContext();
+  const currentUserId = auth && !auth.isApiKeyMode ? auth.userId : null;
+
   return {
     content: [
       {
         type: "text",
         text: JSON.stringify({
           totalCount: headlines.length,
+          currentUserId,
           results: headlines.map((headline) => ({
             id: headline.id,
             name: headline.name,

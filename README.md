@@ -14,7 +14,7 @@ This MCP server provides comprehensive access to Success.co's EOS (Entrepreneuri
 - **Partner Review**: Available for review by integration partners (e.g., Anthropic for MCP Directory)
 - **Compliance & Auditing**: Security reviews and compliance verification
 
-**Service Model**: 
+**Service Model**:
 
 - ✅ **Customers connect to**: `https://www.success.co/mcp` (hosted by Success.co)
 - ✅ **Authentication**: OAuth 2.0 via Success.co account
@@ -59,7 +59,7 @@ End users connect to our hosted MCP service at `https://www.success.co/mcp` usin
    ```
 
    **Why?** Claude Desktop connects directly to the MCP server via STDIO, bypassing the OAuth flow. You must use the dev-mode API key method for authentication.
-   
+
    ⚠️ **SECURITY WARNING**: Dev-mode API keys are for LOCAL DEVELOPMENT ONLY. Never use API key mode in production or commit your API key to version control.
 
 3. **Configure Claude Desktop:**
@@ -129,6 +129,10 @@ Use the MCP Inspector for interactive testing and debugging of the local develop
 
 3. **Connect to:** `http://localhost:5174/mcp`
 
+   You will need to configure:
+   Client ID: "mcp-client-default"
+   Client Secret: "mcp-secret-change-this-in-production"
+
 4. **Authenticate** using OAuth when prompted
 
 ---
@@ -167,7 +171,8 @@ DEVMODE_SUCCESS_API_KEY=your-api-key-here
 NODE_ENV=development
 ```
 
-⚠️ **SECURITY WARNING**: 
+⚠️ **SECURITY WARNING**:
+
 - API key mode is **STRICTLY FOR LOCAL DEVELOPMENT ONLY**
 - **NEVER** use API key mode in production environments
 - **NEVER** commit your API key to version control
@@ -189,6 +194,13 @@ DB_PASS=your-password
 # Or use DATABASE_URL
 DATABASE_URL=postgresql://user:password@host:port/database
 
+# Redis (optional - for stats tracking)
+REDIS_CONN_STRING=redis://localhost:6379
+
+# Stats tracking (optional)
+MCP_STATS_ENABLED=true          # Enable/disable stats tracking (default: true)
+MCP_STATS_MAX_CALLS=200         # Number of recent calls to store (default: 200)
+
 # Development mode with API key (optional)
 NODE_ENV=development
 DEVMODE_SUCCESS_USE_API_KEY=true
@@ -196,6 +208,8 @@ DEVMODE_SUCCESS_API_KEY=your-api-key-here
 ```
 
 **Note:** Without database configuration, you can still use read-only tools, but create/update operations will fail.
+
+**Stats Tracking:** Redis is optional. If not configured, stats tracking is automatically disabled and the MCP server operates normally.
 
 ---
 
@@ -1242,6 +1256,91 @@ lsof -ti:6277 | xargs kill -9
 
 ---
 
+## 📊 Stats Tracking & Monitoring
+
+The MCP server includes optional Redis-based stats tracking to monitor usage and performance. This feature is designed for internal monitoring and admin purposes.
+
+### What Gets Tracked
+
+When Redis is configured, the server automatically tracks:
+
+- **Recent Tool Calls**: Last N calls (configurable, default 200) with full details:
+  - Tool name, user ID, company ID
+  - Parameters passed to the tool
+  - Execution duration (milliseconds)
+  - Success/failure status and error messages
+  - Timestamp
+
+- **Customer Usage Metrics**:
+  - 30-day usage by company (with automatic TTL)
+  - All-time usage by company
+
+### Accessing Stats
+
+Stats are exposed via an admin-only endpoint in the `serviceapi-success-co` service:
+
+**Endpoint**: `GET /services/mcp/stats.json`
+
+**Authentication**: Requires session authentication with `@success.co` email domain
+
+**Response Format**:
+```json
+{
+  "recentCalls": [
+    {
+      "toolName": "getTeams",
+      "timestamp": "2025-11-05T10:30:00Z",
+      "userId": "123",
+      "companyId": "456",
+      "parameters": {"first": 50},
+      "duration": 245,
+      "success": true,
+      "error": null
+    }
+  ],
+  "topCustomers30d": [
+    {"companyId": "456", "calls": 1250}
+  ],
+  "topCustomersAllTime": [
+    {"companyId": "456", "calls": 5432}
+  ],
+  "meta": {
+    "maxRecentCalls": 200,
+    "generatedAt": "2025-11-05T10:35:00Z"
+  }
+}
+```
+
+### Configuration
+
+Stats tracking can be controlled via environment variables:
+
+```bash
+# Enable/disable stats tracking
+MCP_STATS_ENABLED=true          # Default: true
+
+# Number of recent calls to store
+MCP_STATS_MAX_CALLS=200         # Default: 200
+
+# Redis connection (required for stats)
+REDIS_CONN_STRING=redis://localhost:6379
+```
+
+**Note**: If Redis is not configured, stats tracking is automatically disabled without affecting MCP server functionality.
+
+### Privacy Considerations
+
+Stats tracking is designed for operational monitoring:
+- ✅ Tracks tool usage patterns and performance
+- ✅ Helps identify popular features and optimize performance
+- ✅ Assists with debugging and error analysis
+- ⚠️ Stores full parameters (may include user/company IDs)
+- ⚠️ Admin-only access via secure endpoint
+
+For production deployments, ensure Redis is properly secured and stats access is restricted to authorized administrators.
+
+---
+
 ## 🔒 Privacy & Data Handling
 
 Your privacy and data security are our top priorities. Our hosted MCP service is designed with privacy-first principles:
@@ -1281,22 +1380,27 @@ Your privacy and data security are our top priorities. Our hosted MCP service is
 ## 📞 Support & Contact
 
 ### For End Users
+
 - **General Support**: support@success.co
 - **Website**: [https://www.success.co](https://www.success.co)
 - **Help Center**: [https://www.success.co/help](https://www.success.co/help)
 
 ### Privacy & Security
+
 - **Privacy Questions**: privacy@success.co
 - **Privacy Policy**: [https://www.success.co/privacy](https://www.success.co/privacy)
 - **Security Issues**: security@success.co (please do not disclose publicly)
 
 ### For Integration Partners
+
 - **Partner Inquiries**: partners@success.co
 - **Technical Documentation**: This repository
 - **API Questions**: developers@success.co
 
 ### For Anthropic MCP Directory Review
+
 For verification purposes, contact support@success.co with subject "Anthropic MCP Directory Review" to request:
+
 - Test account with sample EOS data
 - OAuth client credentials for testing
 - Technical support during review process

@@ -1,7 +1,12 @@
 // Milestones Tools
 // Tools for working with rock milestones
 
-import { callSuccessCoGraphQL, getLeadershipTeamId, getUserContext } from "./core.js";
+import {
+  callSuccessCoGraphQL,
+  getLeadershipTeamId,
+  getUserContext,
+  getAuthContext,
+} from "./core.js";
 import { validateStateId } from "../helpers.js";
 import { getCompanyCode, generateObjectUrl } from "./commonHelpers.js";
 
@@ -100,12 +105,17 @@ export async function getMilestones(args) {
   const context = await getUserContext();
   const companyCode = context ? await getCompanyCode(context.companyId) : null;
 
+  // Get current user context
+  const auth = getAuthContext();
+  const currentUserId = auth && !auth.isApiKeyMode ? auth.userId : null;
+
   return {
     content: [
       {
         type: "text",
         text: JSON.stringify({
           totalCount: data.data.milestones.totalCount,
+          currentUserId,
           results: data.data.milestones.nodes.map((milestone) => ({
             id: milestone.id,
             rockId: milestone.rockId,

@@ -2,6 +2,7 @@ import { z } from "zod";
 import {
   getTeams,
   getUsers,
+  getCurrentUser,
   getTodos,
   getRocks,
   getMeetings,
@@ -44,7 +45,9 @@ import {
   getExecutionHealth,
   getUserWorkload,
   getCompanyInsights,
+  getAuthContext,
 } from "./tools.js";
+import { trackToolCall } from "./utils/statsTracker.js";
 
 /**
  * Tool definitions - Single Source of Truth
@@ -55,6 +58,12 @@ export const toolDefinitions = [
     description:
       "List Success.co teams. Each team includes an 'isLeadership' flag indicating if it's the leadership team. Use this to find the leadership team ID before querying for leadership-specific data. Supports keyword search.",
     readOnly: true,
+    annotations: {
+      title: "Get Teams",
+      readOnlyHint: true,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
     handler: async ({ first, offset, keyword }) =>
       await getTeams({ first, offset, keyword }),
     schema: {
@@ -79,6 +88,12 @@ export const toolDefinitions = [
     description:
       "List Success.co users. Use leadershipTeam=true to automatically filter by the leadership team. Filter by teamId to get users on a specific team.",
     readOnly: true,
+    annotations: {
+      title: "Get Users",
+      readOnlyHint: true,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
     handler: async ({ first, offset, teamId, leadershipTeam }) =>
       await getUsers({ first, offset, teamId, leadershipTeam }),
     schema: {
@@ -100,10 +115,31 @@ export const toolDefinitions = [
     required: [],
   },
   {
+    name: "getCurrentUser",
+    description:
+      "Get information about the currently authenticated user (you). Use this to find your own userId when you need to filter data by 'my' or 'I' or similar.",
+    readOnly: true,
+    annotations: {
+      title: "Get Current User",
+      readOnlyHint: true,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+    handler: async () => await getCurrentUser(),
+    schema: {},
+    required: [],
+  },
+  {
     name: "getTodos",
     description:
-      "List Success.co todos. Use leadershipTeam=true to automatically filter by the leadership team. Use fromMeetings=true to get only todos from Level 10 meetings. Filter by teamId, userId, status (TODO, COMPLETE, OVERDUE, ALL), or keyword. Supports date filtering for creation and completion dates.",
+      "List Success.co todos. Use leadershipTeam=true to automatically filter by the leadership team. Use currentUser=true to filter by the authenticated user. Use fromMeetings=true to get only todos from Level 10 meetings. Filter by teamId, userId, status (TODO, COMPLETE, OVERDUE, ALL), or keyword. Supports date filtering for creation and completion dates.",
     readOnly: true,
+    annotations: {
+      title: "Get Todos",
+      readOnlyHint: true,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
     handler: async ({
       first,
       offset,
@@ -111,27 +147,53 @@ export const toolDefinitions = [
       teamId,
       leadershipTeam,
       userId,
+      currentUser,
       status,
       keyword,
       createdAfter,
       createdBefore,
       completedAfter,
       completedBefore,
-    }) =>
-      await getTodos({
+    }) => {
+      // Validate that both userId and currentUser are not provided
+      if (userId && currentUser) {
+        throw new Error(
+          "Cannot provide both userId and currentUser. Use one or the other."
+        );
+      }
+
+      // Resolve currentUser to userId
+      const auth = getAuthContext();
+      let effectiveUserId = userId;
+      if (currentUser) {
+        if (!auth || auth.isApiKeyMode) {
+          throw new Error(
+            "currentUser=true requires OAuth authentication (not available in API key mode)"
+          );
+        }
+        effectiveUserId = auth.userId;
+      }
+
+      // Auto-inject userId if not provided
+      if (!effectiveUserId) {
+        effectiveUserId = auth && !auth.isApiKeyMode ? auth.userId : undefined;
+      }
+
+      return await getTodos({
         first,
         offset,
         fromMeetings,
         teamId,
         leadershipTeam,
-        userId,
+        userId: effectiveUserId,
         status,
         keyword,
         createdAfter,
         createdBefore,
         completedAfter,
         completedBefore,
-      }),
+      });
+    },
     schema: {
       first: z
         .number()
@@ -154,6 +216,12 @@ export const toolDefinitions = [
           "If true, automatically use the leadership team ID (shortcut instead of calling getTeams first)"
         ),
       userId: z.string().optional().describe("Filter by user ID"),
+      currentUser: z
+        .boolean()
+        .optional()
+        .describe(
+          "If true, automatically filter by the authenticated user (shortcut instead of providing userId)"
+        ),
       status: z
         .enum(["TODO", "COMPLETE", "OVERDUE", "ALL"])
         .optional()
@@ -197,30 +265,62 @@ export const toolDefinitions = [
   {
     name: "getRocks",
     description:
-      "List Success.co rocks with ownership, team information, and milestones. By default, returns rocks for 'this_year' with milestones included. Use leadershipTeam=true to automatically filter by the leadership team. Returns userId (rock owner), teamIds (associated teams), and milestones for each rock. Perfect for analyzing accountability, team execution, and rock progress. Supports keyword search and flexible time period filtering.",
+      "List Success.co rocks with ownership, team information, and milestones. By default, returns rocks for 'this_year' with milestones included. Use leadershipTeam=true to automatically filter by the leadership team. Use currentUser=true to filter by the authenticated user. Returns userId (rock owner), teamIds (associated teams), and milestones for each rock. Perfect for analyzing accountability, team execution, and rock progress. Supports keyword search and flexible time period filtering.",
     readOnly: true,
+    annotations: {
+      title: "Get Rocks",
+      readOnlyHint: true,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
     handler: async ({
       first,
       offset,
       status,
       userId,
+      currentUser,
       teamId,
       leadershipTeam,
       keyword,
       includeMilestones,
       timePeriod,
-    }) =>
-      await getRocks({
+    }) => {
+      // Validate that both userId and currentUser are not provided
+      if (userId && currentUser) {
+        throw new Error(
+          "Cannot provide both userId and currentUser. Use one or the other."
+        );
+      }
+
+      // Resolve currentUser to userId
+      const auth = getAuthContext();
+      let effectiveUserId = userId;
+      if (currentUser) {
+        if (!auth || auth.isApiKeyMode) {
+          throw new Error(
+            "currentUser=true requires OAuth authentication (not available in API key mode)"
+          );
+        }
+        effectiveUserId = auth.userId;
+      }
+
+      // Auto-inject userId if not provided
+      if (!effectiveUserId) {
+        effectiveUserId = auth && !auth.isApiKeyMode ? auth.userId : undefined;
+      }
+
+      return await getRocks({
         first,
         offset,
         rockStatusId: status,
-        userId,
+        userId: effectiveUserId,
         teamId,
         leadershipTeam,
         keyword,
         includeMilestones,
         timePeriod,
-      }),
+      });
+    },
     schema: {
       first: z
         .number()
@@ -238,6 +338,12 @@ export const toolDefinitions = [
         .optional()
         .describe(
           "Filter rocks by user ID (rock owner). Use getUsers to find user IDs."
+        ),
+      currentUser: z
+        .boolean()
+        .optional()
+        .describe(
+          "If true, automatically filter by the authenticated user (shortcut instead of providing userId)"
         ),
       teamId: z
         .string()
@@ -277,6 +383,12 @@ export const toolDefinitions = [
     description:
       "List Success.co meetings. IMPORTANT: Either teamId or leadershipTeam is REQUIRED. Use leadershipTeam=true to automatically filter by the leadership team. Supports filtering by team, meeting agenda, and dates. Note: Only one of meetingAgendaId or meetingAgendaType can be used.",
     readOnly: true,
+    annotations: {
+      title: "Get Meetings",
+      readOnlyHint: true,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
     handler: async ({
       first,
       offset,
@@ -347,34 +459,66 @@ export const toolDefinitions = [
   {
     name: "getIssues",
     description:
-      "List Success.co issues. Use leadershipTeam=true to automatically filter by the leadership team. Supports filtering by team, user, status, type, meeting linkage, and dates.",
+      "List Success.co issues. Use leadershipTeam=true to automatically filter by the leadership team. Use currentUser=true to filter by the authenticated user. Supports filtering by team, user, status, type, meeting linkage, and dates.",
     readOnly: true,
+    annotations: {
+      title: "Get Issues",
+      readOnlyHint: true,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
     handler: async ({
       first,
       offset,
       teamId,
       leadershipTeam,
       userId,
+      currentUser,
       status,
       type,
       fromMeetings,
       createdAfter,
       createdBefore,
       statusUpdatedBefore,
-    }) =>
-      await getIssues({
+    }) => {
+      // Validate that both userId and currentUser are not provided
+      if (userId && currentUser) {
+        throw new Error(
+          "Cannot provide both userId and currentUser. Use one or the other."
+        );
+      }
+
+      // Resolve currentUser to userId
+      const auth = getAuthContext();
+      let effectiveUserId = userId;
+      if (currentUser) {
+        if (!auth || auth.isApiKeyMode) {
+          throw new Error(
+            "currentUser=true requires OAuth authentication (not available in API key mode)"
+          );
+        }
+        effectiveUserId = auth.userId;
+      }
+
+      // Auto-inject userId if not provided
+      if (!effectiveUserId) {
+        effectiveUserId = auth && !auth.isApiKeyMode ? auth.userId : undefined;
+      }
+
+      return await getIssues({
         first,
         offset,
         teamId,
         leadershipTeam,
-        userId,
+        userId: effectiveUserId,
         status,
         type,
         fromMeetings,
         createdAfter,
         createdBefore,
         statusUpdatedBefore,
-      }),
+      });
+    },
     schema: {
       first: z
         .number()
@@ -391,6 +535,12 @@ export const toolDefinitions = [
           "If true, automatically use the leadership team ID (shortcut instead of calling getTeams first)"
         ),
       userId: z.string().optional().describe("Filter by user ID"),
+      currentUser: z
+        .boolean()
+        .optional()
+        .describe(
+          "If true, automatically filter by the authenticated user (shortcut instead of providing userId)"
+        ),
       status: z
         .enum(["TODO", "COMPLETE", "ALL"])
         .optional()
@@ -433,8 +583,14 @@ export const toolDefinitions = [
   {
     name: "getHeadlines",
     description:
-      "List Success.co headlines. Use leadershipTeam=true to automatically filter by the leadership team. Supports filtering by date, keyword, status, team, user, and meeting linkage. Perfect for queries like 'Show me all people headlines from this week' or 'List company headlines related to hiring'. Can also fetch a specific headline by ID.",
+      "List Success.co headlines. Use leadershipTeam=true to automatically filter by the leadership team. Use currentUser=true to filter by the authenticated user. Supports filtering by date, keyword, status, team, user, and meeting linkage. Perfect for queries like 'Show me all people headlines from this week' or 'List company headlines related to hiring'. Can also fetch a specific headline by ID.",
     readOnly: true,
+    annotations: {
+      title: "Get Headlines",
+      readOnlyHint: true,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
     handler: async ({
       first,
       offset,
@@ -442,25 +598,51 @@ export const toolDefinitions = [
       teamId,
       leadershipTeam,
       userId,
+      currentUser,
       fromMeetings,
       createdAfter,
       createdBefore,
       keyword,
       status,
-    }) =>
-      await getHeadlines({
+    }) => {
+      // Validate that both userId and currentUser are not provided
+      if (userId && currentUser) {
+        throw new Error(
+          "Cannot provide both userId and currentUser. Use one or the other."
+        );
+      }
+
+      // Resolve currentUser to userId
+      const auth = getAuthContext();
+      let effectiveUserId = userId;
+      if (currentUser) {
+        if (!auth || auth.isApiKeyMode) {
+          throw new Error(
+            "currentUser=true requires OAuth authentication (not available in API key mode)"
+          );
+        }
+        effectiveUserId = auth.userId;
+      }
+
+      // Auto-inject userId if not provided
+      if (!effectiveUserId) {
+        effectiveUserId = auth && !auth.isApiKeyMode ? auth.userId : undefined;
+      }
+
+      return await getHeadlines({
         first,
         offset,
         headlineId,
         teamId,
         leadershipTeam,
-        userId,
+        userId: effectiveUserId,
         fromMeetings,
         createdAfter,
         createdBefore,
         keyword,
         status,
-      }),
+      });
+    },
     schema: {
       first: z
         .number()
@@ -481,6 +663,12 @@ export const toolDefinitions = [
           "If true, automatically use the leadership team ID (shortcut instead of calling getTeams first)"
         ),
       userId: z.string().optional().describe("Filter by user ID"),
+      currentUser: z
+        .boolean()
+        .optional()
+        .describe(
+          "If true, automatically filter by the authenticated user (shortcut instead of providing userId)"
+        ),
       status: z
         .enum(["Not shared", "Shared"])
         .optional()
@@ -513,24 +701,56 @@ export const toolDefinitions = [
   {
     name: "getMilestones",
     description:
-      "List Success.co milestones on rocks. Use leadershipTeam=true to automatically filter by the leadership team.",
+      "List Success.co milestones on rocks. Use leadershipTeam=true to automatically filter by the leadership team. Use currentUser=true to filter by the authenticated user.",
     readOnly: true,
+    annotations: {
+      title: "Get Milestones",
+      readOnlyHint: true,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
     handler: async ({
       first,
       offset,
       rockId,
       userId,
+      currentUser,
       teamId,
       leadershipTeam,
-    }) =>
-      await getMilestones({
+    }) => {
+      // Validate that both userId and currentUser are not provided
+      if (userId && currentUser) {
+        throw new Error(
+          "Cannot provide both userId and currentUser. Use one or the other."
+        );
+      }
+
+      // Resolve currentUser to userId
+      const auth = getAuthContext();
+      let effectiveUserId = userId;
+      if (currentUser) {
+        if (!auth || auth.isApiKeyMode) {
+          throw new Error(
+            "currentUser=true requires OAuth authentication (not available in API key mode)"
+          );
+        }
+        effectiveUserId = auth.userId;
+      }
+
+      // Auto-inject userId if not provided
+      if (!effectiveUserId) {
+        effectiveUserId = auth && !auth.isApiKeyMode ? auth.userId : undefined;
+      }
+
+      return await getMilestones({
         first,
         offset,
         rockId,
-        userId,
+        userId: effectiveUserId,
         teamId,
         leadershipTeam,
-      }),
+      });
+    },
     schema: {
       first: z
         .number()
@@ -541,6 +761,12 @@ export const toolDefinitions = [
       offset: z.number().int().optional().describe("Optional offset"),
       rockId: z.string().optional().describe("Filter by rock ID"),
       userId: z.string().optional().describe("Filter by user ID"),
+      currentUser: z
+        .boolean()
+        .optional()
+        .describe(
+          "If true, automatically filter by the authenticated user (shortcut instead of providing userId)"
+        ),
       teamId: z.string().optional().describe("Filter by team ID"),
       leadershipTeam: z
         .boolean()
@@ -556,6 +782,12 @@ export const toolDefinitions = [
     description:
       "Search Success.co data (supports: teams, users, todos, rocks, meetings, issues, headlines, visions).",
     readOnly: true,
+    annotations: {
+      title: "Search",
+      readOnlyHint: true,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
     handler: async (args) => await search(args),
     schema: {
       query: z
@@ -570,6 +802,12 @@ export const toolDefinitions = [
     name: "fetch",
     description: "Fetch a single Success.co item by id returned from search.",
     readOnly: true,
+    annotations: {
+      title: "Fetch Item",
+      readOnlyHint: true,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
     handler: async ({ id }) => await fetch({ id }),
     schema: {
       id: z.string().describe("The id from a previous search hit."),
@@ -579,34 +817,66 @@ export const toolDefinitions = [
   {
     name: "getScorecardMeasurables",
     description:
-      "Get scorecard data (KPIs) with their values. Use leadershipTeam=true to automatically filter by the leadership team. Provides comprehensive scorecard analysis with data fields and their corresponding values. Supports flexible date filtering: use startDate/endDate for precise ranges, or use periods/type for relative periods (e.g., 'last 13 weeks', 'last 6 months'). Defaults to last 13 weeks of data when no date parameters are provided. Use status to filter by ACTIVE (default), ARCHIVED, or ALL measurables.",
+      "Get scorecard data (KPIs) with their values. Use leadershipTeam=true to automatically filter by the leadership team. Use currentUser=true to filter by the authenticated user. Provides comprehensive scorecard analysis with data fields and their corresponding values. Supports flexible date filtering: use startDate/endDate for precise ranges, or use periods/type for relative periods (e.g., 'last 13 weeks', 'last 6 months'). Defaults to last 13 weeks of data when no date parameters are provided. Use status to filter by ACTIVE (default), ARCHIVED, or ALL measurables.",
     readOnly: true,
+    annotations: {
+      title: "Get Scorecard Measurables",
+      readOnlyHint: true,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
     handler: async ({
       first,
       offset,
       teamId,
       leadershipTeam,
       userId,
+      currentUser,
       type,
       dataFieldId,
       startDate,
       endDate,
       periods,
       status,
-    }) =>
-      await getScorecardMeasurables({
+    }) => {
+      // Validate that both userId and currentUser are not provided
+      if (userId && currentUser) {
+        throw new Error(
+          "Cannot provide both userId and currentUser. Use one or the other."
+        );
+      }
+
+      // Resolve currentUser to userId
+      const auth = getAuthContext();
+      let effectiveUserId = userId;
+      if (currentUser) {
+        if (!auth || auth.isApiKeyMode) {
+          throw new Error(
+            "currentUser=true requires OAuth authentication (not available in API key mode)"
+          );
+        }
+        effectiveUserId = auth.userId;
+      }
+
+      // Auto-inject userId if not provided
+      if (!effectiveUserId) {
+        effectiveUserId = auth && !auth.isApiKeyMode ? auth.userId : undefined;
+      }
+
+      return await getScorecardMeasurables({
         first,
         offset,
         teamId,
         leadershipTeam,
-        userId,
+        userId: effectiveUserId,
         type,
         dataFieldId,
         startDate,
         endDate,
         periods,
         status,
-      }),
+      });
+    },
     schema: {
       first: z
         .number()
@@ -623,6 +893,12 @@ export const toolDefinitions = [
           "If true, automatically use the leadership team ID (shortcut instead of calling getTeams first)"
         ),
       userId: z.string().optional().describe("Filter by user ID"),
+      currentUser: z
+        .boolean()
+        .optional()
+        .describe(
+          "If true, automatically filter by the authenticated user (shortcut instead of providing userId)"
+        ),
       type: z
         .enum(["weekly", "monthly", "quarterly", "annually"])
         .optional()
@@ -666,6 +942,12 @@ export const toolDefinitions = [
     description:
       "List Success.co meeting infos. Use leadershipTeam=true to automatically filter by the leadership team.",
     readOnly: true,
+    annotations: {
+      title: "Get Meeting Infos",
+      readOnlyHint: true,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
     handler: async ({
       first,
       offset,
@@ -707,6 +989,12 @@ export const toolDefinitions = [
     description:
       "List Success.co meeting agendas (templates for meetings). These are used to create meeting series. Use leadershipTeam=true to automatically filter by the leadership team. Use this to find agenda IDs needed for creating meeting infos or understanding meeting structure.",
     readOnly: true,
+    annotations: {
+      title: "Get Meeting Agendas",
+      readOnlyHint: true,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
     handler: async ({
       first,
       offset,
@@ -762,6 +1050,12 @@ export const toolDefinitions = [
     description:
       "Get the complete leadership Vision/Traction Organizer in one call. Fetches all VTO components (core values, core focus, goals, market strategies) in parallel for maximum efficiency.",
     readOnly: true,
+    annotations: {
+      title: "Get Leadership VTO",
+      readOnlyHint: true,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
     handler: async () => await getLeadershipVTO({}),
     schema: {},
     required: [],
@@ -771,6 +1065,12 @@ export const toolDefinitions = [
     description:
       "Get the complete accountability chart (organizational structure) for the company. Fetches all users, their roles, teams, and reporting relationships to answer questions like 'Who reports to the Integrator?' or 'What is the organizational structure?'. This tool provides a comprehensive view of the company's organizational hierarchy including key EOS roles like Integrator and Visionary.",
     readOnly: true,
+    annotations: {
+      title: "Get Accountability Chart",
+      readOnlyHint: true,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
     handler: async ({ teamId }) => await getAccountabilityChart({ teamId }),
     schema: {
       teamId: z
@@ -785,6 +1085,12 @@ export const toolDefinitions = [
     description:
       "Get comprehensive meeting details including all related items (headlines, todos, issues, ratings) for a specific meeting. Can fetch by specific meetingId OR use lastFinishedL10=true to automatically get the most recent FINISHED L10 meeting for a team. Only returns meetings with status 'FINISHED' when using lastFinishedL10. Returns the meeting with its associated headlines, todos, and issues in a single call. Perfect for queries like 'Show me the last L10 meeting for the leadership team' or 'What happened in our most recent Level 10 meeting?'",
     readOnly: true,
+    annotations: {
+      title: "Get Meeting Details",
+      readOnlyHint: true,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
     handler: async ({ meetingId, lastFinishedL10, teamId, leadershipTeam }) =>
       await getMeetingDetails({
         meetingId,
@@ -826,6 +1132,12 @@ export const toolDefinitions = [
     description:
       "Get People Analyzer sessions with user scores including 'Gets it', 'Wants it', 'Capacity to do it', 'Right person', and 'Right seat' ratings. Use leadershipTeam=true to automatically filter by the leadership team. Perfect for queries like 'Show me the people analyzer results for the leadership team', 'Who's rated below a 3 on Gets it?', or 'Summarize people analyzer trends for the last quarter'.",
     readOnly: true,
+    annotations: {
+      title: "Get People Analyzer Sessions",
+      readOnlyHint: true,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
     handler: async ({
       first,
       offset,
@@ -883,6 +1195,12 @@ export const toolDefinitions = [
     description:
       "Get Organization Checkup sessions with question scores. Perfect for queries like 'What's our current organization checkup score?', 'Which statements scored lowest?', or 'Compare this quarter's checkup to last quarter's'. Returns checkup sessions with all question answers and scores.",
     readOnly: true,
+    annotations: {
+      title: "Get Organization Checkups",
+      readOnlyHint: true,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
     handler: async ({
       first,
       offset,
@@ -927,26 +1245,59 @@ export const toolDefinitions = [
   {
     name: "createIssue",
     description:
-      "Create a new issue in Success.co. Use leadershipTeam=true to automatically assign to the leadership team. Perfect for queries like 'Add a new issue for customer churn increase to the leadership team'. Either teamId or leadershipTeam is REQUIRED.",
+      "Create a new issue in Success.co. Use leadershipTeam=true to automatically assign to the leadership team. Use currentUser=true to assign to the authenticated user. Perfect for queries like 'Add a new issue for customer churn increase to the leadership team'. Either teamId or leadershipTeam is REQUIRED.",
     readOnly: false,
+    annotations: {
+      title: "Create Issue",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: true,
+    },
     handler: async ({
       name,
       desc,
       teamId,
       leadershipTeam,
       userId,
+      currentUser,
       priority,
       type,
-    }) =>
-      await createIssue({
+    }) => {
+      // Validate that both userId and currentUser are not provided
+      if (userId && currentUser) {
+        throw new Error(
+          "Cannot provide both userId and currentUser. Use one or the other."
+        );
+      }
+
+      // Resolve currentUser to userId
+      const auth = getAuthContext();
+      let effectiveUserId = userId;
+      if (currentUser) {
+        if (!auth || auth.isApiKeyMode) {
+          throw new Error(
+            "currentUser=true requires OAuth authentication (not available in API key mode)"
+          );
+        }
+        effectiveUserId = auth.userId;
+      }
+
+      // Auto-inject userId if not provided
+      if (!effectiveUserId) {
+        effectiveUserId = auth && !auth.isApiKeyMode ? auth.userId : undefined;
+      }
+
+      return await createIssue({
         name,
         desc,
         teamId,
         leadershipTeam,
-        userId,
+        userId: effectiveUserId,
         priority,
         type,
-      }),
+      });
+    },
     schema: {
       name: z.string().describe("Issue name/title (required)"),
       desc: z
@@ -971,6 +1322,12 @@ export const toolDefinitions = [
         .describe(
           "User ID to assign the issue to (optional - defaults to current user from API key)"
         ),
+      currentUser: z
+        .boolean()
+        .optional()
+        .describe(
+          "If true, automatically assign to the authenticated user (shortcut instead of providing userId)"
+        ),
       priority: z
         .enum(["No priority", "Low", "Medium", "High"])
         .optional()
@@ -991,6 +1348,13 @@ export const toolDefinitions = [
     description:
       "Create a new Rock (90-day priority) in Success.co. IMPORTANT: Rocks MUST be assigned to at least one team - either provide 'teamId' or set 'leadershipTeam=true'. Supports assigning to multiple teams with comma-separated IDs. New rocks always start with status 'ONTRACK'. Perfect for queries like 'Create a Rock for marketing and sales teams to launch referral program due next quarter'.",
     readOnly: false,
+    annotations: {
+      title: "Create Rock",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: true,
+    },
     handler: async ({
       name,
       desc,
@@ -1048,26 +1412,61 @@ export const toolDefinitions = [
   {
     name: "createTodo",
     description:
-      "Create a new to-do in Success.co. Use leadershipTeam=true to automatically assign to the leadership team. Perfect for queries like 'Add a to-do to follow up with vendor' or 'Create a to-do for the leadership team to review Q4 budget'. Either teamId or leadershipTeam is REQUIRED.",
+      "Create a new to-do in Success.co. Use leadershipTeam=true to automatically assign to the leadership team. Use currentUser=true to assign to the authenticated user. Perfect for queries like 'Add a to-do to follow up with vendor' or 'Create a to-do for the leadership team to review Q4 budget'. Either teamId or leadershipTeam is REQUIRED.",
     readOnly: false,
+    annotations: {
+      title: "Create Todo",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: true,
+    },
     handler: async ({
       name,
       desc,
       teamId,
       leadershipTeam,
       userId,
+      currentUser,
       dueDate,
+      priority,
       type,
-    }) =>
-      await createTodo({
+    }) => {
+      // Validate that both userId and currentUser are not provided
+      if (userId && currentUser) {
+        throw new Error(
+          "Cannot provide both userId and currentUser. Use one or the other."
+        );
+      }
+
+      // Resolve currentUser to userId
+      const auth = getAuthContext();
+      let effectiveUserId = userId;
+      if (currentUser) {
+        if (!auth || auth.isApiKeyMode) {
+          throw new Error(
+            "currentUser=true requires OAuth authentication (not available in API key mode)"
+          );
+        }
+        effectiveUserId = auth.userId;
+      }
+
+      // Auto-inject userId if not provided
+      if (!effectiveUserId) {
+        effectiveUserId = auth && !auth.isApiKeyMode ? auth.userId : undefined;
+      }
+
+      return await createTodo({
         name,
         desc,
         teamId,
         leadershipTeam,
-        userId,
+        userId: effectiveUserId,
         dueDate,
+        priority,
         type,
-      }),
+      });
+    },
     schema: {
       name: z.string().describe("Todo name/title (required)"),
       desc: z
@@ -1092,10 +1491,24 @@ export const toolDefinitions = [
         .describe(
           "User ID to assign the todo to (optional - defaults to current user from API key)"
         ),
+      currentUser: z
+        .boolean()
+        .optional()
+        .describe(
+          "If true, automatically assign to the authenticated user (shortcut instead of providing userId)"
+        ),
       dueDate: z
         .string()
         .optional()
-        .describe("Due date in YYYY-MM-DD format (e.g., 2024-12-31). Defaults to 7 days from now if not provided."),
+        .describe(
+          "Due date in YYYY-MM-DD format (e.g., 2024-12-31). Defaults to 7 days from now if not provided."
+        ),
+      priority: z
+        .enum(["High", "Medium", "Low", "No priority"])
+        .optional()
+        .describe(
+          "Priority level: 'High', 'Medium', 'Low', or 'No priority' (defaults to 'No priority' if not provided)"
+        ),
       type: z
         .enum(["team", "private"])
         .optional()
@@ -1110,8 +1523,15 @@ export const toolDefinitions = [
     description:
       "Update an existing to-do in Success.co. Perfect for queries like 'Mark the to-do follow up with vendor as complete'. Use getTodos first to find the specific to-do ID by searching for the to-do name.",
     readOnly: false,
-    handler: async ({ todoId, todoStatusId, name, desc, dueDate }) =>
-      await updateTodo({ todoId, todoStatusId, name, desc, dueDate }),
+    annotations: {
+      title: "Update Todo",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
+    handler: async ({ todoId, todoStatusId, name, desc, dueDate, priority }) =>
+      await updateTodo({ todoId, todoStatusId, name, desc, dueDate, priority }),
     schema: {
       todoId: z
         .string()
@@ -1128,32 +1548,66 @@ export const toolDefinitions = [
         .string()
         .optional()
         .describe("Update the due date (YYYY-MM-DD format)"),
+      priority: z
+        .enum(["High", "Medium", "Low", "No priority"])
+        .optional()
+        .describe(
+          "Priority level: 'High', 'Medium', 'Low', or 'No priority'"
+        ),
     },
     required: ["todoId"],
   },
   {
     name: "createHeadline",
     description:
-      "Create a new headline in Success.co. Use leadershipTeam=true to automatically associate with the leadership team. Perfect for queries like 'Add a headline: Won major client contract with ABC Corp'. Headlines are good news or updates shared during meetings. IMPORTANT: You must provide either 'teamId' or 'leadershipTeam=true'.",
+      "Create a new headline in Success.co. Use leadershipTeam=true to automatically associate with the leadership team. Use currentUser=true to assign to the authenticated user. Perfect for queries like 'Add a headline: Won major client contract with ABC Corp'. Headlines are good news or updates shared during meetings. IMPORTANT: You must provide either 'teamId' or 'leadershipTeam=true'.",
     readOnly: false,
+    annotations: {
+      title: "Create Headline",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: true,
+    },
     handler: async ({
       name,
       desc,
       teamId,
       leadershipTeam,
       userId,
+      currentUser,
       status,
       isCascadingMessage,
-    }) =>
-      await createHeadline({
+    }) => {
+      // Validate that both userId and currentUser are not provided
+      if (userId && currentUser) {
+        throw new Error(
+          "Cannot provide both userId and currentUser. Use one or the other."
+        );
+      }
+
+      // Resolve currentUser to userId
+      const auth = getAuthContext();
+      let effectiveUserId = userId;
+      if (currentUser) {
+        if (!auth || auth.isApiKeyMode) {
+          throw new Error(
+            "currentUser=true requires OAuth authentication (not available in API key mode)"
+          );
+        }
+        effectiveUserId = auth.userId;
+      }
+
+      return await createHeadline({
         name,
         desc,
         teamId,
         leadershipTeam,
-        userId,
+        userId: effectiveUserId,
         status,
         isCascadingMessage,
-      }),
+      });
+    },
     schema: {
       name: z
         .string()
@@ -1182,6 +1636,12 @@ export const toolDefinitions = [
         .describe(
           "User ID to associate with (use getUsers to find the user ID)"
         ),
+      currentUser: z
+        .boolean()
+        .optional()
+        .describe(
+          "If true, automatically assign to the authenticated user (shortcut instead of providing userId)"
+        ),
       status: z
         .enum(["Shared", "Not shared"])
         .optional()
@@ -1200,6 +1660,13 @@ export const toolDefinitions = [
     description:
       "Create a new meeting instance in Success.co. Perfect for queries like 'Schedule a Level 10 meeting for the leadership team next Monday'. Provide either meetingAgendaId or meetingAgendaType (e.g., 'WEEKLY-L10', 'QUARTERLY-PULSING-AGENDA'). The tool will create a meeting info and then the meeting automatically. Meeting status defaults to 'NOT-STARTED', and start/end times are set when the meeting is started/ended.",
     readOnly: false,
+    annotations: {
+      title: "Create Meeting",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: true,
+    },
     handler: async ({
       date,
       meetingAgendaId,
@@ -1265,8 +1732,15 @@ export const toolDefinitions = [
   {
     name: "updateIssue",
     description:
-      "Update an existing issue in Success.co. Use leadershipTeam=true to reassign to the leadership team. Perfect for queries like 'Close the issue about pricing inconsistencies' or 'Change the priority of the customer churn issue to High'. Use getIssues first to find the issue ID.",
+      "Update an existing issue in Success.co. Use leadershipTeam=true to reassign to the leadership team. Use currentUser=true to reassign to the authenticated user. Perfect for queries like 'Close the issue about pricing inconsistencies' or 'Change the priority of the customer churn issue to High'. Use getIssues first to find the issue ID.",
     readOnly: false,
+    annotations: {
+      title: "Update Issue",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
     handler: async ({
       issueId,
       name,
@@ -1275,18 +1749,39 @@ export const toolDefinitions = [
       teamId,
       leadershipTeam,
       userId,
+      currentUser,
       priority,
-    }) =>
-      await updateIssue({
+    }) => {
+      // Validate that both userId and currentUser are not provided
+      if (userId && currentUser) {
+        throw new Error(
+          "Cannot provide both userId and currentUser. Use one or the other."
+        );
+      }
+
+      // Resolve currentUser to userId
+      const auth = getAuthContext();
+      let effectiveUserId = userId;
+      if (currentUser) {
+        if (!auth || auth.isApiKeyMode) {
+          throw new Error(
+            "currentUser=true requires OAuth authentication (not available in API key mode)"
+          );
+        }
+        effectiveUserId = auth.userId;
+      }
+
+      return await updateIssue({
         issueId,
         name,
         desc,
         issueStatusId,
         teamId,
         leadershipTeam,
-        userId,
+        userId: effectiveUserId,
         priority,
-      }),
+      });
+    },
     schema: {
       issueId: z
         .string()
@@ -1312,6 +1807,12 @@ export const toolDefinitions = [
         .string()
         .optional()
         .describe("Reassign to a different user (use getUsers to find ID)"),
+      currentUser: z
+        .boolean()
+        .optional()
+        .describe(
+          "If true, automatically reassign to the authenticated user (shortcut instead of providing userId)"
+        ),
       priority: z
         .enum(["No priority", "Low", "Medium", "High"])
         .optional()
@@ -1324,18 +1825,54 @@ export const toolDefinitions = [
   {
     name: "updateRock",
     description:
-      "Update an existing Rock in Success.co. Perfect for queries like 'Mark the referral program rock as complete', 'Change the due date for the marketing rock to next month', or 'Reassign this rock to the Sales and Marketing teams'. Use getRocks first to find the rock ID. IMPORTANT: When updating team assignments, the teamId parameter REPLACES all existing team assignments - any teams not listed will be removed. Omit teamId to leave team assignments unchanged.",
+      "Update an existing Rock in Success.co. Use currentUser=true to reassign to the authenticated user. Perfect for queries like 'Mark the referral program rock as complete', 'Change the due date for the marketing rock to next month', or 'Reassign this rock to the Sales and Marketing teams'. Use getRocks first to find the rock ID. IMPORTANT: When updating team assignments, the teamId parameter REPLACES all existing team assignments - any teams not listed will be removed. Omit teamId to leave team assignments unchanged.",
     readOnly: false,
-    handler: async ({ rockId, name, desc, status, dueDate, userId, teamId }) =>
-      await updateRock({
+    annotations: {
+      title: "Update Rock",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
+    handler: async ({
+      rockId,
+      name,
+      desc,
+      status,
+      dueDate,
+      userId,
+      currentUser,
+      teamId,
+    }) => {
+      // Validate that both userId and currentUser are not provided
+      if (userId && currentUser) {
+        throw new Error(
+          "Cannot provide both userId and currentUser. Use one or the other."
+        );
+      }
+
+      // Resolve currentUser to userId
+      const auth = getAuthContext();
+      let effectiveUserId = userId;
+      if (currentUser) {
+        if (!auth || auth.isApiKeyMode) {
+          throw new Error(
+            "currentUser=true requires OAuth authentication (not available in API key mode)"
+          );
+        }
+        effectiveUserId = auth.userId;
+      }
+
+      return await updateRock({
         rockId,
         name,
         desc,
         status,
         dueDate,
-        userId,
+        userId: effectiveUserId,
         teamId,
-      }),
+      });
+    },
     schema: {
       rockId: z
         .string()
@@ -1356,6 +1893,12 @@ export const toolDefinitions = [
         .string()
         .optional()
         .describe("Reassign to a different user (use getUsers to find ID)"),
+      currentUser: z
+        .boolean()
+        .optional()
+        .describe(
+          "If true, automatically reassign to the authenticated user (shortcut instead of providing userId)"
+        ),
       teamId: z
         .string()
         .optional()
@@ -1368,8 +1911,15 @@ export const toolDefinitions = [
   {
     name: "updateHeadline",
     description:
-      "Update an existing headline in Success.co. Use leadershipTeam=true to reassign to the leadership team. Perfect for queries like 'Edit the ABC Corp headline to add more details' or 'Change the headline status'. Use getHeadlines first to find the headline ID.",
+      "Update an existing headline in Success.co. Use leadershipTeam=true to reassign to the leadership team. Use currentUser=true to reassign to the authenticated user. Perfect for queries like 'Edit the ABC Corp headline to add more details' or 'Change the headline status'. Use getHeadlines first to find the headline ID.",
     readOnly: false,
+    annotations: {
+      title: "Update Headline",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
     handler: async ({
       headlineId,
       name,
@@ -1378,18 +1928,39 @@ export const toolDefinitions = [
       teamId,
       leadershipTeam,
       userId,
+      currentUser,
       isCascadingMessage,
-    }) =>
-      await updateHeadline({
+    }) => {
+      // Validate that both userId and currentUser are not provided
+      if (userId && currentUser) {
+        throw new Error(
+          "Cannot provide both userId and currentUser. Use one or the other."
+        );
+      }
+
+      // Resolve currentUser to userId
+      const auth = getAuthContext();
+      let effectiveUserId = userId;
+      if (currentUser) {
+        if (!auth || auth.isApiKeyMode) {
+          throw new Error(
+            "currentUser=true requires OAuth authentication (not available in API key mode)"
+          );
+        }
+        effectiveUserId = auth.userId;
+      }
+
+      return await updateHeadline({
         headlineId,
         name,
         desc,
         status,
         teamId,
         leadershipTeam,
-        userId,
+        userId: effectiveUserId,
         isCascadingMessage,
-      }),
+      });
+    },
     schema: {
       headlineId: z
         .string()
@@ -1413,6 +1984,12 @@ export const toolDefinitions = [
         .string()
         .optional()
         .describe("Update user association (use getUsers to find ID)"),
+      currentUser: z
+        .boolean()
+        .optional()
+        .describe(
+          "If true, automatically reassign to the authenticated user (shortcut instead of providing userId)"
+        ),
       isCascadingMessage: z
         .boolean()
         .optional()
@@ -1425,6 +2002,13 @@ export const toolDefinitions = [
     description:
       "Update an existing meeting in Success.co. Perfect for queries like 'Reschedule next Monday's L10 to Tuesday' or 'Cancel tomorrow's meeting'. Use getMeetings or getMeetingDetails first to find the meeting ID. To cancel a meeting, set state to 'DELETED'.",
     readOnly: false,
+    annotations: {
+      title: "Update Meeting",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
     handler: async ({ meetingId, date, state }) =>
       await updateMeeting({
         meetingId,
@@ -1455,6 +2039,13 @@ export const toolDefinitions = [
     description:
       "Create or update a scorecard measurable entry. Perfect for natural language commands like 'Set Bugs reported by customers to 15' or 'Set Revenue to 5000'. The start date is automatically calculated based on the metric's frequency (weekly=Monday, monthly=1st of month, quarterly=quarter start, annually=Jan 1). With overwrite=true, it will update existing entries for the same period instead of erroring. Use getScorecardMeasurables to find the dataFieldId, or search by metric name.",
     readOnly: false,
+    annotations: {
+      title: "Create Scorecard Entry",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: true,
+    },
     handler: async ({ dataFieldId, value, startDate, note, overwrite }) =>
       await createScorecardMeasurableEntry({
         dataFieldId,
@@ -1500,6 +2091,13 @@ export const toolDefinitions = [
     description:
       "Update an existing scorecard measurable entry (data value). Perfect for queries like 'Change the Revenue entry from last week to 300' or 'Update the note on this month's leads entry'. Note: Entries cannot be moved to different periods - only value and note can be updated. Use getScorecardMeasurables to find entries and their IDs.",
     readOnly: false,
+    annotations: {
+      title: "Update Scorecard Entry",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
     handler: async ({ entryId, value, note }) =>
       await updateScorecardMeasurableEntry({
         entryId,
@@ -1532,6 +2130,13 @@ export const toolDefinitions = [
     description:
       "Delete a todo in Success.co. This marks the todo as DELETED. Perfect for queries like 'Delete the todo about follow up with vendor'. Use getTodos first to find the todo ID by searching for the todo name.",
     readOnly: false,
+    annotations: {
+      title: "Delete Todo",
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
     handler: async ({ todoId }) => await deleteTodo({ todoId }),
     schema: {
       todoId: z
@@ -1547,6 +2152,13 @@ export const toolDefinitions = [
     description:
       "Delete an issue in Success.co. This marks the issue as DELETED. Perfect for queries like 'Delete the issue about customer churn'. Use getIssues first to find the issue ID by searching for the issue name.",
     readOnly: false,
+    annotations: {
+      title: "Delete Issue",
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
     handler: async ({ issueId }) => await deleteIssue({ issueId }),
     schema: {
       issueId: z
@@ -1562,6 +2174,13 @@ export const toolDefinitions = [
     description:
       "Delete a rock in Success.co. This marks the rock as DELETED. Perfect for queries like 'Delete the marketing rock'. Use getRocks first to find the rock ID by searching for the rock name.",
     readOnly: false,
+    annotations: {
+      title: "Delete Rock",
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
     handler: async ({ rockId }) => await deleteRock({ rockId }),
     schema: {
       rockId: z
@@ -1577,6 +2196,13 @@ export const toolDefinitions = [
     description:
       "Delete a headline in Success.co. This marks the headline as DELETED. Perfect for queries like 'Delete the headline about ABC Corp'. Use getHeadlines first to find the headline ID by searching for the headline text.",
     readOnly: false,
+    annotations: {
+      title: "Delete Headline",
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
     handler: async ({ headlineId }) => await deleteHeadline({ headlineId }),
     schema: {
       headlineId: z
@@ -1590,10 +2216,42 @@ export const toolDefinitions = [
   {
     name: "createMilestone",
     description:
-      "Create a new milestone on a rock in Success.co. Milestones are checkpoints or sub-tasks within a rock. Perfect for queries like 'Add a milestone to the referral program rock'. Use getRocks to find the rock ID.",
+      "Create a new milestone on a rock in Success.co. Use currentUser=true to assign to the authenticated user. Milestones are checkpoints or sub-tasks within a rock. Perfect for queries like 'Add a milestone to the referral program rock'. Use getRocks to find the rock ID.",
     readOnly: false,
-    handler: async ({ name, rockId, dueDate, userId }) =>
-      await createMilestone({ name, rockId, dueDate, userId }),
+    annotations: {
+      title: "Create Milestone",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: true,
+    },
+    handler: async ({ name, rockId, dueDate, userId, currentUser }) => {
+      // Validate that both userId and currentUser are not provided
+      if (userId && currentUser) {
+        throw new Error(
+          "Cannot provide both userId and currentUser. Use one or the other."
+        );
+      }
+
+      // Resolve currentUser to userId
+      const auth = getAuthContext();
+      let effectiveUserId = userId;
+      if (currentUser) {
+        if (!auth || auth.isApiKeyMode) {
+          throw new Error(
+            "currentUser=true requires OAuth authentication (not available in API key mode)"
+          );
+        }
+        effectiveUserId = auth.userId;
+      }
+
+      return await createMilestone({
+        name,
+        rockId,
+        dueDate,
+        userId: effectiveUserId,
+      });
+    },
     schema: {
       name: z.string().describe("Milestone name/description (required)"),
       rockId: z
@@ -1611,28 +2269,62 @@ export const toolDefinitions = [
         .describe(
           "User ID to assign the milestone to (optional - use getUsers to find the user ID)"
         ),
+      currentUser: z
+        .boolean()
+        .optional()
+        .describe(
+          "If true, automatically assign to the authenticated user (shortcut instead of providing userId)"
+        ),
     },
     required: ["name", "rockId"],
   },
   {
     name: "updateMilestone",
     description:
-      "Update a milestone in Success.co. Perfect for queries like 'Mark the milestone complete' or 'Change the due date of the milestone'. Use getMilestones to find the milestone ID.",
+      "Update a milestone in Success.co. Use currentUser=true to reassign to the authenticated user. Perfect for queries like 'Mark the milestone complete' or 'Change the due date of the milestone'. Use getMilestones to find the milestone ID.",
     readOnly: false,
+    annotations: {
+      title: "Update Milestone",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
     handler: async ({
       milestoneId,
       name,
       dueDate,
       userId,
+      currentUser,
       milestoneStatusId,
-    }) =>
-      await updateMilestone({
+    }) => {
+      // Validate that both userId and currentUser are not provided
+      if (userId && currentUser) {
+        throw new Error(
+          "Cannot provide both userId and currentUser. Use one or the other."
+        );
+      }
+
+      // Resolve currentUser to userId
+      const auth = getAuthContext();
+      let effectiveUserId = userId;
+      if (currentUser) {
+        if (!auth || auth.isApiKeyMode) {
+          throw new Error(
+            "currentUser=true requires OAuth authentication (not available in API key mode)"
+          );
+        }
+        effectiveUserId = auth.userId;
+      }
+
+      return await updateMilestone({
         milestoneId,
         name,
         dueDate,
-        userId,
+        userId: effectiveUserId,
         milestoneStatusId,
-      }),
+      });
+    },
     schema: {
       milestoneId: z
         .string()
@@ -1648,6 +2340,12 @@ export const toolDefinitions = [
         .string()
         .optional()
         .describe("Reassign to a different user (use getUsers to find ID)"),
+      currentUser: z
+        .boolean()
+        .optional()
+        .describe(
+          "If true, automatically reassign to the authenticated user (shortcut instead of providing userId)"
+        ),
       milestoneStatusId: z
         .enum(["TODO", "COMPLETE"])
         .optional()
@@ -1660,6 +2358,13 @@ export const toolDefinitions = [
     description:
       "Delete a milestone in Success.co. This marks the milestone as DELETED. Perfect for queries like 'Delete the first milestone on the marketing rock'. Use getMilestones to find the milestone ID.",
     readOnly: false,
+    annotations: {
+      title: "Delete Milestone",
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
     handler: async ({ milestoneId }) => await deleteMilestone({ milestoneId }),
     schema: {
       milestoneId: z
@@ -1673,26 +2378,53 @@ export const toolDefinitions = [
   {
     name: "getComments",
     description:
-      "Get comments for entities in Success.co. Comments can be attached to todos, issues, rocks, milestones, meetings, and other entities. Perfect for queries like 'Show me comments on this issue' or 'Get all comments from last week'. Use specific entity filters to narrow results.",
+      "Get comments for entities in Success.co. Comments can be attached to todos, issues, rocks, milestones, meetings, and other entities. Perfect for queries like 'Show me comments on this issue' or 'Get all comments from last week'. Use currentUser=true to filter by the authenticated user. Use specific entity filters to narrow results.",
     readOnly: true,
+    annotations: {
+      title: "Get Comments",
+      readOnlyHint: true,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
     handler: async ({
       first,
       offset,
       entityType,
       entityId,
       userId,
+      currentUser,
       createdAfter,
       createdBefore,
-    }) =>
-      await getComments({
+    }) => {
+      // Validate that both userId and currentUser are not provided
+      if (userId && currentUser) {
+        throw new Error(
+          "Cannot provide both userId and currentUser. Use one or the other."
+        );
+      }
+
+      // Resolve currentUser to userId
+      const auth = getAuthContext();
+      let effectiveUserId = userId;
+      if (currentUser) {
+        if (!auth || auth.isApiKeyMode) {
+          throw new Error(
+            "currentUser=true requires OAuth authentication (not available in API key mode)"
+          );
+        }
+        effectiveUserId = auth.userId;
+      }
+
+      return await getComments({
         first,
         offset,
         entityType,
         entityId,
-        userId,
+        userId: effectiveUserId,
         createdAfter,
         createdBefore,
-      }),
+      });
+    },
     schema: {
       first: z
         .number()
@@ -1717,6 +2449,12 @@ export const toolDefinitions = [
         .string()
         .optional()
         .describe("Filter by comment author (user ID)"),
+      currentUser: z
+        .boolean()
+        .optional()
+        .describe(
+          "If true, automatically filter by the authenticated user (shortcut instead of providing userId)"
+        ),
       createdAfter: z
         .string()
         .optional()
@@ -1737,6 +2475,13 @@ export const toolDefinitions = [
     description:
       "Create a new comment on an entity in Success.co. Comments can be added to todos, issues, rocks, milestones, meetings, and other entities. Perfect for queries like 'Add a comment to the issue about customer churn' or 'Comment on the marketing rock'.",
     readOnly: false,
+    annotations: {
+      title: "Create Comment",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: true,
+    },
     handler: async ({ comment, entityType, entityId }) =>
       await createComment({ comment, entityType, entityId }),
     schema: {
@@ -1759,6 +2504,13 @@ export const toolDefinitions = [
     description:
       "Update an existing comment in Success.co. Perfect for queries like 'Edit my comment on the issue' or 'Update the comment text'. Use getComments to find the comment ID.",
     readOnly: false,
+    annotations: {
+      title: "Update Comment",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
     handler: async ({ commentId, comment }) =>
       await updateComment({ commentId, comment }),
     schema: {
@@ -1776,6 +2528,13 @@ export const toolDefinitions = [
     description:
       "Delete a comment in Success.co. This marks the comment as DELETED. Perfect for queries like 'Delete my comment on the issue'. Use getComments to find the comment ID.",
     readOnly: false,
+    annotations: {
+      title: "Delete Comment",
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
     handler: async ({ commentId }) => await deleteComment({ commentId }),
     schema: {
       commentId: z
@@ -1791,6 +2550,12 @@ export const toolDefinitions = [
     description:
       "Get comprehensive execution health overview across rocks, issues, and todos. Returns health score (0-100), status breakdown by entity type, blockers, and recommendations. Perfect for answering 'How is my company executing?', 'What's blocking us?', or 'Give me an execution overview'. Use leadershipTeam=true to focus on leadership team. This is the best tool for high-level insights about company execution.",
     readOnly: true,
+    annotations: {
+      title: "Get Execution Health",
+      readOnlyHint: true,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
     handler: async ({ teamId, leadershipTeam }) =>
       await getExecutionHealth({ teamId, leadershipTeam }),
     schema: {
@@ -1810,10 +2575,45 @@ export const toolDefinitions = [
   {
     name: "getUserWorkload",
     description:
-      "Get aggregated workload analysis by user showing counts of open rocks, issues, and todos. Returns summary statistics including average workload and overloaded users (those with 150% more than average). Perfect for answering 'Who's overloaded?', 'Show me team workload distribution', or 'How many items does each person have?'. Use leadershipTeam=true to analyze leadership team workload.",
+      "Get aggregated workload analysis by user showing counts of open rocks, issues, and todos. Returns summary statistics including average workload and overloaded users (those with 150% more than average). Perfect for answering 'Who's overloaded?', 'Show me team workload distribution', or 'How many items does each person have?'. Use leadershipTeam=true to analyze leadership team workload. Use currentUser=true to analyze only the authenticated user.",
     readOnly: true,
-    handler: async ({ teamId, leadershipTeam, userId }) =>
-      await getUserWorkload({ teamId, leadershipTeam, userId }),
+    annotations: {
+      title: "Get User Workload",
+      readOnlyHint: true,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
+    handler: async ({ teamId, leadershipTeam, userId, currentUser }) => {
+      // Validate that both userId and currentUser are not provided
+      if (userId && currentUser) {
+        throw new Error(
+          "Cannot provide both userId and currentUser. Use one or the other."
+        );
+      }
+
+      // Resolve currentUser to userId
+      const auth = getAuthContext();
+      let effectiveUserId = userId;
+      if (currentUser) {
+        if (!auth || auth.isApiKeyMode) {
+          throw new Error(
+            "currentUser=true requires OAuth authentication (not available in API key mode)"
+          );
+        }
+        effectiveUserId = auth.userId;
+      }
+
+      // Auto-inject userId if not provided
+      if (!effectiveUserId) {
+        effectiveUserId = auth && !auth.isApiKeyMode ? auth.userId : undefined;
+      }
+
+      return await getUserWorkload({
+        teamId,
+        leadershipTeam,
+        userId: effectiveUserId,
+      });
+    },
     schema: {
       teamId: z
         .string()
@@ -1829,6 +2629,12 @@ export const toolDefinitions = [
         .string()
         .optional()
         .describe("Get workload for specific user (optional)"),
+      currentUser: z
+        .boolean()
+        .optional()
+        .describe(
+          "If true, automatically get workload for the authenticated user (shortcut instead of providing userId)"
+        ),
     },
     required: [],
   },
@@ -1837,6 +2643,12 @@ export const toolDefinitions = [
     description:
       "Get high-level company insights combining execution health, quarterly rock progress, and key metrics. Returns overall health score, current quarter completion rate, days remaining in quarter, execution metrics across all entity types, blockers, and actionable insights. Perfect for answering 'Based on the data you can see, give me some insights about my company', 'How are we doing overall?', or 'What should I focus on?'. This is the best tool for comprehensive company overview and strategic insights.",
     readOnly: true,
+    annotations: {
+      title: "Get Company Insights",
+      readOnlyHint: true,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
     handler: async () => await getCompanyInsights({}),
     schema: {},
     required: [],
@@ -1848,7 +2660,51 @@ export const toolDefinitions = [
  */
 export function registerToolsOnServer(server) {
   toolDefinitions.forEach((tool) => {
-    server.tool(tool.name, tool.description, tool.schema, tool.handler);
+    // Wrap the handler to track stats
+    const wrappedHandler = async (params) => {
+      const startTime = Date.now();
+      let success = true;
+      let error = null;
+      let result;
+
+      try {
+        // Execute the original handler
+        result = await tool.handler(params);
+        return result;
+      } catch (err) {
+        success = false;
+        error = err.message;
+        throw err; // Re-throw to maintain original error behavior
+      } finally {
+        const duration = Date.now() - startTime;
+
+        // Get auth context for tracking
+        const auth = getAuthContext();
+        const userId = auth?.userId || null;
+        const companyId = auth?.companyId || null;
+
+        // Track the call asynchronously (fire-and-forget)
+        trackToolCall({
+          toolName: tool.name,
+          userId,
+          companyId,
+          parameters: params,
+          duration,
+          success,
+          error,
+        }).catch(() => {
+          // Silently ignore stats tracking errors
+        });
+      }
+    };
+
+    server.tool(
+      tool.name,
+      tool.description,
+      tool.schema,
+      wrappedHandler,
+      tool.annotations ? { annotations: tool.annotations } : undefined
+    );
   });
 }
 

@@ -5,6 +5,7 @@ import {
   callSuccessCoGraphQL,
   getLeadershipTeamId,
   getUserContext,
+  getAuthContext,
 } from "./core.js";
 import {
   validateStateId,
@@ -213,12 +214,17 @@ export async function getTodos(args) {
     new Date(t.dueDate) <= sevenDaysFromNow
   ).length;
 
+  // Get current user context
+  const auth = getAuthContext();
+  const currentUserId = auth && !auth.isApiKeyMode ? auth.userId : null;
+
   return {
     content: [
       {
         type: "text",
         text: JSON.stringify({
           summary,
+          currentUserId,
           results: todos.map((todo) => ({
             id: todo.id,
             name: todo.name,
@@ -249,6 +255,7 @@ export async function getTodos(args) {
  * @param {boolean} [args.leadershipTeam] - If true, automatically use the leadership team ID (REQUIRED unless teamId is provided)
  * @param {string} [args.userId] - User ID to assign the todo to (defaults to current user from API key)
  * @param {string} [args.dueDate] - Due date in YYYY-MM-DD format (defaults to 7 days from now if not provided)
+ * @param {string} [args.priority] - Priority level: 'High', 'Medium', 'Low', or 'No priority' (defaults to 'No priority')
  * @param {string} [args.type] - Todo type: "team" or "private" (defaults to "team")
  * @returns {Promise<{content: Array<{type: string, text: string}>}>}
  */
@@ -260,7 +267,7 @@ export async function createTodo(args) {
     desc = "",
     userId: providedUserId,
     dueDate: providedDueDate,
-    priority = "Medium",
+    priority = "No priority",
     type = "team",
   } = args;
 
@@ -430,10 +437,11 @@ export async function createTodo(args) {
  * @param {string} [args.name] - Update todo name
  * @param {string} [args.desc] - Update todo description
  * @param {string} [args.dueDate] - Update due date
+ * @param {string} [args.priority] - Priority level: 'High', 'Medium', 'Low', or 'No priority'
  * @returns {Promise<{content: Array<{type: string, text: string}>}>}
  */
 export async function updateTodo(args) {
-  const { todoId, todoStatusId, name, desc, dueDate } = args;
+  const { todoId, todoStatusId, name, desc, dueDate, priority } = args;
 
   if (!todoId) {
     return {
@@ -480,13 +488,14 @@ export async function updateTodo(args) {
   if (name) updates.name = name;
   if (desc !== undefined) updates.desc = desc;
   if (dueDate) updates.dueDate = dueDate;
+  if (priority) updates.priorityNo = mapPriorityToNumber(priority);
 
   if (Object.keys(updates).length === 0) {
     return {
       content: [
         {
           type: "text",
-          text: "Error: No updates specified. Provide at least one field to update (todoStatusId, name, desc, or dueDate)",
+          text: "Error: No updates specified. Provide at least one field to update (todoStatusId, name, desc, dueDate, or priority)",
         },
       ],
     };
