@@ -194,6 +194,13 @@ DB_PASS=your-password
 # Or use DATABASE_URL
 DATABASE_URL=postgresql://user:password@host:port/database
 
+# Redis (optional - for stats tracking)
+REDIS_CONN_STRING=redis://localhost:6379
+
+# Stats tracking (optional)
+MCP_STATS_ENABLED=true          # Enable/disable stats tracking (default: true)
+MCP_STATS_MAX_CALLS=200         # Number of recent calls to store (default: 200)
+
 # Development mode with API key (optional)
 NODE_ENV=development
 DEVMODE_SUCCESS_USE_API_KEY=true
@@ -201,6 +208,8 @@ DEVMODE_SUCCESS_API_KEY=your-api-key-here
 ```
 
 **Note:** Without database configuration, you can still use read-only tools, but create/update operations will fail.
+
+**Stats Tracking:** Redis is optional. If not configured, stats tracking is automatically disabled and the MCP server operates normally.
 
 ---
 
@@ -1244,6 +1253,91 @@ To expose your local MCP server for remote testing or external access:
 ```bash
 lsof -ti:6277 | xargs kill -9
 ```
+
+---
+
+## 📊 Stats Tracking & Monitoring
+
+The MCP server includes optional Redis-based stats tracking to monitor usage and performance. This feature is designed for internal monitoring and admin purposes.
+
+### What Gets Tracked
+
+When Redis is configured, the server automatically tracks:
+
+- **Recent Tool Calls**: Last N calls (configurable, default 200) with full details:
+  - Tool name, user ID, company ID
+  - Parameters passed to the tool
+  - Execution duration (milliseconds)
+  - Success/failure status and error messages
+  - Timestamp
+
+- **Customer Usage Metrics**:
+  - 30-day usage by company (with automatic TTL)
+  - All-time usage by company
+
+### Accessing Stats
+
+Stats are exposed via an admin-only endpoint in the `serviceapi-success-co` service:
+
+**Endpoint**: `GET /services/mcp/stats.json`
+
+**Authentication**: Requires session authentication with `@success.co` email domain
+
+**Response Format**:
+```json
+{
+  "recentCalls": [
+    {
+      "toolName": "getTeams",
+      "timestamp": "2025-11-05T10:30:00Z",
+      "userId": "123",
+      "companyId": "456",
+      "parameters": {"first": 50},
+      "duration": 245,
+      "success": true,
+      "error": null
+    }
+  ],
+  "topCustomers30d": [
+    {"companyId": "456", "calls": 1250}
+  ],
+  "topCustomersAllTime": [
+    {"companyId": "456", "calls": 5432}
+  ],
+  "meta": {
+    "maxRecentCalls": 200,
+    "generatedAt": "2025-11-05T10:35:00Z"
+  }
+}
+```
+
+### Configuration
+
+Stats tracking can be controlled via environment variables:
+
+```bash
+# Enable/disable stats tracking
+MCP_STATS_ENABLED=true          # Default: true
+
+# Number of recent calls to store
+MCP_STATS_MAX_CALLS=200         # Default: 200
+
+# Redis connection (required for stats)
+REDIS_CONN_STRING=redis://localhost:6379
+```
+
+**Note**: If Redis is not configured, stats tracking is automatically disabled without affecting MCP server functionality.
+
+### Privacy Considerations
+
+Stats tracking is designed for operational monitoring:
+- ✅ Tracks tool usage patterns and performance
+- ✅ Helps identify popular features and optimize performance
+- ✅ Assists with debugging and error analysis
+- ⚠️ Stores full parameters (may include user/company IDs)
+- ⚠️ Admin-only access via secure endpoint
+
+For production deployments, ensure Redis is properly secured and stats access is restricted to authorized administrators.
 
 ---
 
