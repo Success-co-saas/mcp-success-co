@@ -14,7 +14,7 @@ This MCP server provides comprehensive access to Success.co's EOS (Entrepreneuri
 - **Partner Review**: Available for review by integration partners (e.g., Anthropic for MCP Directory)
 - **Compliance & Auditing**: Security reviews and compliance verification
 
-**Service Model**: 
+**Service Model**:
 
 - ✅ **Customers connect to**: `https://www.success.co/mcp` (hosted by Success.co)
 - ✅ **Authentication**: OAuth 2.0 via Success.co account
@@ -59,7 +59,7 @@ End users connect to our hosted MCP service at `https://www.success.co/mcp` usin
    ```
 
    **Why?** Claude Desktop connects directly to the MCP server via STDIO, bypassing the OAuth flow. You must use the dev-mode API key method for authentication.
-   
+
    ⚠️ **SECURITY WARNING**: Dev-mode API keys are for LOCAL DEVELOPMENT ONLY. Never use API key mode in production or commit your API key to version control.
 
 3. **Configure Claude Desktop:**
@@ -129,6 +129,10 @@ Use the MCP Inspector for interactive testing and debugging of the local develop
 
 3. **Connect to:** `http://localhost:5174/mcp`
 
+   You will need to configure:
+   Client ID: "mcp-client-default"
+   Client Secret: "mcp-secret-change-this-in-production"
+
 4. **Authenticate** using OAuth when prompted
 
 ---
@@ -167,7 +171,8 @@ DEVMODE_SUCCESS_API_KEY=your-api-key-here
 NODE_ENV=development
 ```
 
-⚠️ **SECURITY WARNING**: 
+⚠️ **SECURITY WARNING**:
+
 - API key mode is **STRICTLY FOR LOCAL DEVELOPMENT ONLY**
 - **NEVER** use API key mode in production environments
 - **NEVER** commit your API key to version control
@@ -1281,22 +1286,27 @@ Your privacy and data security are our top priorities. Our hosted MCP service is
 ## 📞 Support & Contact
 
 ### For End Users
+
 - **General Support**: support@success.co
 - **Website**: [https://www.success.co](https://www.success.co)
 - **Help Center**: [https://www.success.co/help](https://www.success.co/help)
 
 ### Privacy & Security
+
 - **Privacy Questions**: privacy@success.co
 - **Privacy Policy**: [https://www.success.co/privacy](https://www.success.co/privacy)
 - **Security Issues**: security@success.co (please do not disclose publicly)
 
 ### For Integration Partners
+
 - **Partner Inquiries**: partners@success.co
 - **Technical Documentation**: This repository
 - **API Questions**: developers@success.co
 
 ### For Anthropic MCP Directory Review
+
 For verification purposes, contact support@success.co with subject "Anthropic MCP Directory Review" to request:
+
 - Test account with sample EOS data
 - OAuth client credentials for testing
 - Technical support during review process
