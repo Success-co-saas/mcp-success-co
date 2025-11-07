@@ -203,9 +203,9 @@ export async function createMilestone(args) {
     return { content: [{ type: "text", text: result.error }] };
   }
 
-  const milestone = result.data?.data?.createMilestone?.milestone;
+  const createdMilestone = result.data?.data?.createMilestone?.milestone;
 
-  if (!milestone) {
+  if (!createdMilestone) {
     return {
       content: [
         {
@@ -216,6 +216,62 @@ export async function createMilestone(args) {
     };
   }
 
+  // Re-fetch the milestone to return it in the same format as getMilestones
+  const fetchQuery = `
+    query {
+      milestones(filter: {id: {equalTo: "${createdMilestone.id}"}}) {
+        nodes {
+          id
+          rockId
+          name
+          dueDate
+          userId
+          milestoneStatusId
+          createdAt
+          stateId
+          companyId
+        }
+      }
+    }
+  `;
+
+  const fetchResult = await callSuccessCoGraphQL(fetchQuery);
+  const context = await getUserContext();
+  const companyCode = context ? await getCompanyCode(context.companyId) : null;
+
+  if (!fetchResult.ok || !fetchResult.data?.data?.milestones?.nodes?.[0]) {
+    // Fallback to created data if re-fetch fails
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(
+            {
+              success: true,
+              message: "Milestone created successfully",
+              milestone: {
+                id: createdMilestone.id,
+                rockId: createdMilestone.rockId,
+                name: createdMilestone.name,
+                dueDate: createdMilestone.dueDate,
+                userId: createdMilestone.userId,
+                milestoneStatusId: createdMilestone.milestoneStatusId,
+                createdAt: createdMilestone.createdAt,
+                status: createdMilestone.stateId,
+                url: companyCode ? generateObjectUrl('rocks', createdMilestone.rockId, companyCode) : null,
+              },
+            },
+            null,
+            2
+          ),
+        },
+      ],
+    };
+  }
+
+  const milestone = fetchResult.data.data.milestones.nodes[0];
+
+  // Return in same format as getMilestones
   return {
     content: [
       {
@@ -224,7 +280,17 @@ export async function createMilestone(args) {
           {
             success: true,
             message: "Milestone created successfully",
-            milestone: milestone,
+            milestone: {
+              id: milestone.id,
+              rockId: milestone.rockId,
+              name: milestone.name,
+              dueDate: milestone.dueDate,
+              userId: milestone.userId,
+              milestoneStatusId: milestone.milestoneStatusId,
+              createdAt: milestone.createdAt,
+              status: milestone.stateId,
+              url: companyCode ? generateObjectUrl('rocks', milestone.rockId, companyCode) : null,
+            },
           },
           null,
           2
@@ -298,9 +364,9 @@ export async function updateMilestone(args) {
     return { content: [{ type: "text", text: result.error }] };
   }
 
-  const milestone = result.data?.data?.updateMilestone?.milestone;
+  const updatedMilestone = result.data?.data?.updateMilestone?.milestone;
 
-  if (!milestone) {
+  if (!updatedMilestone) {
     return {
       content: [
         {
@@ -311,6 +377,62 @@ export async function updateMilestone(args) {
     };
   }
 
+  // Re-fetch the milestone to return it in the same format as getMilestones
+  const fetchQuery = `
+    query {
+      milestones(filter: {id: {equalTo: "${milestoneId}"}}) {
+        nodes {
+          id
+          rockId
+          name
+          dueDate
+          userId
+          milestoneStatusId
+          createdAt
+          stateId
+          companyId
+        }
+      }
+    }
+  `;
+
+  const fetchResult = await callSuccessCoGraphQL(fetchQuery);
+  const context = await getUserContext();
+  const companyCode = context ? await getCompanyCode(context.companyId) : null;
+
+  if (!fetchResult.ok || !fetchResult.data?.data?.milestones?.nodes?.[0]) {
+    // Fallback to updated data if re-fetch fails
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(
+            {
+              success: true,
+              message: "Milestone updated successfully",
+              milestone: {
+                id: updatedMilestone.id,
+                rockId: updatedMilestone.rockId,
+                name: updatedMilestone.name,
+                dueDate: updatedMilestone.dueDate,
+                userId: updatedMilestone.userId,
+                milestoneStatusId: updatedMilestone.milestoneStatusId,
+                createdAt: updatedMilestone.createdAt,
+                status: updatedMilestone.stateId,
+                url: companyCode ? generateObjectUrl('rocks', updatedMilestone.rockId, companyCode) : null,
+              },
+            },
+            null,
+            2
+          ),
+        },
+      ],
+    };
+  }
+
+  const milestone = fetchResult.data.data.milestones.nodes[0];
+
+  // Return in same format as getMilestones
   return {
     content: [
       {
@@ -319,7 +441,17 @@ export async function updateMilestone(args) {
           {
             success: true,
             message: "Milestone updated successfully",
-            milestone: milestone,
+            milestone: {
+              id: milestone.id,
+              rockId: milestone.rockId,
+              name: milestone.name,
+              dueDate: milestone.dueDate,
+              userId: milestone.userId,
+              milestoneStatusId: milestone.milestoneStatusId,
+              createdAt: milestone.createdAt,
+              status: milestone.stateId,
+              url: companyCode ? generateObjectUrl('rocks', milestone.rockId, companyCode) : null,
+            },
           },
           null,
           2

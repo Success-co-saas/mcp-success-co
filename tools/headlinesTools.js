@@ -336,9 +336,9 @@ export async function createHeadline(args) {
     };
   }
 
-  const headline = result.data?.data?.createHeadline?.headline;
+  const createdHeadline = result.data?.data?.createHeadline?.headline;
 
-  if (!headline) {
+  if (!createdHeadline) {
     return {
       content: [
         {
@@ -353,15 +353,74 @@ export async function createHeadline(args) {
     };
   }
 
+  // Re-fetch the headline to return it in the same format as getHeadlines
+  const fetchQuery = `
+    query {
+      headlines(filter: {id: {equalTo: "${createdHeadline.id}"}}) {
+        nodes {
+          id
+          name
+          desc
+          userId
+          teamId
+          headlineStatusId
+          statusUpdatedAt
+          meetingId
+          createdAt
+          stateId
+          companyId
+          isCascadingMessage
+        }
+      }
+    }
+  `;
+
+  const fetchResult = await callSuccessCoGraphQL(fetchQuery);
+  const companyCode = await getCompanyCode(companyId);
+
   // Map internal status back to external value
   const externalStatusMapping = {
     DISCUSSED: "Shared",
     DISCUSS: "Not shared",
   };
 
-  // Get company code for URL generation
-  const companyCode = await getCompanyCode(companyId);
+  if (!fetchResult.ok || !fetchResult.data?.data?.headlines?.nodes?.[0]) {
+    // Fallback to created data if re-fetch fails
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(
+            {
+              success: true,
+              message: "Headline created successfully",
+              headline: {
+                id: createdHeadline.id,
+                name: createdHeadline.name,
+                description: createdHeadline.desc || "",
+                status:
+                  externalStatusMapping[createdHeadline.headlineStatusId] ||
+                  createdHeadline.headlineStatusId,
+                teamId: createdHeadline.teamId,
+                userId: createdHeadline.userId,
+                meetingId: createdHeadline.meetingId,
+                isCascadingMessage: createdHeadline.isCascadingMessage,
+                createdAt: createdHeadline.createdAt,
+                statusUpdatedAt: createdHeadline.statusUpdatedAt,
+                url: companyCode ? generateObjectUrl('headlines', createdHeadline.id, companyCode) : null,
+              },
+            },
+            null,
+            2
+          ),
+        },
+      ],
+    };
+  }
 
+  const headline = fetchResult.data.data.headlines.nodes[0];
+
+  // Return in same format as getHeadlines
   return {
     content: [
       {
@@ -371,10 +430,18 @@ export async function createHeadline(args) {
             success: true,
             message: "Headline created successfully",
             headline: {
-              ...headline,
-              headlineStatusId:
+              id: headline.id,
+              name: headline.name,
+              description: headline.desc || "",
+              status:
                 externalStatusMapping[headline.headlineStatusId] ||
                 headline.headlineStatusId,
+              teamId: headline.teamId,
+              userId: headline.userId,
+              meetingId: headline.meetingId,
+              isCascadingMessage: headline.isCascadingMessage,
+              createdAt: headline.createdAt,
+              statusUpdatedAt: headline.statusUpdatedAt,
               url: companyCode ? generateObjectUrl('headlines', headline.id, companyCode) : null,
             },
           },
@@ -516,9 +583,9 @@ export async function updateHeadline(args) {
     };
   }
 
-  const headline = result.data?.data?.updateHeadline?.headline;
+  const updatedHeadline = result.data?.data?.updateHeadline?.headline;
 
-  if (!headline) {
+  if (!updatedHeadline) {
     return {
       content: [
         {
@@ -533,15 +600,74 @@ export async function updateHeadline(args) {
     };
   }
 
+  // Re-fetch the headline to return it in the same format as getHeadlines
+  const fetchQuery = `
+    query {
+      headlines(filter: {id: {equalTo: "${headlineId}"}}) {
+        nodes {
+          id
+          name
+          desc
+          userId
+          teamId
+          headlineStatusId
+          statusUpdatedAt
+          meetingId
+          createdAt
+          stateId
+          companyId
+          isCascadingMessage
+        }
+      }
+    }
+  `;
+
+  const fetchResult = await callSuccessCoGraphQL(fetchQuery);
+  const companyCode = context ? await getCompanyCode(context.companyId) : null;
+
   // Map internal status back to external value
   const externalStatusMapping = {
     DISCUSSED: "Shared",
     DISCUSS: "Not shared",
   };
 
-  // Get company code for URL generation (context already declared at top of function)
-  const companyCode = context ? await getCompanyCode(context.companyId) : null;
+  if (!fetchResult.ok || !fetchResult.data?.data?.headlines?.nodes?.[0]) {
+    // Fallback to updated data if re-fetch fails
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(
+            {
+              success: true,
+              message: "Headline updated successfully",
+              headline: {
+                id: updatedHeadline.id,
+                name: updatedHeadline.name,
+                description: updatedHeadline.desc || "",
+                status:
+                  externalStatusMapping[updatedHeadline.headlineStatusId] ||
+                  updatedHeadline.headlineStatusId,
+                teamId: updatedHeadline.teamId,
+                userId: updatedHeadline.userId,
+                meetingId: updatedHeadline.meetingId,
+                isCascadingMessage: updatedHeadline.isCascadingMessage,
+                createdAt: updatedHeadline.createdAt,
+                statusUpdatedAt: updatedHeadline.statusUpdatedAt,
+                url: companyCode ? generateObjectUrl('headlines', updatedHeadline.id, companyCode) : null,
+              },
+            },
+            null,
+            2
+          ),
+        },
+      ],
+    };
+  }
 
+  const headline = fetchResult.data.data.headlines.nodes[0];
+
+  // Return in same format as getHeadlines
   return {
     content: [
       {
@@ -551,10 +677,18 @@ export async function updateHeadline(args) {
             success: true,
             message: "Headline updated successfully",
             headline: {
-              ...headline,
-              headlineStatusId:
+              id: headline.id,
+              name: headline.name,
+              description: headline.desc || "",
+              status:
                 externalStatusMapping[headline.headlineStatusId] ||
                 headline.headlineStatusId,
+              teamId: headline.teamId,
+              userId: headline.userId,
+              meetingId: headline.meetingId,
+              isCascadingMessage: headline.isCascadingMessage,
+              createdAt: headline.createdAt,
+              statusUpdatedAt: headline.statusUpdatedAt,
               url: companyCode ? generateObjectUrl('headlines', headline.id, companyCode) : null,
             },
           },

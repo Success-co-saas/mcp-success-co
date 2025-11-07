@@ -1182,9 +1182,9 @@ export async function createMeeting(args) {
     };
   }
 
-  const meeting = meetingResult.data?.data?.createMeeting?.meeting;
+  const createdMeeting = meetingResult.data?.data?.createMeeting?.meeting;
 
-  if (!meeting) {
+  if (!createdMeeting) {
     return {
       content: [
         {
@@ -1199,9 +1199,68 @@ export async function createMeeting(args) {
     };
   }
 
-  // Get company code for URL generation
+  // Re-fetch the meeting to return it in the same format as getMeetings
+  const fetchQuery = `
+    query {
+      meetings(filter: {id: {equalTo: "${createdMeeting.id}"}}) {
+        nodes {
+          id
+          meetingInfoId
+          date
+          startTime
+          endTime
+          averageRating
+          meetingStatusId
+          createdAt
+          stateId
+          companyId
+        }
+      }
+    }
+  `;
+
+  const fetchResult = await callSuccessCoGraphQL(fetchQuery);
   const companyCode = await getCompanyCode(companyId);
 
+  if (!fetchResult.ok || !fetchResult.data?.data?.meetings?.nodes?.[0]) {
+    // Fallback to created data if re-fetch fails
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(
+            {
+              success: true,
+              message: "Meeting created successfully",
+              meetingInfo: {
+                id: meetingInfo.id,
+                name: meetingInfo.name,
+                meetingAgendaId: meetingInfo.meetingAgendaId,
+                teamId: meetingInfo.teamId,
+              },
+              meeting: {
+                id: createdMeeting.id,
+                meetingInfoId: createdMeeting.meetingInfoId,
+                date: createdMeeting.date,
+                startTime: createdMeeting.startTime,
+                endTime: createdMeeting.endTime,
+                averageRating: createdMeeting.averageRating,
+                status: createdMeeting.meetingStatusId,
+                createdAt: createdMeeting.createdAt,
+                url: companyCode ? generateObjectUrl('meetings', createdMeeting.id, companyCode) : null,
+              },
+            },
+            null,
+            2
+          ),
+        },
+      ],
+    };
+  }
+
+  const meeting = fetchResult.data.data.meetings.nodes[0];
+
+  // Return in same format as getMeetings
   return {
     content: [
       {
@@ -1210,9 +1269,21 @@ export async function createMeeting(args) {
           {
             success: true,
             message: "Meeting created successfully",
-            meetingInfo: meetingInfo,
+            meetingInfo: {
+              id: meetingInfo.id,
+              name: meetingInfo.name,
+              meetingAgendaId: meetingInfo.meetingAgendaId,
+              teamId: meetingInfo.teamId,
+            },
             meeting: {
-              ...meeting,
+              id: meeting.id,
+              meetingInfoId: meeting.meetingInfoId,
+              date: meeting.date,
+              startTime: meeting.startTime,
+              endTime: meeting.endTime,
+              averageRating: meeting.averageRating,
+              status: meeting.meetingStatusId,
+              createdAt: meeting.createdAt,
               url: companyCode ? generateObjectUrl('meetings', meeting.id, companyCode) : null,
             },
           },
@@ -1326,9 +1397,9 @@ export async function updateMeeting(args) {
     };
   }
 
-  const meeting = result.data?.data?.updateMeeting?.meeting;
+  const updatedMeeting = result.data?.data?.updateMeeting?.meeting;
 
-  if (!meeting) {
+  if (!updatedMeeting) {
     return {
       content: [
         {
@@ -1343,6 +1414,62 @@ export async function updateMeeting(args) {
     };
   }
 
+  // Re-fetch the meeting to return it in the same format as getMeetings
+  const fetchQuery = `
+    query {
+      meetings(filter: {id: {equalTo: "${meetingId}"}}) {
+        nodes {
+          id
+          meetingInfoId
+          date
+          startTime
+          endTime
+          averageRating
+          meetingStatusId
+          createdAt
+          stateId
+          companyId
+        }
+      }
+    }
+  `;
+
+  const fetchResult = await callSuccessCoGraphQL(fetchQuery);
+  const companyCode = context ? await getCompanyCode(context.companyId) : null;
+
+  if (!fetchResult.ok || !fetchResult.data?.data?.meetings?.nodes?.[0]) {
+    // Fallback to updated data if re-fetch fails
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(
+            {
+              success: true,
+              message: "Meeting updated successfully",
+              meeting: {
+                id: updatedMeeting.id,
+                meetingInfoId: updatedMeeting.meetingInfoId,
+                date: updatedMeeting.date,
+                startTime: updatedMeeting.startTime,
+                endTime: updatedMeeting.endTime,
+                averageRating: updatedMeeting.averageRating,
+                status: updatedMeeting.meetingStatusId,
+                createdAt: updatedMeeting.createdAt,
+                url: companyCode ? generateObjectUrl('meetings', updatedMeeting.id, companyCode) : null,
+              },
+            },
+            null,
+            2
+          ),
+        },
+      ],
+    };
+  }
+
+  const meeting = fetchResult.data.data.meetings.nodes[0];
+
+  // Return in same format as getMeetings
   return {
     content: [
       {
@@ -1351,7 +1478,17 @@ export async function updateMeeting(args) {
           {
             success: true,
             message: "Meeting updated successfully",
-            meeting: meeting,
+            meeting: {
+              id: meeting.id,
+              meetingInfoId: meeting.meetingInfoId,
+              date: meeting.date,
+              startTime: meeting.startTime,
+              endTime: meeting.endTime,
+              averageRating: meeting.averageRating,
+              status: meeting.meetingStatusId,
+              createdAt: meeting.createdAt,
+              url: companyCode ? generateObjectUrl('meetings', meeting.id, companyCode) : null,
+            },
           },
           null,
           2

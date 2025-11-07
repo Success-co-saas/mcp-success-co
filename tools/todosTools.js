@@ -388,9 +388,9 @@ export async function createTodo(args) {
     };
   }
 
-  const todo = result.data?.data?.createTodo?.todo;
+  const createdTodo = result.data?.data?.createTodo?.todo;
 
-  if (!todo) {
+  if (!createdTodo) {
     return {
       content: [
         {
@@ -405,9 +405,70 @@ export async function createTodo(args) {
     };
   }
 
-  // Get company code for URL generation
+  // Re-fetch the todo to return it in the same format as getTodos
+  const fetchQuery = `
+    query {
+      todos(filter: {id: {equalTo: "${createdTodo.id}"}}) {
+        nodes {
+          id
+          todoStatusId
+          name
+          desc
+          teamId
+          userId
+          statusUpdatedAt
+          type
+          dueDate
+          priorityNo
+          createdAt
+          stateId
+          companyId
+          meetingId
+        }
+      }
+    }
+  `;
+
+  const fetchResult = await callSuccessCoGraphQL(fetchQuery);
+  if (!fetchResult.ok || !fetchResult.data?.data?.todos?.nodes?.[0]) {
+    // Fallback to created data if re-fetch fails
+    const companyCode = await getCompanyCode(companyId);
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(
+            {
+              success: true,
+              message: "Todo created successfully",
+              todo: {
+                id: createdTodo.id,
+                name: createdTodo.name,
+                description: createdTodo.desc || "",
+                status: createdTodo.todoStatusId,
+                type: createdTodo.type,
+                priority: createdTodo.priorityNo,
+                dueDate: createdTodo.dueDate,
+                teamId: createdTodo.teamId,
+                userId: createdTodo.userId,
+                meetingId: createdTodo.meetingId || null,
+                createdAt: createdTodo.createdAt,
+                statusUpdatedAt: createdTodo.statusUpdatedAt,
+                url: companyCode ? generateObjectUrl('todos', createdTodo.id, companyCode) : null,
+              },
+            },
+            null,
+            2
+          ),
+        },
+      ],
+    };
+  }
+
+  const todo = fetchResult.data.data.todos.nodes[0];
   const companyCode = await getCompanyCode(companyId);
 
+  // Return in same format as getTodos
   return {
     content: [
       {
@@ -417,7 +478,18 @@ export async function createTodo(args) {
             success: true,
             message: "Todo created successfully",
             todo: {
-              ...todo,
+              id: todo.id,
+              name: todo.name,
+              description: todo.desc || "",
+              status: todo.todoStatusId,
+              type: todo.type,
+              priority: todo.priorityNo,
+              dueDate: todo.dueDate,
+              teamId: todo.teamId,
+              userId: todo.userId,
+              meetingId: todo.meetingId,
+              createdAt: todo.createdAt,
+              statusUpdatedAt: todo.statusUpdatedAt,
               url: companyCode ? generateObjectUrl('todos', todo.id, companyCode) : null,
             },
           },
@@ -521,9 +593,9 @@ export async function updateTodo(args) {
     };
   }
 
-  const todo = result.data?.data?.updateTodo?.todo;
+  const updatedTodo = result.data?.data?.updateTodo?.todo;
 
-  if (!todo) {
+  if (!updatedTodo) {
     return {
       content: [
         {
@@ -538,9 +610,64 @@ export async function updateTodo(args) {
     };
   }
 
-  // Get company code for URL generation
+  // Re-fetch the todo to return it in the same format as getTodos
+  const fetchQuery = `
+    query {
+      todos(filter: {id: {equalTo: "${updatedTodo.id}"}}) {
+        nodes {
+          id
+          todoStatusId
+          name
+          desc
+          teamId
+          userId
+          statusUpdatedAt
+          type
+          dueDate
+          priorityNo
+          createdAt
+          stateId
+          companyId
+          meetingId
+        }
+      }
+    }
+  `;
+
+  const fetchResult = await callSuccessCoGraphQL(fetchQuery);
   const companyCode = context ? await getCompanyCode(context.companyId) : null;
 
+  if (!fetchResult.ok || !fetchResult.data?.data?.todos?.nodes?.[0]) {
+    // Fallback to updated data if re-fetch fails
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(
+            {
+              success: true,
+              message: "Todo updated successfully",
+              todo: {
+                id: updatedTodo.id,
+                name: updatedTodo.name,
+                description: updatedTodo.desc || "",
+                status: updatedTodo.todoStatusId,
+                dueDate: updatedTodo.dueDate,
+                statusUpdatedAt: updatedTodo.statusUpdatedAt,
+                url: companyCode ? generateObjectUrl('todos', updatedTodo.id, companyCode) : null,
+              },
+            },
+            null,
+            2
+          ),
+        },
+      ],
+    };
+  }
+
+  const todo = fetchResult.data.data.todos.nodes[0];
+
+  // Return in same format as getTodos
   return {
     content: [
       {
@@ -550,7 +677,18 @@ export async function updateTodo(args) {
             success: true,
             message: "Todo updated successfully",
             todo: {
-              ...todo,
+              id: todo.id,
+              name: todo.name,
+              description: todo.desc || "",
+              status: todo.todoStatusId,
+              type: todo.type,
+              priority: todo.priorityNo,
+              dueDate: todo.dueDate,
+              teamId: todo.teamId,
+              userId: todo.userId,
+              meetingId: todo.meetingId,
+              createdAt: todo.createdAt,
+              statusUpdatedAt: todo.statusUpdatedAt,
               url: companyCode ? generateObjectUrl('todos', todo.id, companyCode) : null,
             },
           },
