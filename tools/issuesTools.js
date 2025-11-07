@@ -376,9 +376,9 @@ export async function createIssue(args) {
     };
   }
 
-  const issue = result.data?.data?.createIssue?.issue;
+  const createdIssue = result.data?.data?.createIssue?.issue;
 
-  if (!issue) {
+  if (!createdIssue) {
     return {
       content: [
         {
@@ -393,9 +393,69 @@ export async function createIssue(args) {
     };
   }
 
-  // Get company code for URL generation
+  // Re-fetch the issue to return it in the same format as getIssues
+  const fetchQuery = `
+    query {
+      issues(filter: {id: {equalTo: "${createdIssue.id}"}}) {
+        nodes {
+          id
+          issueStatusId
+          name
+          desc
+          teamId
+          userId
+          type
+          priorityNo
+          priorityOrder
+          statusUpdatedAt
+          meetingId
+          createdAt
+          stateId
+          companyId
+        }
+      }
+    }
+  `;
+
+  const fetchResult = await callSuccessCoGraphQL(fetchQuery);
   const companyCode = await getCompanyCode(companyId);
 
+  if (!fetchResult.ok || !fetchResult.data?.data?.issues?.nodes?.[0]) {
+    // Fallback to created data if re-fetch fails
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(
+            {
+              success: true,
+              message: "Issue created successfully",
+              issue: {
+                id: createdIssue.id,
+                name: createdIssue.name,
+                description: createdIssue.desc || "",
+                status: createdIssue.issueStatusId,
+                type: createdIssue.type
+                  ? createdIssue.type.charAt(0).toUpperCase() + createdIssue.type.slice(1)
+                  : null,
+                priority: mapPriorityToText(createdIssue.priorityNo),
+                teamId: createdIssue.teamId,
+                userId: createdIssue.userId,
+                createdAt: createdIssue.createdAt,
+                url: companyCode ? generateObjectUrl('issues', createdIssue.id, companyCode) : null,
+              },
+            },
+            null,
+            2
+          ),
+        },
+      ],
+    };
+  }
+
+  const issue = fetchResult.data.data.issues.nodes[0];
+
+  // Return in same format as getIssues
   return {
     content: [
       {
@@ -405,7 +465,20 @@ export async function createIssue(args) {
             success: true,
             message: "Issue created successfully",
             issue: {
-              ...issue,
+              id: issue.id,
+              name: issue.name,
+              description: issue.desc || "",
+              status: issue.issueStatusId,
+              type: issue.type
+                ? issue.type.charAt(0).toUpperCase() + issue.type.slice(1)
+                : null,
+              priority: mapPriorityToText(issue.priorityNo),
+              priorityOrder: issue.priorityOrder,
+              teamId: issue.teamId,
+              userId: issue.userId,
+              meetingId: issue.meetingId,
+              createdAt: issue.createdAt,
+              statusUpdatedAt: issue.statusUpdatedAt,
               url: companyCode ? generateObjectUrl('issues', issue.id, companyCode) : null,
             },
           },
@@ -543,9 +616,9 @@ export async function updateIssue(args) {
     };
   }
 
-  const issue = result.data?.data?.updateIssue?.issue;
+  const updatedIssue = result.data?.data?.updateIssue?.issue;
 
-  if (!issue) {
+  if (!updatedIssue) {
     return {
       content: [
         {
@@ -560,9 +633,66 @@ export async function updateIssue(args) {
     };
   }
 
-  // Get company code for URL generation (context already declared at top of function)
+  // Re-fetch the issue to return it in the same format as getIssues
+  const fetchQuery = `
+    query {
+      issues(filter: {id: {equalTo: "${updatedIssue.id}"}}) {
+        nodes {
+          id
+          issueStatusId
+          name
+          desc
+          teamId
+          userId
+          type
+          priorityNo
+          priorityOrder
+          statusUpdatedAt
+          meetingId
+          createdAt
+          stateId
+          companyId
+        }
+      }
+    }
+  `;
+
+  const fetchResult = await callSuccessCoGraphQL(fetchQuery);
   const companyCode = context ? await getCompanyCode(context.companyId) : null;
 
+  if (!fetchResult.ok || !fetchResult.data?.data?.issues?.nodes?.[0]) {
+    // Fallback to updated data if re-fetch fails
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(
+            {
+              success: true,
+              message: "Issue updated successfully",
+              issue: {
+                id: updatedIssue.id,
+                name: updatedIssue.name,
+                description: updatedIssue.desc || "",
+                status: updatedIssue.issueStatusId,
+                priority: mapPriorityToText(updatedIssue.priorityNo),
+                teamId: updatedIssue.teamId,
+                userId: updatedIssue.userId,
+                statusUpdatedAt: updatedIssue.statusUpdatedAt,
+                url: companyCode ? generateObjectUrl('issues', updatedIssue.id, companyCode) : null,
+              },
+            },
+            null,
+            2
+          ),
+        },
+      ],
+    };
+  }
+
+  const issue = fetchResult.data.data.issues.nodes[0];
+
+  // Return in same format as getIssues
   return {
     content: [
       {
@@ -572,7 +702,20 @@ export async function updateIssue(args) {
             success: true,
             message: "Issue updated successfully",
             issue: {
-              ...issue,
+              id: issue.id,
+              name: issue.name,
+              description: issue.desc || "",
+              status: issue.issueStatusId,
+              type: issue.type
+                ? issue.type.charAt(0).toUpperCase() + issue.type.slice(1)
+                : null,
+              priority: mapPriorityToText(issue.priorityNo),
+              priorityOrder: issue.priorityOrder,
+              teamId: issue.teamId,
+              userId: issue.userId,
+              meetingId: issue.meetingId,
+              createdAt: issue.createdAt,
+              statusUpdatedAt: issue.statusUpdatedAt,
               url: companyCode ? generateObjectUrl('issues', issue.id, companyCode) : null,
             },
           },
