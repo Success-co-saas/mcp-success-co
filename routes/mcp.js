@@ -271,14 +271,16 @@ export async function mcpHandler(req, res) {
             await db`
               UPDATE users 
               SET mcp_connected_at = CURRENT_TIMESTAMP 
-              WHERE id = ${authContext.userId}
+              WHERE id = ${authContext.userId} 
+                AND mcp_connected_at IS NULL
             `;
 
             // Update company's mcp_connected_at timestamp (only if not already set)
             await db`
               UPDATE companies 
               SET mcp_connected_at = CURRENT_TIMESTAMP 
-              WHERE id = ${authContext.companyId}
+              WHERE id = ${authContext.companyId} 
+                AND mcp_connected_at IS NULL
             `;
 
             logger.info(
