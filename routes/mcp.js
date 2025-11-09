@@ -256,6 +256,43 @@ export async function mcpHandler(req, res) {
       const requestServer = createFreshMcpServer();
       await requestServer.connect(transport);
       logger.info("[MCP] Created new session for initialize request");
+
+      // Track MCP connection in database
+      const authContext = req.oauth || {};
+      if (
+        authContext.userId &&
+        authContext.companyId &&
+        !authContext.isApiKeyMode
+      ) {
+        try {
+          const db = getDatabase();
+          if (db) {
+            // Update user's mcp_connected_at timestamp (only if not already set)
+            await db`
+              UPDATE users 
+              SET mcp_connected_at = CURRENT_TIMESTAMP 
+              WHERE id = ${authContext.userId}
+            `;
+
+            // Update company's mcp_connected_at timestamp (only if not already set)
+            await db`
+              UPDATE companies 
+              SET mcp_connected_at = CURRENT_TIMESTAMP 
+              WHERE id = ${authContext.companyId}
+            `;
+
+            logger.info(
+              "[MCP] Tracked MCP connection timestamp for user and company",
+              {
+                userId: authContext.userId,
+                companyId: authContext.companyId,
+              }
+            );
+          }
+        } catch (error) {
+          logger.error("[MCP] Error tracking MCP connection:", error.message);
+        }
+      }
     } else if (!transport && !isInitialize) {
       logger.warn(
         `[MCP] No session found for non-initialize request. Session ID: ${sessionId}`
