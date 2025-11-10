@@ -356,7 +356,7 @@ export async function search(args) {
   }
 
   if (wantsVisions) {
-    // First get leadership team visions
+    // First get leadership team visions - try with isLeadership flag
     const visionsGql = `
       query {
         visions(filter: {stateId: {equalTo: "ACTIVE"}, isLeadership: {equalTo: true}}) {
@@ -375,7 +375,50 @@ export async function search(args) {
       return { content: [{ type: "text", text: visionsResult.error }] };
 
     const { data: visionsData } = visionsResult;
-    const leadershipVisions = visionsData?.data?.visions?.nodes || [];
+    let leadershipVisions = visionsData?.data?.visions?.nodes || [];
+
+    // If no vision found with isLeadership flag, try finding via leadership team
+    if (leadershipVisions.length === 0) {
+      // Get the leadership team
+      const teamsQuery = `
+        query {
+          teams(filter: {stateId: {equalTo: "ACTIVE"}, isLeadership: {equalTo: true}}) {
+            nodes {
+              id
+            }
+            totalCount
+          }
+        }
+      `;
+      
+      const teamsResult = await callSuccessCoGraphQL(teamsQuery);
+      if (teamsResult.ok) {
+        const teams = teamsResult.data.data.teams.nodes;
+        if (teams.length > 0) {
+          const leadershipTeamId = teams[0].id;
+          
+          // Now find vision by leadership team ID
+          const visionsByTeamQuery = `
+            query {
+              visions(filter: {stateId: {equalTo: "ACTIVE"}, teamId: {equalTo: "${leadershipTeamId}"}}) {
+                nodes {
+                  id
+                  teamId
+                  isLeadership
+                  createdAt
+                }
+                totalCount
+              }
+            }
+          `;
+          
+          const visionsByTeamResult = await callSuccessCoGraphQL(visionsByTeamQuery);
+          if (visionsByTeamResult.ok) {
+            leadershipVisions = visionsByTeamResult.data.data.visions.nodes;
+          }
+        }
+      }
+    }
 
     if (leadershipVisions.length === 0) {
       return {

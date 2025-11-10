@@ -23,6 +23,7 @@ export async function getLeadershipVTO(args) {
 
   try {
     // Step 1: Find the leadership vision
+    // First, try to find vision with isLeadership: true
     const visionsQuery = `
       query {
         visions(filter: {stateId: {equalTo: "${stateId}"}, isLeadership: {equalTo: true}}) {
@@ -44,13 +45,60 @@ export async function getLeadershipVTO(args) {
       return { content: [{ type: "text", text: visionsResult.error }] };
     }
 
-    const visions = visionsResult.data.data.visions.nodes;
+    let visions = visionsResult.data.data.visions.nodes;
+    
+    // If no vision found with isLeadership flag, try finding via leadership team
+    if (visions.length === 0) {
+      // Get the leadership team
+      const teamsQuery = `
+        query {
+          teams(filter: {stateId: {equalTo: "${stateId}"}, isLeadership: {equalTo: true}}) {
+            nodes {
+              id
+            }
+            totalCount
+          }
+        }
+      `;
+      
+      const teamsResult = await callSuccessCoGraphQL(teamsQuery);
+      if (teamsResult.ok) {
+        const teams = teamsResult.data.data.teams.nodes;
+        if (teams.length > 0) {
+          const leadershipTeamId = teams[0].id;
+          
+          // Now find vision by leadership team ID
+          const visionsByTeamQuery = `
+            query {
+              visions(filter: {stateId: {equalTo: "${stateId}"}, teamId: {equalTo: "${leadershipTeamId}"}}) {
+                nodes {
+                  id
+                  teamId
+                  isLeadership
+                  createdAt
+                  stateId
+                  companyId
+                }
+                totalCount
+              }
+            }
+          `;
+          
+          const visionsByTeamResult = await callSuccessCoGraphQL(visionsByTeamQuery);
+          if (visionsByTeamResult.ok) {
+            visions = visionsByTeamResult.data.data.visions.nodes;
+          }
+        }
+      }
+    }
+    
+    // If still no vision found, return error
     if (visions.length === 0) {
       return {
         content: [
           {
             type: "text",
-            text: "No leadership vision found. Please ensure you have a vision marked as leadership.",
+            text: "No leadership vision found. Please ensure you have a vision for the leadership team.",
           },
         ],
       };
