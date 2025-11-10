@@ -832,6 +832,14 @@ Schedule new meeting instances for existing meeting series.
 - Meeting series IDs come from `getMeetingInfos`, not `getMeetings`
 - Rock due dates should be calculated as ~90 days (one quarter) from today
 
+### 📐 Data Consistency Standard
+
+**Simple Rule**: All operations (get, list, create, update) return entities in the same format.
+
+When creating or updating an entity, re-fetch it to return the full data structure that matches what `get` and `list` operations return. This ensures consistent data shape across all operations.
+
+**Example**: After `createTodo()`, query the created todo again to return it with all fields populated the same way `getTodos()` would return it.
+
 ## Cross-functional Queries
 
 These complex queries combine multiple tools to provide comprehensive insights:

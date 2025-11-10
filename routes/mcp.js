@@ -7,7 +7,7 @@ import {
   getTransportGuidance,
   generateSessionId,
 } from "../utils/transportHelpers.js";
-import { runWithAuthContext, getAuthContext } from "../tools.js";
+import { runWithAuthContext, getAuthContext, getDatabase } from "../tools.js";
 import { registerToolsOnServer } from "../toolDefinitions.js";
 import { VERSION } from "../config.js";
 
@@ -47,6 +47,29 @@ function createFreshMcpServer() {
         };
       }
 
+      // Fetch company information from database
+      let companyName = null;
+      let companyUrl = null;
+      try {
+        const db = getDatabase();
+        if (db) {
+          const companyResult = await db`
+            SELECT name, code
+            FROM companies
+            WHERE id = ${auth.companyId}
+            LIMIT 1
+          `;
+
+          if (companyResult.length > 0) {
+            companyName = companyResult[0].name;
+            // Construct company URL using the code
+            companyUrl = `https://app.success.co/${companyResult[0].code}`;
+          }
+        }
+      } catch (error) {
+        logger.error("[MCP] Error fetching company info:", error.message);
+      }
+
       return {
         contents: [
           {
@@ -57,6 +80,8 @@ function createFreshMcpServer() {
               userId: auth.userId,
               email: auth.userEmail,
               companyId: auth.companyId,
+              companyName,
+              url: companyUrl,
               hint: "This is YOU - the authenticated user making this request",
             }),
           },
@@ -87,13 +112,40 @@ function createFreshMcpServer() {
         };
       }
 
+      // Fetch company information from database
+      let companyName = null;
+      try {
+        const db = getDatabase();
+        if (db) {
+          const companyResult = await db`
+            SELECT name
+            FROM companies
+            WHERE id = ${auth.companyId}
+            LIMIT 1
+          `;
+
+          if (companyResult.length > 0) {
+            companyName = companyResult[0].name;
+          }
+        }
+      } catch (error) {
+        logger.error(
+          "[MCP] Error fetching company info for prompt:",
+          error.message
+        );
+      }
+
+      const companyInfo = companyName
+        ? `This user belongs to company "${companyName}" (ID: ${auth.companyId}).`
+        : `This user belongs to company ID: ${auth.companyId}.`;
+
       return {
         messages: [
           {
             role: "user",
             content: {
               type: "text",
-              text: `IMPORTANT: You are currently authenticated as user ${auth.userEmail} (ID: ${auth.userId}). When the user says "my", "I", or "me", they are referring to this user ID: ${auth.userId}. This user belongs to company ID: ${auth.companyId}.`,
+              text: `IMPORTANT: You are currently authenticated as user ${auth.userEmail} (ID: ${auth.userId}). When the user says "my", "I", or "me", they are referring to this user ID: ${auth.userId}. ${companyInfo}`,
             },
           },
         ],
@@ -204,6 +256,45 @@ export async function mcpHandler(req, res) {
       const requestServer = createFreshMcpServer();
       await requestServer.connect(transport);
       logger.info("[MCP] Created new session for initialize request");
+
+      // Track MCP connection in database
+      const authContext = req.oauth || {};
+      if (
+        authContext.userId &&
+        authContext.companyId &&
+        !authContext.isApiKeyMode
+      ) {
+        try {
+          const db = getDatabase();
+          if (db) {
+            // Update user's mcp_connected_at timestamp (only if not already set)
+            await db`
+              UPDATE users 
+              SET mcp_connected_at = CURRENT_TIMESTAMP 
+              WHERE id = ${authContext.userId} 
+                AND mcp_connected_at IS NULL
+            `;
+
+            // Update company's mcp_connected_at timestamp (only if not already set)
+            await db`
+              UPDATE companies 
+              SET mcp_connected_at = CURRENT_TIMESTAMP 
+              WHERE id = ${authContext.companyId} 
+                AND mcp_connected_at IS NULL
+            `;
+
+            logger.info(
+              "[MCP] Tracked MCP connection timestamp for user and company",
+              {
+                userId: authContext.userId,
+                companyId: authContext.companyId,
+              }
+            );
+          }
+        } catch (error) {
+          logger.error("[MCP] Error tracking MCP connection:", error.message);
+        }
+      }
     } else if (!transport && !isInitialize) {
       logger.warn(
         `[MCP] No session found for non-initialize request. Session ID: ${sessionId}`

@@ -607,22 +607,90 @@ export async function createRock(args) {
     }
   }
 
+  // Re-fetch the rock to return it in the same format as getRocks
+  const fetchQuery = `
+    query {
+      rocks(filter: {id: {equalTo: "${rock.id}"}}) {
+        nodes {
+          id
+          rockStatusId
+          name
+          desc
+          statusUpdatedAt
+          type
+          dueDate
+          createdAt
+          stateId
+          companyId
+          userId
+        }
+      }
+    }
+  `;
+
+  const fetchResult = await callSuccessCoGraphQL(fetchQuery);
+  const companyCode = await getCompanyCode(companyId);
+
+  // Get team associations
+  const teamsOnRocksQuery = `
+    query {
+      teamsOnRocks(filter: {rockId: {equalTo: "${rock.id}"}, stateId: {equalTo: "ACTIVE"}}) {
+        nodes {
+          teamId
+        }
+      }
+    }
+  `;
+
+  const teamsResult = await callSuccessCoGraphQL(teamsOnRocksQuery);
+  const teamIds = teamsResult.ok && teamsResult.data?.data?.teamsOnRocks?.nodes
+    ? teamsResult.data.data.teamsOnRocks.nodes.map(t => t.teamId)
+    : [];
+
   // Build success message
   let message = "Rock created successfully";
-  if (teamId) {
-    const teamIds = teamId
-      .split(",")
-      .map((id) => id.trim())
-      .filter((id) => id);
+  if (teamIds.length > 0) {
     message +=
       teamIds.length > 1
-        ? ` and linked to ${teamIds.length} teams (${teamIds.join(", ")})`
+        ? ` and linked to ${teamIds.length} teams`
         : ` and linked to team ${teamIds[0]}`;
   }
 
-  // Get company code for URL generation
-  const companyCode = await getCompanyCode(companyId);
+  if (!fetchResult.ok || !fetchResult.data?.data?.rocks?.nodes?.[0]) {
+    // Fallback to created data if re-fetch fails
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(
+            {
+              success: true,
+              message,
+              rock: {
+                id: rock.id,
+                name: rock.name,
+                description: rock.desc || "",
+                status: rock.rockStatusId,
+                type: rock.type,
+                dueDate: rock.dueDate,
+                createdAt: rock.createdAt,
+                statusUpdatedAt: rock.statusUpdatedAt,
+                userId: rock.userId,
+                teamIds: teamIds,
+                url: companyCode ? generateObjectUrl('rocks', rock.id, companyCode) : null,
+              },
+            },
+            null,
+            2
+          ),
+        },
+      ],
+    };
+  }
 
+  const fetchedRock = fetchResult.data.data.rocks.nodes[0];
+
+  // Return in same format as getRocks
   return {
     content: [
       {
@@ -632,17 +700,17 @@ export async function createRock(args) {
             success: true,
             message,
             rock: {
-              id: rock.id,
-              name: rock.name,
-              desc: rock.desc,
-              status: rock.rockStatusId,
-              dueDate: rock.dueDate,
-              type: rock.type,
-              userId: rock.userId,
-              createdAt: rock.createdAt,
-              stateId: rock.stateId,
-              companyId: rock.companyId,
-              url: companyCode ? generateObjectUrl('rocks', rock.id, companyCode) : null,
+              id: fetchedRock.id,
+              name: fetchedRock.name,
+              description: fetchedRock.desc || "",
+              status: fetchedRock.rockStatusId,
+              type: fetchedRock.type,
+              dueDate: fetchedRock.dueDate,
+              createdAt: fetchedRock.createdAt,
+              statusUpdatedAt: fetchedRock.statusUpdatedAt,
+              userId: fetchedRock.userId,
+              teamIds: teamIds,
+              url: companyCode ? generateObjectUrl('rocks', fetchedRock.id, companyCode) : null,
             },
           },
           null,
@@ -1072,6 +1140,47 @@ export async function updateRock(args) {
     }
   }
 
+  // Re-fetch the rock to return it in the same format as getRocks
+  const actualRockId = rock ? rock.id : rockId;
+  const fetchQuery = `
+    query {
+      rocks(filter: {id: {equalTo: "${actualRockId}"}}) {
+        nodes {
+          id
+          rockStatusId
+          name
+          desc
+          statusUpdatedAt
+          type
+          dueDate
+          createdAt
+          stateId
+          companyId
+          userId
+        }
+      }
+    }
+  `;
+
+  const fetchResult = await callSuccessCoGraphQL(fetchQuery);
+  const companyCode = context ? await getCompanyCode(context.companyId) : null;
+
+  // Get team associations
+  const teamsOnRocksQuery = `
+    query {
+      teamsOnRocks(filter: {rockId: {equalTo: "${actualRockId}"}, stateId: {equalTo: "ACTIVE"}}) {
+        nodes {
+          teamId
+        }
+      }
+    }
+  `;
+
+  const teamsResult = await callSuccessCoGraphQL(teamsOnRocksQuery);
+  const fetchedTeamIds = teamsResult.ok && teamsResult.data?.data?.teamsOnRocks?.nodes
+    ? teamsResult.data.data.teamsOnRocks.nodes.map(t => t.teamId)
+    : [];
+
   // Build success message
   let message = "Rock updated successfully";
   if (teamId) {
@@ -1097,9 +1206,41 @@ export async function updateRock(args) {
     message += ` (${details.join(", ")})`;
   }
 
-  // Get company code for URL generation (context already declared at top of function)
-  const companyCode = context ? await getCompanyCode(context.companyId) : null;
+  if (!fetchResult.ok || !fetchResult.data?.data?.rocks?.nodes?.[0]) {
+    // Fallback to updated data if re-fetch fails
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(
+            {
+              success: true,
+              message,
+              rock: rock
+                ? {
+                    id: rock.id,
+                    name: rock.name,
+                    description: rock.desc || "",
+                    status: rock.rockStatusId,
+                    dueDate: rock.dueDate,
+                    userId: rock.userId,
+                    statusUpdatedAt: rock.statusUpdatedAt,
+                    teamIds: fetchedTeamIds,
+                    url: companyCode ? generateObjectUrl('rocks', rock.id, companyCode) : null,
+                  }
+                : { id: rockId, teamIds: fetchedTeamIds, url: companyCode ? generateObjectUrl('rocks', rockId, companyCode) : null },
+            },
+            null,
+            2
+          ),
+        },
+      ],
+    };
+  }
 
+  const fetchedRock = fetchResult.data.data.rocks.nodes[0];
+
+  // Return in same format as getRocks
   return {
     content: [
       {
@@ -1108,19 +1249,19 @@ export async function updateRock(args) {
           {
             success: true,
             message,
-            rock: rock
-              ? {
-                  id: rock.id,
-                  name: rock.name,
-                  desc: rock.desc,
-                  status: rock.rockStatusId,
-                  dueDate: rock.dueDate,
-                  userId: rock.userId,
-                  statusUpdatedAt: rock.statusUpdatedAt,
-                  stateId: rock.stateId,
-                  url: companyCode ? generateObjectUrl('rocks', rock.id, companyCode) : null,
-                }
-              : { id: rockId, url: companyCode ? generateObjectUrl('rocks', rockId, companyCode) : null },
+            rock: {
+              id: fetchedRock.id,
+              name: fetchedRock.name,
+              description: fetchedRock.desc || "",
+              status: fetchedRock.rockStatusId,
+              type: fetchedRock.type,
+              dueDate: fetchedRock.dueDate,
+              createdAt: fetchedRock.createdAt,
+              statusUpdatedAt: fetchedRock.statusUpdatedAt,
+              userId: fetchedRock.userId,
+              teamIds: fetchedTeamIds,
+              url: companyCode ? generateObjectUrl('rocks', fetchedRock.id, companyCode) : null,
+            },
           },
           null,
           2

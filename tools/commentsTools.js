@@ -186,9 +186,9 @@ export async function createComment(args) {
     return { content: [{ type: "text", text: result.error }] };
   }
 
-  const commentData = result.data?.data?.createComment?.comment;
+  const createdComment = result.data?.data?.createComment?.comment;
 
-  if (!commentData) {
+  if (!createdComment) {
     return {
       content: [
         {
@@ -199,6 +199,58 @@ export async function createComment(args) {
     };
   }
 
+  // Re-fetch the comment to return it in the same format as getComments
+  const fetchQuery = `
+    query {
+      comments(filter: {id: {equalTo: "${createdComment.id}"}}) {
+        nodes {
+          id
+          entityType
+          entityId
+          userId
+          comment
+          createdAt
+          updatedAt
+          stateId
+        }
+      }
+    }
+  `;
+
+  const fetchResult = await callSuccessCoGraphQL(fetchQuery);
+
+  if (!fetchResult.ok || !fetchResult.data?.data?.comments?.nodes?.[0]) {
+    // Fallback to created data if re-fetch fails
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(
+            {
+              success: true,
+              message: "Comment created successfully",
+              comment: {
+                id: createdComment.id,
+                entityType: entityType,
+                entityId: createdComment.objectId || entityId,
+                userId: createdComment.userId,
+                comment: createdComment.text || comment,
+                createdAt: createdComment.createdAt,
+                updatedAt: createdComment.updatedAt,
+                status: createdComment.stateId,
+              },
+            },
+            null,
+            2
+          ),
+        },
+      ],
+    };
+  }
+
+  const commentData = fetchResult.data.data.comments.nodes[0];
+
+  // Return in same format as getComments
   return {
     content: [
       {
@@ -207,7 +259,16 @@ export async function createComment(args) {
           {
             success: true,
             message: "Comment created successfully",
-            comment: commentData,
+            comment: {
+              id: commentData.id,
+              entityType: commentData.entityType,
+              entityId: commentData.entityId,
+              userId: commentData.userId,
+              comment: commentData.comment,
+              createdAt: commentData.createdAt,
+              updatedAt: commentData.updatedAt,
+              status: commentData.stateId,
+            },
           },
           null,
           2
@@ -264,9 +325,9 @@ export async function updateComment(args) {
     return { content: [{ type: "text", text: result.error }] };
   }
 
-  const commentData = result.data?.data?.updateComment?.comment;
+  const updatedComment = result.data?.data?.updateComment?.comment;
 
-  if (!commentData) {
+  if (!updatedComment) {
     return {
       content: [
         {
@@ -277,6 +338,58 @@ export async function updateComment(args) {
     };
   }
 
+  // Re-fetch the comment to return it in the same format as getComments
+  const fetchQuery = `
+    query {
+      comments(filter: {id: {equalTo: "${commentId}"}}) {
+        nodes {
+          id
+          entityType
+          entityId
+          userId
+          comment
+          createdAt
+          updatedAt
+          stateId
+        }
+      }
+    }
+  `;
+
+  const fetchResult = await callSuccessCoGraphQL(fetchQuery);
+
+  if (!fetchResult.ok || !fetchResult.data?.data?.comments?.nodes?.[0]) {
+    // Fallback to updated data if re-fetch fails
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(
+            {
+              success: true,
+              message: "Comment updated successfully",
+              comment: {
+                id: updatedComment.id,
+                entityType: updatedComment.entityType,
+                entityId: updatedComment.objectId || updatedComment.entityId,
+                userId: updatedComment.userId,
+                comment: updatedComment.text || comment,
+                createdAt: updatedComment.createdAt,
+                updatedAt: updatedComment.updatedAt,
+                status: updatedComment.stateId,
+              },
+            },
+            null,
+            2
+          ),
+        },
+      ],
+    };
+  }
+
+  const commentData = fetchResult.data.data.comments.nodes[0];
+
+  // Return in same format as getComments
   return {
     content: [
       {
@@ -285,7 +398,16 @@ export async function updateComment(args) {
           {
             success: true,
             message: "Comment updated successfully",
-            comment: commentData,
+            comment: {
+              id: commentData.id,
+              entityType: commentData.entityType,
+              entityId: commentData.entityId,
+              userId: commentData.userId,
+              comment: commentData.comment,
+              createdAt: commentData.createdAt,
+              updatedAt: commentData.updatedAt,
+              status: commentData.stateId,
+            },
           },
           null,
           2
