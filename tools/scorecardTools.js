@@ -1093,7 +1093,7 @@ export async function createScorecardMeasurable(args) {
     const insertResult = await db`
       INSERT INTO data_fields (
         name,
-        desc,
+        "desc",
         type,
         unit_type,
         unit_comparison,
@@ -1126,7 +1126,7 @@ export async function createScorecardMeasurable(args) {
         'ACTIVE',
         'ACTIVE'
       )
-      RETURNING id, name, desc, type, unit_type, unit_comparison, goal_target, 
+      RETURNING id, name, "desc", type, unit_type, unit_comparison, goal_target, 
                 goal_target_end, goal_currency, show_average, show_total, 
                 auto_format, auto_round_decimals, user_id, created_at
     `;
@@ -1299,7 +1299,7 @@ export async function updateScorecardMeasurable(args) {
 
     // Get the existing measurable
     const existingResult = await db`
-      SELECT id, name, desc, type, unit_type, unit_comparison, goal_target,
+      SELECT id, name, "desc", type, unit_type, unit_comparison, goal_target,
              goal_target_end, goal_currency, show_average, show_total,
              auto_format, auto_round_decimals, data_field_status_id
       FROM data_fields
@@ -1430,7 +1430,7 @@ export async function updateScorecardMeasurable(args) {
       WHERE id = ${measurableId}
         AND company_id = ${companyId}
         AND state_id = 'ACTIVE'
-      RETURNING id, name, desc, type, unit_type, unit_comparison, goal_target,
+      RETURNING id, name, "desc", type, unit_type, unit_comparison, goal_target,
                 goal_target_end, goal_currency, show_average, show_total,
                 auto_format, auto_round_decimals, data_field_status_id, updated_at
     `;
