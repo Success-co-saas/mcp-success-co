@@ -12,6 +12,9 @@ import {
   search,
   fetch,
   getScorecardMeasurables,
+  createScorecardMeasurable,
+  updateScorecardMeasurable,
+  deleteScorecardMeasurable,
   getMeetingInfos,
   getMeetingAgendas,
   getLeadershipVTO,
@@ -936,6 +939,263 @@ export const toolDefinitions = [
         ),
     },
     required: [],
+  },
+  {
+    name: "createScorecardMeasurable",
+    description:
+      "Create a new scorecard measurable (KPI/metric). Perfect for queries like 'Create a new weekly measurable called Revenue' or 'Add a monthly measurable for customer satisfaction score'. Use teamId or leadershipTeam to associate with a team. Measurables track performance over time and can be weekly, monthly, quarterly, or annually.",
+    readOnly: false,
+    annotations: {
+      title: "Create Scorecard Measurable",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: true,
+    },
+    handler: async ({
+      name,
+      desc,
+      type,
+      unitType,
+      unitComparison,
+      goalTarget,
+      goalTargetEnd,
+      goalCurrency,
+      showAverage,
+      showTotal,
+      autoFormat,
+      autoRoundDecimals,
+      userId,
+      teamId,
+      leadershipTeam,
+    }) =>
+      await createScorecardMeasurable({
+        name,
+        desc,
+        type,
+        unitType,
+        unitComparison,
+        goalTarget,
+        goalTargetEnd,
+        goalCurrency,
+        showAverage,
+        showTotal,
+        autoFormat,
+        autoRoundDecimals,
+        userId,
+        teamId,
+        leadershipTeam,
+      }),
+    schema: {
+      name: z.string().describe("Measurable name (required)"),
+      desc: z
+        .string()
+        .optional()
+        .describe("Description of what this measurable tracks"),
+      type: z
+        .enum(["weekly", "monthly", "quarterly", "annually"])
+        .optional()
+        .default("weekly")
+        .describe(
+          "Frequency of measurement: 'weekly' (default), 'monthly', 'quarterly', or 'annually'"
+        ),
+      unitType: z
+        .enum(["number", "currency", "percentage"])
+        .optional()
+        .default("number")
+        .describe(
+          "Type of value: 'number' (default), 'currency', or 'percentage'"
+        ),
+      unitComparison: z
+        .enum([">=", "<=", "=", ">", "<"])
+        .optional()
+        .default(">=")
+        .describe(
+          "Comparison operator for goal: '>=' (default, higher is better), '<=' (lower is better), '=' (exact match), '>' (strictly higher), '<' (strictly lower)"
+        ),
+      goalTarget: z
+        .string()
+        .optional()
+        .default("100")
+        .describe("Goal target value (default: 100)"),
+      goalTargetEnd: z
+        .string()
+        .optional()
+        .default("100")
+        .describe("Goal target end value for ranges (default: 100)"),
+      goalCurrency: z
+        .string()
+        .optional()
+        .default("$")
+        .describe("Currency symbol if unitType is 'currency' (default: '$')"),
+      showAverage: z
+        .boolean()
+        .optional()
+        .default(true)
+        .describe("Show average in reports (default: true)"),
+      showTotal: z
+        .boolean()
+        .optional()
+        .default(true)
+        .describe("Show total in reports (default: true)"),
+      autoFormat: z
+        .boolean()
+        .optional()
+        .default(false)
+        .describe("Auto format values (default: false)"),
+      autoRoundDecimals: z
+        .boolean()
+        .optional()
+        .default(false)
+        .describe("Auto round decimals (default: false)"),
+      userId: z
+        .string()
+        .optional()
+        .describe(
+          "User ID (owner) - defaults to authenticated user if not provided"
+        ),
+      teamId: z
+        .string()
+        .optional()
+        .describe(
+          "Team ID to associate with this measurable (comma-separated for multiple teams)"
+        ),
+      leadershipTeam: z
+        .boolean()
+        .optional()
+        .describe(
+          "If true, automatically associate with the leadership team"
+        ),
+    },
+    required: ["name"],
+  },
+  {
+    name: "updateScorecardMeasurable",
+    description:
+      "Update an existing scorecard measurable (KPI/metric). Perfect for queries like 'Change the Revenue measurable goal to 150' or 'Update the customer satisfaction measurable to monthly'. Use getScorecardMeasurables to find the measurable ID. Can update name, description, type, unit type, goals, and status (set to ARCHIVED to archive).",
+    readOnly: false,
+    annotations: {
+      title: "Update Scorecard Measurable",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
+    handler: async ({
+      measurableId,
+      name,
+      desc,
+      type,
+      unitType,
+      unitComparison,
+      goalTarget,
+      goalTargetEnd,
+      goalCurrency,
+      showAverage,
+      showTotal,
+      autoFormat,
+      autoRoundDecimals,
+      status,
+    }) =>
+      await updateScorecardMeasurable({
+        measurableId,
+        name,
+        desc,
+        type,
+        unitType,
+        unitComparison,
+        goalTarget,
+        goalTargetEnd,
+        goalCurrency,
+        showAverage,
+        showTotal,
+        autoFormat,
+        autoRoundDecimals,
+        status,
+      }),
+    schema: {
+      measurableId: z
+        .string()
+        .describe(
+          "Measurable ID (required). Use getScorecardMeasurables to find the ID."
+        ),
+      name: z.string().optional().describe("Update the measurable name"),
+      desc: z.string().optional().describe("Update the description"),
+      type: z
+        .enum(["weekly", "monthly", "quarterly", "annually"])
+        .optional()
+        .describe(
+          "Update frequency: 'weekly', 'monthly', 'quarterly', or 'annually'"
+        ),
+      unitType: z
+        .enum(["number", "currency", "percentage"])
+        .optional()
+        .describe("Update value type: 'number', 'currency', or 'percentage'"),
+      unitComparison: z
+        .enum([">=", "<=", "=", ">", "<"])
+        .optional()
+        .describe(
+          "Update comparison operator: '>=', '<=', '=', '>', or '<'"
+        ),
+      goalTarget: z
+        .string()
+        .optional()
+        .describe("Update the goal target value"),
+      goalTargetEnd: z
+        .string()
+        .optional()
+        .describe("Update the goal target end value for ranges"),
+      goalCurrency: z
+        .string()
+        .optional()
+        .describe("Update the currency symbol"),
+      showAverage: z
+        .boolean()
+        .optional()
+        .describe("Update whether to show average in reports"),
+      showTotal: z
+        .boolean()
+        .optional()
+        .describe("Update whether to show total in reports"),
+      autoFormat: z
+        .boolean()
+        .optional()
+        .describe("Update auto format setting"),
+      autoRoundDecimals: z
+        .boolean()
+        .optional()
+        .describe("Update auto round decimals setting"),
+      status: z
+        .enum(["ACTIVE", "ARCHIVED"])
+        .optional()
+        .describe(
+          "Update status: 'ACTIVE' for active measurables, 'ARCHIVED' to archive"
+        ),
+    },
+    required: ["measurableId"],
+  },
+  {
+    name: "deleteScorecardMeasurable",
+    description:
+      "Delete a scorecard measurable (KPI/metric). This is a soft delete that marks the measurable and all its associated data values as DELETED. Perfect for queries like 'Delete the Revenue measurable' or 'Remove the customer satisfaction KPI'. Use getScorecardMeasurables to find the measurable ID. WARNING: This will also delete all historical data values associated with this measurable.",
+    readOnly: false,
+    annotations: {
+      title: "Delete Scorecard Measurable",
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
+    handler: async ({ measurableId }) =>
+      await deleteScorecardMeasurable({ measurableId }),
+    schema: {
+      measurableId: z
+        .string()
+        .describe(
+          "Measurable ID (required). Use getScorecardMeasurables to find the ID."
+        ),
+    },
+    required: ["measurableId"],
   },
   {
     name: "getMeetingInfos",

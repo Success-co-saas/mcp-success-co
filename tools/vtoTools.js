@@ -46,7 +46,7 @@ export async function getLeadershipVTO(args) {
     }
 
     let visions = visionsResult.data.data.visions.nodes;
-    
+
     // If no vision found with isLeadership flag, try finding via leadership team
     if (visions.length === 0) {
       // Get the leadership team
@@ -60,13 +60,13 @@ export async function getLeadershipVTO(args) {
           }
         }
       `;
-      
+
       const teamsResult = await callSuccessCoGraphQL(teamsQuery);
       if (teamsResult.ok) {
         const teams = teamsResult.data.data.teams.nodes;
         if (teams.length > 0) {
           const leadershipTeamId = teams[0].id;
-          
+
           // Now find vision by leadership team ID
           const visionsByTeamQuery = `
             query {
@@ -83,15 +83,17 @@ export async function getLeadershipVTO(args) {
               }
             }
           `;
-          
-          const visionsByTeamResult = await callSuccessCoGraphQL(visionsByTeamQuery);
+
+          const visionsByTeamResult = await callSuccessCoGraphQL(
+            visionsByTeamQuery
+          );
           if (visionsByTeamResult.ok) {
             visions = visionsByTeamResult.data.data.visions.nodes;
           }
         }
       }
     }
-    
+
     // If still no vision found, return error
     if (visions.length === 0) {
       return {
@@ -236,11 +238,13 @@ export async function getLeadershipVTO(args) {
     // Fetch core value details (the actual values like "Be awesome")
     let coreValueDetails = [];
     if (coreValues.length > 0) {
-      const coreValueIds = coreValues.map(cv => cv.id).filter(Boolean);
+      const coreValueIds = coreValues.map((cv) => cv.id).filter(Boolean);
       if (coreValueIds.length > 0) {
         const coreValueDetailsQuery = `
           query {
-            visionCoreValueDetails(filter: {stateId: {equalTo: "${stateId}"}, visionCoreValueId: {in: [${coreValueIds.map(id => `"${id}"`).join(", ")}]}}) {
+            visionCoreValueDetails(filter: {stateId: {equalTo: "${stateId}"}, visionCoreValueId: {in: [${coreValueIds
+          .map((id) => `"${id}"`)
+          .join(", ")}]}}) {
               nodes {
                 id
                 name
@@ -254,10 +258,11 @@ export async function getLeadershipVTO(args) {
             }
           }
         `;
-        
+
         const detailsResult = await callSuccessCoGraphQL(coreValueDetailsQuery);
         if (detailsResult.ok) {
-          coreValueDetails = detailsResult.data.data.visionCoreValueDetails.nodes;
+          coreValueDetails =
+            detailsResult.data.data.visionCoreValueDetails.nodes;
           // Sort by position
           coreValueDetails.sort((a, b) => a.position - b.position);
         }
@@ -274,38 +279,35 @@ export async function getLeadershipVTO(args) {
     vtoSummary += `**Status:** ${leadershipVision.stateId}\n\n`;
 
     // Core Values Section - show actual values from details
-    if (coreValues.length > 0) {
-      vtoSummary += `## Core Values\n`;
-      
-      // Display the actual core value details
-      if (coreValueDetails.length > 0) {
-        coreValueDetails.forEach((detail) => {
-          if (detail.name) {
-            vtoSummary += `• **${detail.name}**`;
-            if (detail.desc) {
-              const cleanDesc = detail.desc.replace(/<[^>]*>/g, "").trim();
-              if (cleanDesc) {
-                vtoSummary += ` - ${cleanDesc}`;
-              }
+    vtoSummary += `## Core Values\n`;
+    // Only show core values if we have actual details defined
+    // The parent records are just containers, the details are the actual values
+    if (coreValueDetails.length > 0) {
+      coreValueDetails.forEach((detail) => {
+        if (detail.name) {
+          vtoSummary += `• **${detail.name}**`;
+          if (detail.desc) {
+            const cleanDesc = detail.desc.replace(/<[^>]*>/g, "").trim();
+            if (cleanDesc) {
+              vtoSummary += ` - ${cleanDesc}`;
             }
-            // Check cascade from parent
-            const parent = coreValues.find(cv => cv.id === detail.visionCoreValueId);
-            if (parent) {
-              vtoSummary += ` (${parent.cascadeAll ? "Cascades to all teams" : "Leadership only"})`;
-            }
-            vtoSummary += `\n`;
           }
-        });
-      } else {
-        // Fallback to showing parent if no details found
-        coreValues.forEach((value) => {
-          vtoSummary += `• **${value.name}** (${
-            value.cascadeAll ? "Cascades to all teams" : "Leadership only"
-          })\n`;
-        });
-      }
-      vtoSummary += `\n`;
+          // Check cascade from parent
+          const parent = coreValues.find(
+            (cv) => cv.id === detail.visionCoreValueId
+          );
+          if (parent) {
+            vtoSummary += ` (${
+              parent.cascadeAll ? "Cascades to all teams" : "Leadership only"
+            })`;
+          }
+          vtoSummary += `\n`;
+        }
+      });
+    } else {
+      vtoSummary += `*No core values defined yet*\n`;
     }
+    vtoSummary += `\n`;
 
     // Core Focus Types Section
     if (coreFocusTypes.length > 0) {
@@ -381,7 +383,7 @@ export async function getLeadershipVTO(args) {
 
     // Add summary statistics
     vtoSummary += `## Summary Statistics\n`;
-    vtoSummary += `• Core Values: ${coreValueDetails.length > 0 ? coreValueDetails.length : coreValues.length}\n`;
+    vtoSummary += `• Core Values: ${coreValueDetails.length}\n`;
     vtoSummary += `• Core Focus Items: ${coreFocusTypes.length}\n`;
     vtoSummary += `• Goals & Plans: ${threeYearGoals.length}\n`;
     vtoSummary += `• Market Strategies: ${marketStrategies.length}\n`;
