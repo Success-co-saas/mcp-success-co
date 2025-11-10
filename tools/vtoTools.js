@@ -233,6 +233,37 @@ export async function getLeadershipVTO(args) {
     const marketStrategies =
       marketStrategiesResult.data.data.visionMarketStrategies.nodes;
 
+    // Fetch core value details (the actual values like "Be awesome")
+    let coreValueDetails = [];
+    if (coreValues.length > 0) {
+      const coreValueIds = coreValues.map(cv => cv.id).filter(Boolean);
+      if (coreValueIds.length > 0) {
+        const coreValueDetailsQuery = `
+          query {
+            visionCoreValueDetails(filter: {stateId: {equalTo: "${stateId}"}, visionCoreValueId: {in: [${coreValueIds.map(id => `"${id}"`).join(", ")}]}}) {
+              nodes {
+                id
+                name
+                desc
+                type
+                position
+                visionCoreValueId
+                cascadeAll
+              }
+              totalCount
+            }
+          }
+        `;
+        
+        const detailsResult = await callSuccessCoGraphQL(coreValueDetailsQuery);
+        if (detailsResult.ok) {
+          coreValueDetails = detailsResult.data.data.visionCoreValueDetails.nodes;
+          // Sort by position
+          coreValueDetails.sort((a, b) => a.position - b.position);
+        }
+      }
+    }
+
     // Build comprehensive VTO summary
     let vtoSummary = `# Leadership Vision/Traction Organizer Summary\n\n`;
     vtoSummary += `**Vision ID:** ${leadershipVision.id}\n`;
@@ -242,14 +273,37 @@ export async function getLeadershipVTO(args) {
     ).toLocaleDateString()}\n`;
     vtoSummary += `**Status:** ${leadershipVision.stateId}\n\n`;
 
-    // Core Values Section
+    // Core Values Section - show actual values from details
     if (coreValues.length > 0) {
       vtoSummary += `## Core Values\n`;
-      coreValues.forEach((value) => {
-        vtoSummary += `• **${value.name}** (${
-          value.cascadeAll ? "Cascades to all teams" : "Leadership only"
-        })\n`;
-      });
+      
+      // Display the actual core value details
+      if (coreValueDetails.length > 0) {
+        coreValueDetails.forEach((detail) => {
+          if (detail.name) {
+            vtoSummary += `• **${detail.name}**`;
+            if (detail.desc) {
+              const cleanDesc = detail.desc.replace(/<[^>]*>/g, "").trim();
+              if (cleanDesc) {
+                vtoSummary += ` - ${cleanDesc}`;
+              }
+            }
+            // Check cascade from parent
+            const parent = coreValues.find(cv => cv.id === detail.visionCoreValueId);
+            if (parent) {
+              vtoSummary += ` (${parent.cascadeAll ? "Cascades to all teams" : "Leadership only"})`;
+            }
+            vtoSummary += `\n`;
+          }
+        });
+      } else {
+        // Fallback to showing parent if no details found
+        coreValues.forEach((value) => {
+          vtoSummary += `• **${value.name}** (${
+            value.cascadeAll ? "Cascades to all teams" : "Leadership only"
+          })\n`;
+        });
+      }
       vtoSummary += `\n`;
     }
 
@@ -327,7 +381,7 @@ export async function getLeadershipVTO(args) {
 
     // Add summary statistics
     vtoSummary += `## Summary Statistics\n`;
-    vtoSummary += `• Core Values: ${coreValues.length}\n`;
+    vtoSummary += `• Core Values: ${coreValueDetails.length > 0 ? coreValueDetails.length : coreValues.length}\n`;
     vtoSummary += `• Core Focus Items: ${coreFocusTypes.length}\n`;
     vtoSummary += `• Goals & Plans: ${threeYearGoals.length}\n`;
     vtoSummary += `• Market Strategies: ${marketStrategies.length}\n`;
