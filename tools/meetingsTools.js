@@ -5,6 +5,7 @@ import {
   callSuccessCoGraphQL,
   getLeadershipTeamId,
   getUserContext,
+  getDatabase,
 } from "./core.js";
 import { validateStateId } from "../helpers.js";
 import { getCompanyCode, generateObjectUrl } from "./commonHelpers.js";
@@ -252,7 +253,9 @@ export async function getMeetings(args) {
               averageRating: meeting.averageRating,
               status: meeting.meetingStatusId,
               createdAt: meeting.createdAt,
-              url: companyCode ? generateObjectUrl('meetings', meeting.id, companyCode) : null,
+              url: companyCode
+                ? generateObjectUrl("meetings", meeting.id, companyCode)
+                : null,
             };
           }),
         }),
@@ -564,8 +567,8 @@ export async function getMeetingAgendas(args) {
  * @returns {Promise<{content: Array<{type: string, text: string}>}>}
  */
 export async function getMeetingDetails(args) {
-  const { 
-    meetingId: providedMeetingId, 
+  const {
+    meetingId: providedMeetingId,
     stateId = "ACTIVE",
     lastFinishedL10 = false,
     teamId: providedTeamId,
@@ -616,91 +619,33 @@ export async function getMeetingDetails(args) {
   try {
     // If lastFinishedL10 is true, find the most recent FINISHED L10 meeting for the team
     if (lastFinishedL10 && teamId) {
-      // First get the L10 meeting agenda for this team
-      const meetingInfosQuery = `
-        query {
-          meetingInfos(filter: {teamId: {equalTo: "${teamId}"}, stateId: {equalTo: "ACTIVE"}}) {
-            nodes {
-              id
-              meetingAgendaId
-              meetingAgenda {
-                meetingAgendaTypeId
-              }
-            }
-          }
-        }
+      const db = getDatabase();
+      if (!db) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: "Error: Database connection not available",
+            },
+          ],
+        };
+      }
+
+      // Direct SQL query to find the last finished L10 meeting for this team
+      const result = await db`
+        SELECT m.id
+        FROM meetings m
+        INNER JOIN meeting_infos mi ON m.meeting_info_id = mi.id
+        INNER JOIN meeting_agendas ma ON mi.meeting_agenda_id = ma.id
+        WHERE mi.team_id = ${teamId}
+          AND ma.meeting_agenda_type_id = 'WEEKLY-L10'
+          AND m.meeting_status_id = 'FINISHED'
+          AND m.state_id = ${stateId}
+        ORDER BY m.date DESC, m.created_at DESC
+        LIMIT 1
       `;
 
-      const meetingInfosResult = await callSuccessCoGraphQL(meetingInfosQuery);
-      if (!meetingInfosResult.ok) {
-        return {
-          content: [
-            {
-              type: "text",
-              text: `Error fetching meeting infos: ${meetingInfosResult.error}`,
-            },
-          ],
-        };
-      }
-
-      const meetingInfos = meetingInfosResult.data.data.meetingInfos.nodes;
-      
-      // Find ALL L10 meeting infos (WEEKLY-L10 type)
-      const l10MeetingInfos = meetingInfos.filter(
-        (mi) => mi.meetingAgenda?.meetingAgendaTypeId === "WEEKLY-L10"
-      );
-
-      if (l10MeetingInfos.length === 0) {
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify({
-                error: "No L10 meeting found for this team",
-                teamId: teamId,
-                suggestion: "This team may not have a Level 10 meeting set up.",
-              }),
-            },
-          ],
-        };
-      }
-
-      // Get the most recent FINISHED meeting across ALL L10 meeting infos
-      const meetingInfoIds = l10MeetingInfos.map((mi) => mi.id);
-      const meetingInfoIdsStr = meetingInfoIds.map((id) => `"${id}"`).join(", ");
-      
-      const recentMeetingQuery = `
-        query {
-          meetings(
-            first: 1, 
-            orderBy: DATE_DESC,
-            filter: {
-              meetingInfoId: {in: [${meetingInfoIdsStr}]}, 
-              stateId: {equalTo: "${stateId}"},
-              meetingStatusId: {equalTo: "FINISHED"}
-            }
-          ) {
-            nodes {
-              id
-            }
-          }
-        }
-      `;
-
-      const recentMeetingResult = await callSuccessCoGraphQL(recentMeetingQuery);
-      if (!recentMeetingResult.ok) {
-        return {
-          content: [
-            {
-              type: "text",
-              text: `Error fetching recent meeting: ${recentMeetingResult.error}`,
-            },
-          ],
-        };
-      }
-
-      const recentMeetings = recentMeetingResult.data.data.meetings.nodes;
-      if (recentMeetings.length === 0) {
+      if (result.length === 0) {
         return {
           content: [
             {
@@ -708,14 +653,15 @@ export async function getMeetingDetails(args) {
               text: JSON.stringify({
                 error: "No finished L10 meetings found for this team",
                 teamId: teamId,
-                suggestion: "This team may not have had any completed Level 10 meetings yet, or they are still in progress.",
+                suggestion:
+                  "This team may not have had any completed Level 10 meetings yet, or they are still in progress.",
               }),
             },
           ],
         };
       }
 
-      meetingId = recentMeetings[0].id;
+      meetingId = result[0].id;
     }
 
     // Step 1: Get the specific meeting
@@ -845,7 +791,9 @@ export async function getMeetingDetails(args) {
 
     // Get company code for URL generation
     const context = await getUserContext();
-    const companyCode = context ? await getCompanyCode(context.companyId) : null;
+    const companyCode = context
+      ? await getCompanyCode(context.companyId)
+      : null;
 
     const meetingDetails = {
       meeting: {
@@ -857,7 +805,9 @@ export async function getMeetingDetails(args) {
         averageRating: meeting.averageRating,
         status: meeting.meetingStatusId,
         createdAt: meeting.createdAt,
-        url: companyCode ? generateObjectUrl('meetings', meeting.id, companyCode) : null,
+        url: companyCode
+          ? generateObjectUrl("meetings", meeting.id, companyCode)
+          : null,
       },
       headlines: headlines.map((h) => ({
         id: h.id,
@@ -1250,7 +1200,13 @@ export async function createMeeting(args) {
                 averageRating: createdMeeting.averageRating,
                 status: createdMeeting.meetingStatusId,
                 createdAt: createdMeeting.createdAt,
-                url: companyCode ? generateObjectUrl('meetings', createdMeeting.id, companyCode) : null,
+                url: companyCode
+                  ? generateObjectUrl(
+                      "meetings",
+                      createdMeeting.id,
+                      companyCode
+                    )
+                  : null,
               },
             },
             null,
@@ -1287,7 +1243,9 @@ export async function createMeeting(args) {
               averageRating: meeting.averageRating,
               status: meeting.meetingStatusId,
               createdAt: meeting.createdAt,
-              url: companyCode ? generateObjectUrl('meetings', meeting.id, companyCode) : null,
+              url: companyCode
+                ? generateObjectUrl("meetings", meeting.id, companyCode)
+                : null,
             },
           },
           null,
@@ -1459,7 +1417,13 @@ export async function updateMeeting(args) {
                 averageRating: updatedMeeting.averageRating,
                 status: updatedMeeting.meetingStatusId,
                 createdAt: updatedMeeting.createdAt,
-                url: companyCode ? generateObjectUrl('meetings', updatedMeeting.id, companyCode) : null,
+                url: companyCode
+                  ? generateObjectUrl(
+                      "meetings",
+                      updatedMeeting.id,
+                      companyCode
+                    )
+                  : null,
               },
             },
             null,
@@ -1490,7 +1454,9 @@ export async function updateMeeting(args) {
               averageRating: meeting.averageRating,
               status: meeting.meetingStatusId,
               createdAt: meeting.createdAt,
-              url: companyCode ? generateObjectUrl('meetings', meeting.id, companyCode) : null,
+              url: companyCode
+                ? generateObjectUrl("meetings", meeting.id, companyCode)
+                : null,
             },
           },
           null,
