@@ -939,3 +939,718 @@ export async function updateScorecardMeasurableEntry(args) {
     };
   }
 }
+
+/**
+ * Create a new scorecard measurable (data field)
+ * @param {Object} args - Arguments object
+ * @param {string} args.name - Measurable name (required)
+ * @param {string} [args.desc] - Description
+ * @param {string} [args.type] - Type: 'weekly', 'monthly', 'quarterly', 'annually' (default: 'weekly')
+ * @param {string} [args.unitType] - Unit type: 'number', 'currency', 'percentage' (default: 'number')
+ * @param {string} [args.unitComparison] - Comparison operator: '>=', '<=', '=', '>', '<' (default: '>=')
+ * @param {string|number} [args.goalTarget] - Goal target value (default: 100)
+ * @param {string|number} [args.goalTargetEnd] - Goal target end value (for ranges, default: 100)
+ * @param {string} [args.goalCurrency] - Currency symbol (default: '$')
+ * @param {boolean} [args.showAverage] - Show average in reports (default: true)
+ * @param {boolean} [args.showTotal] - Show total in reports (default: true)
+ * @param {boolean} [args.autoFormat] - Auto format values (default: false)
+ * @param {boolean} [args.autoRoundDecimals] - Auto round decimals (default: false)
+ * @param {string} [args.userId] - User ID (owner) (defaults to authenticated user)
+ * @param {string} [args.teamId] - Team ID to associate with (comma-separated for multiple teams)
+ * @param {boolean} [args.leadershipTeam] - If true, associate with leadership team
+ * @returns {Promise<{content: Array<{type: string, text: string}>}>}
+ */
+export async function createScorecardMeasurable(args) {
+  const {
+    name,
+    desc = "",
+    type = "weekly",
+    unitType = "number",
+    unitComparison = ">=",
+    goalTarget = "100",
+    goalTargetEnd = "100",
+    goalCurrency = "$",
+    showAverage = true,
+    showTotal = true,
+    autoFormat = false,
+    autoRoundDecimals = false,
+    userId: providedUserId,
+    teamId: providedTeamId,
+    leadershipTeam = false,
+  } = args;
+
+  const isDevMode = getIsDevMode();
+
+  try {
+    // Validate required parameters
+    if (!name || name.trim() === "") {
+      return {
+        content: [
+          {
+            type: "text",
+            text: "Error: name is required",
+          },
+        ],
+      };
+    }
+
+    // Get user context
+    const context = await getUserContext();
+    if (!context) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: "Error: Authentication required. No valid OAuth token or API key found.",
+          },
+        ],
+      };
+    }
+
+    const { companyId, userId: contextUserId } = context;
+    const userId = providedUserId || contextUserId;
+
+    // Get database connection
+    const db = getDatabase();
+    if (!db) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: "Error: Database connection is required for creating measurables",
+          },
+        ],
+      };
+    }
+
+    // Validate type
+    const typeMapping = {
+      weekly: "WEEKLY",
+      monthly: "MONTHLY",
+      quarterly: "QUARTERLY",
+      annually: "ANNUALLY",
+    };
+    const dataFieldType = typeMapping[type.toLowerCase()];
+    if (!dataFieldType) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error: Invalid type. Must be one of: weekly, monthly, quarterly, annually`,
+          },
+        ],
+      };
+    }
+
+    // Validate unitType
+    const validUnitTypes = ["number", "currency", "percentage"];
+    if (!validUnitTypes.includes(unitType)) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error: Invalid unitType. Must be one of: ${validUnitTypes.join(", ")}`,
+          },
+        ],
+      };
+    }
+
+    // Validate unitComparison
+    const validComparisons = [">=", "<=", "=", ">", "<"];
+    if (!validComparisons.includes(unitComparison)) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error: Invalid unitComparison. Must be one of: ${validComparisons.join(", ")}`,
+          },
+        ],
+      };
+    }
+
+    // Resolve teamId if leadershipTeam is true
+    let teamId = providedTeamId;
+    if (leadershipTeam && !providedTeamId) {
+      teamId = await getLeadershipTeamId();
+      if (!teamId) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: "Error: Could not find leadership team. Please ensure a team is marked as the leadership team.",
+            },
+          ],
+        };
+      }
+    }
+
+    if (isDevMode) {
+      console.error(`[DEBUG] Creating scorecard measurable: ${name}`);
+      console.error(`[DEBUG] Type: ${dataFieldType}, Unit: ${unitType}`);
+    }
+
+    // Insert the new data field
+    const insertResult = await db`
+      INSERT INTO data_fields (
+        name,
+        desc,
+        type,
+        unit_type,
+        unit_comparison,
+        goal_target,
+        goal_target_end,
+        goal_currency,
+        show_average,
+        show_total,
+        auto_format,
+        auto_round_decimals,
+        user_id,
+        company_id,
+        state_id,
+        data_field_status_id
+      ) VALUES (
+        ${name},
+        ${desc},
+        ${dataFieldType},
+        ${unitType},
+        ${unitComparison},
+        ${String(goalTarget)},
+        ${String(goalTargetEnd)},
+        ${goalCurrency},
+        ${showAverage},
+        ${showTotal},
+        ${autoFormat},
+        ${autoRoundDecimals},
+        ${userId},
+        ${companyId},
+        'ACTIVE',
+        'ACTIVE'
+      )
+      RETURNING id, name, desc, type, unit_type, unit_comparison, goal_target, 
+                goal_target_end, goal_currency, show_average, show_total, 
+                auto_format, auto_round_decimals, user_id, created_at
+    `;
+
+    const createdMeasurable = insertResult[0];
+
+    if (isDevMode) {
+      console.error(
+        `[DEBUG] Created measurable with ID: ${createdMeasurable.id}`
+      );
+    }
+
+    // Associate with team(s) if provided
+    const teamIds = teamId ? teamId.split(",").map((id) => id.trim()) : [];
+    const teamAssociations = [];
+
+    for (const tid of teamIds) {
+      if (tid) {
+        try {
+          await db`
+            INSERT INTO teams_on_data_fields (
+              team_id,
+              data_field_id,
+              company_id,
+              state_id
+            ) VALUES (
+              ${tid},
+              ${createdMeasurable.id},
+              ${companyId},
+              'ACTIVE'
+            )
+          `;
+          teamAssociations.push(tid);
+
+          if (isDevMode) {
+            console.error(
+              `[DEBUG] Associated measurable with team: ${tid}`
+            );
+          }
+        } catch (error) {
+          console.error(`Error associating with team ${tid}:`, error.message);
+        }
+      }
+    }
+
+    // Format the response
+    const response = {
+      success: true,
+      message: `Successfully created scorecard measurable "${name}"`,
+      measurable: {
+        id: createdMeasurable.id,
+        name: createdMeasurable.name,
+        desc: createdMeasurable.desc,
+        type: createdMeasurable.type,
+        unitType: createdMeasurable.unit_type,
+        unitComparison: createdMeasurable.unit_comparison,
+        goalTarget: createdMeasurable.goal_target,
+        goalTargetEnd: createdMeasurable.goal_target_end,
+        goalCurrency: createdMeasurable.goal_currency,
+        showAverage: createdMeasurable.show_average,
+        showTotal: createdMeasurable.show_total,
+        autoFormat: createdMeasurable.auto_format,
+        autoRoundDecimals: createdMeasurable.auto_round_decimals,
+        userId: createdMeasurable.user_id,
+        createdAt: createdMeasurable.created_at,
+        teamIds: teamAssociations,
+      },
+    };
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(response, null, 2),
+        },
+      ],
+    };
+  } catch (error) {
+    console.error("Error creating scorecard measurable:", error);
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error creating scorecard measurable: ${error.message}`,
+        },
+      ],
+    };
+  }
+}
+
+/**
+ * Update an existing scorecard measurable (data field)
+ * @param {Object} args - Arguments object
+ * @param {string} args.measurableId - Data field ID (required)
+ * @param {string} [args.name] - Measurable name
+ * @param {string} [args.desc] - Description
+ * @param {string} [args.type] - Type: 'weekly', 'monthly', 'quarterly', 'annually'
+ * @param {string} [args.unitType] - Unit type: 'number', 'currency', 'percentage'
+ * @param {string} [args.unitComparison] - Comparison operator: '>=', '<=', '=', '>', '<'
+ * @param {string|number} [args.goalTarget] - Goal target value
+ * @param {string|number} [args.goalTargetEnd] - Goal target end value (for ranges)
+ * @param {string} [args.goalCurrency] - Currency symbol
+ * @param {boolean} [args.showAverage] - Show average in reports
+ * @param {boolean} [args.showTotal] - Show total in reports
+ * @param {boolean} [args.autoFormat] - Auto format values
+ * @param {boolean} [args.autoRoundDecimals] - Auto round decimals
+ * @param {string} [args.status] - Status: 'ACTIVE' or 'ARCHIVED'
+ * @returns {Promise<{content: Array<{type: string, text: string}>}>}
+ */
+export async function updateScorecardMeasurable(args) {
+  const {
+    measurableId,
+    name,
+    desc,
+    type,
+    unitType,
+    unitComparison,
+    goalTarget,
+    goalTargetEnd,
+    goalCurrency,
+    showAverage,
+    showTotal,
+    autoFormat,
+    autoRoundDecimals,
+    status,
+  } = args;
+
+  const isDevMode = getIsDevMode();
+
+  try {
+    // Validate required parameters
+    if (!measurableId) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: "Error: measurableId is required",
+          },
+        ],
+      };
+    }
+
+    // Get user context
+    const context = await getUserContext();
+    if (!context) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: "Error: Authentication required. No valid OAuth token or API key found.",
+          },
+        ],
+      };
+    }
+
+    const { companyId } = context;
+
+    // Get database connection
+    const db = getDatabase();
+    if (!db) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: "Error: Database connection is required for updating measurables",
+          },
+        ],
+      };
+    }
+
+    // Get the existing measurable
+    const existingResult = await db`
+      SELECT id, name, desc, type, unit_type, unit_comparison, goal_target,
+             goal_target_end, goal_currency, show_average, show_total,
+             auto_format, auto_round_decimals, data_field_status_id
+      FROM data_fields
+      WHERE id = ${measurableId}
+        AND company_id = ${companyId}
+        AND state_id = 'ACTIVE'
+      LIMIT 1
+    `;
+
+    if (existingResult.length === 0) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error: Scorecard measurable not found with ID: ${measurableId}`,
+          },
+        ],
+      };
+    }
+
+    const existing = existingResult[0];
+
+    if (isDevMode) {
+      console.error(`[DEBUG] Updating scorecard measurable: ${existing.name}`);
+    }
+
+    // Prepare update fields
+    const updates = {};
+
+    if (name !== undefined) updates.name = name;
+    if (desc !== undefined) updates.desc = desc;
+    
+    if (type !== undefined) {
+      const typeMapping = {
+        weekly: "WEEKLY",
+        monthly: "MONTHLY",
+        quarterly: "QUARTERLY",
+        annually: "ANNUALLY",
+      };
+      const dataFieldType = typeMapping[type.toLowerCase()];
+      if (!dataFieldType) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Error: Invalid type. Must be one of: weekly, monthly, quarterly, annually`,
+            },
+          ],
+        };
+      }
+      updates.type = dataFieldType;
+    }
+
+    if (unitType !== undefined) {
+      const validUnitTypes = ["number", "currency", "percentage"];
+      if (!validUnitTypes.includes(unitType)) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Error: Invalid unitType. Must be one of: ${validUnitTypes.join(", ")}`,
+            },
+          ],
+        };
+      }
+      updates.unit_type = unitType;
+    }
+
+    if (unitComparison !== undefined) {
+      const validComparisons = [">=", "<=", "=", ">", "<"];
+      if (!validComparisons.includes(unitComparison)) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Error: Invalid unitComparison. Must be one of: ${validComparisons.join(", ")}`,
+            },
+          ],
+        };
+      }
+      updates.unit_comparison = unitComparison;
+    }
+
+    if (goalTarget !== undefined) updates.goal_target = String(goalTarget);
+    if (goalTargetEnd !== undefined) updates.goal_target_end = String(goalTargetEnd);
+    if (goalCurrency !== undefined) updates.goal_currency = goalCurrency;
+    if (showAverage !== undefined) updates.show_average = showAverage;
+    if (showTotal !== undefined) updates.show_total = showTotal;
+    if (autoFormat !== undefined) updates.auto_format = autoFormat;
+    if (autoRoundDecimals !== undefined) updates.auto_round_decimals = autoRoundDecimals;
+    
+    if (status !== undefined) {
+      const validStatuses = ["ACTIVE", "ARCHIVED"];
+      if (!validStatuses.includes(status)) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Error: Invalid status. Must be one of: ${validStatuses.join(", ")}`,
+            },
+          ],
+        };
+      }
+      updates.data_field_status_id = status;
+      updates.status_updated_at = new Date();
+    }
+
+    // Check if there are any updates to make
+    if (Object.keys(updates).length === 0) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: "Error: No updates provided. Please provide at least one field to update.",
+          },
+        ],
+      };
+    }
+
+    if (isDevMode) {
+      console.error(`[DEBUG] Updates to apply:`, updates);
+    }
+
+    // Update the measurable
+    const updateResult = await db`
+      UPDATE data_fields
+      SET ${db(updates)}
+      WHERE id = ${measurableId}
+        AND company_id = ${companyId}
+        AND state_id = 'ACTIVE'
+      RETURNING id, name, desc, type, unit_type, unit_comparison, goal_target,
+                goal_target_end, goal_currency, show_average, show_total,
+                auto_format, auto_round_decimals, data_field_status_id, updated_at
+    `;
+
+    if (updateResult.length === 0) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error: Failed to update scorecard measurable with ID: ${measurableId}`,
+          },
+        ],
+      };
+    }
+
+    const updated = updateResult[0];
+
+    if (isDevMode) {
+      console.error(`[DEBUG] Updated scorecard measurable successfully`);
+    }
+
+    // Format the response
+    const response = {
+      success: true,
+      message: `Successfully updated scorecard measurable "${updated.name}"`,
+      measurable: {
+        id: updated.id,
+        name: updated.name,
+        desc: updated.desc,
+        type: updated.type,
+        unitType: updated.unit_type,
+        unitComparison: updated.unit_comparison,
+        goalTarget: updated.goal_target,
+        goalTargetEnd: updated.goal_target_end,
+        goalCurrency: updated.goal_currency,
+        showAverage: updated.show_average,
+        showTotal: updated.show_total,
+        autoFormat: updated.auto_format,
+        autoRoundDecimals: updated.auto_round_decimals,
+        status: updated.data_field_status_id,
+        updatedAt: updated.updated_at,
+      },
+      changes: Object.keys(updates).reduce((acc, key) => {
+        const displayKey = key === "data_field_status_id" ? "status" : key;
+        acc[displayKey] = {
+          from: existing[key],
+          to: updates[key],
+        };
+        return acc;
+      }, {}),
+    };
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(response, null, 2),
+        },
+      ],
+    };
+  } catch (error) {
+    console.error("Error updating scorecard measurable:", error);
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error updating scorecard measurable: ${error.message}`,
+        },
+      ],
+    };
+  }
+}
+
+/**
+ * Delete (soft delete) a scorecard measurable (data field)
+ * @param {Object} args - Arguments object
+ * @param {string} args.measurableId - Data field ID (required)
+ * @returns {Promise<{content: Array<{type: string, text: string}>}>}
+ */
+export async function deleteScorecardMeasurable(args) {
+  const { measurableId } = args;
+
+  const isDevMode = getIsDevMode();
+
+  try {
+    // Validate required parameters
+    if (!measurableId) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: "Error: measurableId is required",
+          },
+        ],
+      };
+    }
+
+    // Get user context
+    const context = await getUserContext();
+    if (!context) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: "Error: Authentication required. No valid OAuth token or API key found.",
+          },
+        ],
+      };
+    }
+
+    const { companyId } = context;
+
+    // Get database connection
+    const db = getDatabase();
+    if (!db) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: "Error: Database connection is required for deleting measurables",
+          },
+        ],
+      };
+    }
+
+    // Get the existing measurable to verify it exists and get its name
+    const existingResult = await db`
+      SELECT id, name
+      FROM data_fields
+      WHERE id = ${measurableId}
+        AND company_id = ${companyId}
+        AND state_id = 'ACTIVE'
+      LIMIT 1
+    `;
+
+    if (existingResult.length === 0) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error: Scorecard measurable not found with ID: ${measurableId}`,
+          },
+        ],
+      };
+    }
+
+    const existing = existingResult[0];
+
+    if (isDevMode) {
+      console.error(`[DEBUG] Deleting scorecard measurable: ${existing.name}`);
+    }
+
+    // Soft delete the measurable
+    const deleteResult = await db`
+      UPDATE data_fields
+      SET state_id = 'DELETED'
+      WHERE id = ${measurableId}
+        AND company_id = ${companyId}
+        AND state_id = 'ACTIVE'
+      RETURNING id, name
+    `;
+
+    if (deleteResult.length === 0) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error: Failed to delete scorecard measurable with ID: ${measurableId}`,
+          },
+        ],
+      };
+    }
+
+    // Also soft delete associated data values
+    await db`
+      UPDATE data_values
+      SET state_id = 'DELETED'
+      WHERE data_field_id = ${measurableId}
+        AND company_id = ${companyId}
+        AND state_id = 'ACTIVE'
+    `;
+
+    // Also soft delete team associations
+    await db`
+      UPDATE teams_on_data_fields
+      SET state_id = 'DELETED'
+      WHERE data_field_id = ${measurableId}
+        AND company_id = ${companyId}
+        AND state_id = 'ACTIVE'
+    `;
+
+    if (isDevMode) {
+      console.error(`[DEBUG] Deleted scorecard measurable and its associations`);
+    }
+
+    // Format the response
+    const response = {
+      success: true,
+      message: `Successfully deleted scorecard measurable "${existing.name}" and all associated data`,
+      measurableId: measurableId,
+      measurableName: existing.name,
+    };
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(response, null, 2),
+        },
+      ],
+    };
+  } catch (error) {
+    console.error("Error deleting scorecard measurable:", error);
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error deleting scorecard measurable: ${error.message}`,
+        },
+      ],
+    };
+  }
+}

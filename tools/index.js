@@ -75,9 +75,12 @@ export {
   deleteMilestone,
 } from "./milestonesTools.js";
 
-// Scorecard/Measurables - These need to be created
+// Scorecard/Measurables
 export {
   getScorecardMeasurables,
+  createScorecardMeasurable,
+  updateScorecardMeasurable,
+  deleteScorecardMeasurable,
   createScorecardMeasurableEntry,
   updateScorecardMeasurableEntry,
 } from "./scorecardTools.js";
