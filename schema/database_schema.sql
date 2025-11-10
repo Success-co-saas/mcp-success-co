@@ -3,16 +3,16 @@
 
  Source Server         : localhost
  Source Server Type    : PostgreSQL
- Source Server Version : 170002 (170002)
+ Source Server Version : 160008 (160008)
  Source Host           : localhost:5432
- Source Catalog        : app-success-onlineOct10
+ Source Catalog        : app-success-co3
  Source Schema         : public
 
  Target Server Type    : PostgreSQL
- Target Server Version : 170002 (170002)
+ Target Server Version : 160008 (160008)
  File Encoding         : 65001
 
- Date: 14/10/2025 19:01:05
+ Date: 10/11/2025 12:31:04
 */
 
 
@@ -107,6 +107,7 @@ CREATE TABLE "public"."comment_files" (
 ALTER TABLE "public"."comment_files" OWNER TO "postgres";
 COMMENT ON COLUMN "public"."comment_files"."updated_at" IS '@omit create,update,delete';
 COMMENT ON COLUMN "public"."comment_files"."sync_id" IS '@omit create,update,delete';
+COMMENT ON TABLE "public"."comment_files" IS '@omit delete';
 
 -- ----------------------------
 -- Table structure for comments
@@ -127,8 +128,10 @@ CREATE TABLE "public"."comments" (
 )
 ;
 ALTER TABLE "public"."comments" OWNER TO "postgres";
+COMMENT ON COLUMN "public"."comments"."order" IS '@omit';
 COMMENT ON COLUMN "public"."comments"."updated_at" IS '@omit create,update,delete';
 COMMENT ON COLUMN "public"."comments"."sync_id" IS '@omit create,update,delete';
+COMMENT ON TABLE "public"."comments" IS '@omit delete';
 
 -- ----------------------------
 -- Table structure for companies
@@ -162,10 +165,12 @@ CREATE TABLE "public"."companies" (
   "quarter_one_date" date DEFAULT make_date((EXTRACT(year FROM CURRENT_DATE))::integer, 1, 1),
   "quarter_two_date" date DEFAULT make_date((EXTRACT(year FROM CURRENT_DATE))::integer, 4, 1),
   "quarter_three_date" date DEFAULT make_date((EXTRACT(year FROM CURRENT_DATE))::integer, 7, 1),
-  "quarter_four_date" date DEFAULT make_date((EXTRACT(year FROM CURRENT_DATE))::integer, 10, 1)
+  "quarter_four_date" date DEFAULT make_date((EXTRACT(year FROM CURRENT_DATE))::integer, 10, 1),
+  "mcp_connected_at" timestamptz(6) DEFAULT NULL::timestamp with time zone
 )
 ;
 ALTER TABLE "public"."companies" OWNER TO "postgres";
+COMMENT ON COLUMN "public"."companies"."previous_code" IS '@omit';
 COMMENT ON COLUMN "public"."companies"."updated_at" IS '@omit create,update,delete';
 COMMENT ON COLUMN "public"."companies"."sync_id" IS '@omit create,update,delete';
 COMMENT ON COLUMN "public"."companies"."integration_todos_config" IS '@omit';
@@ -173,6 +178,8 @@ COMMENT ON COLUMN "public"."companies"."integration_todos_app" IS 'Empty = off';
 COMMENT ON COLUMN "public"."companies"."integration_todos_app_is_setup" IS '@omit create,update,delete';
 COMMENT ON COLUMN "public"."companies"."subscription_state" IS '@omit create,update,delete';
 COMMENT ON COLUMN "public"."companies"."subscription_notes" IS '@omit';
+COMMENT ON COLUMN "public"."companies"."mcp_connected_at" IS 'Timestamp of first MCP service connection by any user';
+COMMENT ON TABLE "public"."companies" IS '@omit delete';
 
 -- ----------------------------
 -- Table structure for dashboard_layout_designs
@@ -192,6 +199,7 @@ CREATE TABLE "public"."dashboard_layout_designs" (
 ALTER TABLE "public"."dashboard_layout_designs" OWNER TO "postgres";
 COMMENT ON COLUMN "public"."dashboard_layout_designs"."updated_at" IS '@omit create,update,delete';
 COMMENT ON COLUMN "public"."dashboard_layout_designs"."sync_id" IS '@omit create,update,delete';
+COMMENT ON TABLE "public"."dashboard_layout_designs" IS '@omit delete';
 
 -- ----------------------------
 -- Table structure for dashboard_layout_displays
@@ -218,6 +226,7 @@ CREATE TABLE "public"."dashboard_layout_displays" (
 ALTER TABLE "public"."dashboard_layout_displays" OWNER TO "postgres";
 COMMENT ON COLUMN "public"."dashboard_layout_displays"."updated_at" IS '@omit create,update,delete';
 COMMENT ON COLUMN "public"."dashboard_layout_displays"."sync_id" IS '@omit create,update,delete';
+COMMENT ON TABLE "public"."dashboard_layout_displays" IS '@omit delete';
 
 -- ----------------------------
 -- Table structure for data_field_statuses
@@ -237,8 +246,10 @@ CREATE TABLE "public"."data_field_statuses" (
 )
 ;
 ALTER TABLE "public"."data_field_statuses" OWNER TO "postgres";
+COMMENT ON COLUMN "public"."data_field_statuses"."built_in" IS '@omit';
 COMMENT ON COLUMN "public"."data_field_statuses"."updated_at" IS '@omit create,update,delete';
 COMMENT ON COLUMN "public"."data_field_statuses"."sync_id" IS '@omit create,update,delete';
+COMMENT ON TABLE "public"."data_field_statuses" IS '@omit create,update,delete';
 
 -- ----------------------------
 -- Table structure for data_fields
@@ -258,13 +269,13 @@ CREATE TABLE "public"."data_fields" (
   "unit_comparison" varchar(10) COLLATE "pg_catalog"."default" NOT NULL DEFAULT '>='::character varying,
   "unit_type" varchar(50) COLLATE "pg_catalog"."default" NOT NULL DEFAULT 'number'::character varying,
   "user_id" uuid NOT NULL DEFAULT '00000000-0000-0000-0000-000000000001'::uuid,
+  "status_updated_at" timestamptz(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "order" int4 NOT NULL DEFAULT 5000,
   "created_at" timestamptz(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   "updated_at" timestamptz(6) NOT NULL,
   "state_id" varchar(50) COLLATE "pg_catalog"."default" NOT NULL DEFAULT 'ACTIVE'::character varying,
   "sync_id" int4 NOT NULL,
   "company_id" uuid NOT NULL,
-  "order" int4 NOT NULL DEFAULT 5000,
-  "status_updated_at" timestamptz(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   "formula" text COLLATE "pg_catalog"."default",
   "auto_format" bool NOT NULL DEFAULT false,
   "auto_round_decimals" bool NOT NULL DEFAULT false
@@ -273,6 +284,7 @@ CREATE TABLE "public"."data_fields" (
 ALTER TABLE "public"."data_fields" OWNER TO "postgres";
 COMMENT ON COLUMN "public"."data_fields"."updated_at" IS '@omit create,update,delete';
 COMMENT ON COLUMN "public"."data_fields"."sync_id" IS '@omit create,update,delete';
+COMMENT ON TABLE "public"."data_fields" IS '@omit delete';
 
 -- ----------------------------
 -- Table structure for data_values
@@ -290,30 +302,14 @@ CREATE TABLE "public"."data_values" (
   "company_id" uuid NOT NULL,
   "custom_goal_target" varchar(20) COLLATE "pg_catalog"."default",
   "custom_goal_target_end" varchar(20) COLLATE "pg_catalog"."default",
-  "note" text COLLATE "pg_catalog"."default" DEFAULT ''::text
+  "note" text COLLATE "pg_catalog"."default" DEFAULT ''::text,
+  "custom_unit_comparison" varchar(10) COLLATE "pg_catalog"."default"
 )
 ;
 ALTER TABLE "public"."data_values" OWNER TO "postgres";
 COMMENT ON COLUMN "public"."data_values"."updated_at" IS '@omit create,update,delete';
 COMMENT ON COLUMN "public"."data_values"."sync_id" IS '@omit create,update,delete';
-
--- ----------------------------
--- Table structure for del_del_users_on_todos
--- ----------------------------
-DROP TABLE IF EXISTS "public"."del_del_users_on_todos";
-CREATE TABLE "public"."del_del_users_on_todos" (
-  "id" uuid NOT NULL DEFAULT gen_random_uuid(),
-  "todo_id" uuid NOT NULL,
-  "user_id" uuid NOT NULL,
-  "sync_id" int4 NOT NULL,
-  "company_id" uuid NOT NULL,
-  "created_at" timestamptz(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  "updated_at" timestamptz(6) NOT NULL
-)
-;
-ALTER TABLE "public"."del_del_users_on_todos" OWNER TO "postgres";
-COMMENT ON COLUMN "public"."del_del_users_on_todos"."sync_id" IS '@omit create,update,delete';
-COMMENT ON COLUMN "public"."del_del_users_on_todos"."updated_at" IS '@omit create,update,delete';
+COMMENT ON TABLE "public"."data_values" IS '@omit delete';
 
 -- ----------------------------
 -- Table structure for eos_implementers
@@ -341,6 +337,7 @@ CREATE TABLE "public"."eos_implementers" (
 )
 ;
 ALTER TABLE "public"."eos_implementers" OWNER TO "postgres";
+COMMENT ON TABLE "public"."eos_implementers" IS '@omit';
 
 -- ----------------------------
 -- Table structure for eos_implementers_stage
@@ -353,6 +350,7 @@ CREATE TABLE "public"."eos_implementers_stage" (
 )
 ;
 ALTER TABLE "public"."eos_implementers_stage" OWNER TO "postgres";
+COMMENT ON TABLE "public"."eos_implementers_stage" IS '@omit';
 
 -- ----------------------------
 -- Table structure for external_lookup_cache
@@ -371,6 +369,7 @@ CREATE TABLE "public"."external_lookup_cache" (
 )
 ;
 ALTER TABLE "public"."external_lookup_cache" OWNER TO "postgres";
+COMMENT ON TABLE "public"."external_lookup_cache" IS '@omit';
 
 -- ----------------------------
 -- Table structure for headline_statuses
@@ -393,6 +392,7 @@ CREATE TABLE "public"."headline_statuses" (
 ALTER TABLE "public"."headline_statuses" OWNER TO "postgres";
 COMMENT ON COLUMN "public"."headline_statuses"."updated_at" IS '@omit create,update,delete';
 COMMENT ON COLUMN "public"."headline_statuses"."sync_id" IS '@omit create,update,delete';
+COMMENT ON TABLE "public"."headline_statuses" IS '@omit create,update,delete';
 
 -- ----------------------------
 -- Table structure for headlines
@@ -405,20 +405,21 @@ CREATE TABLE "public"."headlines" (
   "name" varchar(512) COLLATE "pg_catalog"."default" NOT NULL,
   "team_id" uuid NOT NULL,
   "user_id" uuid NOT NULL,
-  "status_updated_at" timestamptz(6) NOT NULL,
+  "status_updated_at" timestamptz(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "order" int4 NOT NULL DEFAULT 5000,
   "created_at" timestamptz(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   "updated_at" timestamptz(6) NOT NULL,
   "state_id" varchar(50) COLLATE "pg_catalog"."default" NOT NULL DEFAULT 'ACTIVE'::character varying,
   "sync_id" int4 NOT NULL,
   "company_id" uuid NOT NULL,
   "meeting_id" uuid,
-  "is_cascading_message" bool NOT NULL DEFAULT false,
-  "order" int4 NOT NULL DEFAULT 5000
+  "is_cascading_message" bool NOT NULL DEFAULT false
 )
 ;
 ALTER TABLE "public"."headlines" OWNER TO "postgres";
 COMMENT ON COLUMN "public"."headlines"."updated_at" IS '@omit create,update,delete';
 COMMENT ON COLUMN "public"."headlines"."sync_id" IS '@omit create,update,delete';
+COMMENT ON TABLE "public"."headlines" IS '@omit delete';
 
 -- ----------------------------
 -- Table structure for help_content
@@ -436,6 +437,7 @@ CREATE TABLE "public"."help_content" (
 )
 ;
 ALTER TABLE "public"."help_content" OWNER TO "postgres";
+COMMENT ON TABLE "public"."help_content" IS '@omit';
 
 -- ----------------------------
 -- Table structure for help_content_tips
@@ -449,6 +451,7 @@ CREATE TABLE "public"."help_content_tips" (
 )
 ;
 ALTER TABLE "public"."help_content_tips" OWNER TO "postgres";
+COMMENT ON TABLE "public"."help_content_tips" IS '@omit';
 
 -- ----------------------------
 -- Table structure for issue_files
@@ -468,6 +471,7 @@ CREATE TABLE "public"."issue_files" (
 ALTER TABLE "public"."issue_files" OWNER TO "postgres";
 COMMENT ON COLUMN "public"."issue_files"."updated_at" IS '@omit create,update,delete';
 COMMENT ON COLUMN "public"."issue_files"."sync_id" IS '@omit create,update,delete';
+COMMENT ON TABLE "public"."issue_files" IS '@omit delete';
 
 -- ----------------------------
 -- Table structure for issue_statuses
@@ -490,6 +494,7 @@ CREATE TABLE "public"."issue_statuses" (
 ALTER TABLE "public"."issue_statuses" OWNER TO "postgres";
 COMMENT ON COLUMN "public"."issue_statuses"."updated_at" IS '@omit create,update,delete';
 COMMENT ON COLUMN "public"."issue_statuses"."sync_id" IS '@omit create,update,delete';
+COMMENT ON TABLE "public"."issue_statuses" IS '@omit create,update,delete';
 
 -- ----------------------------
 -- Table structure for issues
@@ -503,21 +508,22 @@ CREATE TABLE "public"."issues" (
   "priority_no" int4 NOT NULL DEFAULT 999,
   "status_updated_at" timestamptz(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   "team_id" uuid NOT NULL,
-  "type" varchar(50) COLLATE "pg_catalog"."default" NOT NULL DEFAULT 'long-term'::character varying,
+  "type" varchar(50) COLLATE "pg_catalog"."default" NOT NULL DEFAULT 'short-term'::character varying,
   "user_id" uuid NOT NULL,
+  "order" int4 NOT NULL DEFAULT 5000,
   "created_at" timestamptz(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   "updated_at" timestamptz(6) NOT NULL,
   "state_id" varchar(50) COLLATE "pg_catalog"."default" NOT NULL DEFAULT 'ACTIVE'::character varying,
   "sync_id" int4 NOT NULL,
   "company_id" uuid NOT NULL,
   "meeting_id" uuid,
-  "priority_order" int2,
-  "order" int4 NOT NULL DEFAULT 5000
+  "priority_order" int2
 )
 ;
 ALTER TABLE "public"."issues" OWNER TO "postgres";
 COMMENT ON COLUMN "public"."issues"."updated_at" IS '@omit create,update,delete';
 COMMENT ON COLUMN "public"."issues"."sync_id" IS '@omit create,update,delete';
+COMMENT ON TABLE "public"."issues" IS '@omit delete';
 
 -- ----------------------------
 -- Table structure for languages
@@ -536,6 +542,7 @@ CREATE TABLE "public"."languages" (
 ALTER TABLE "public"."languages" OWNER TO "postgres";
 COMMENT ON COLUMN "public"."languages"."updated_at" IS '@omit create,update,delete';
 COMMENT ON COLUMN "public"."languages"."sync_id" IS '@omit create,update,delete';
+COMMENT ON TABLE "public"."languages" IS '@omit';
 
 -- ----------------------------
 -- Table structure for last_logins
@@ -553,6 +560,7 @@ CREATE TABLE "public"."last_logins" (
 ;
 ALTER TABLE "public"."last_logins" OWNER TO "postgres";
 COMMENT ON COLUMN "public"."last_logins"."sync_id" IS '@omit create,update,delete';
+COMMENT ON TABLE "public"."last_logins" IS '@omit delete';
 
 -- ----------------------------
 -- Table structure for market_strategies_value
@@ -580,6 +588,7 @@ CREATE TABLE "public"."market_strategies_value" (
 ALTER TABLE "public"."market_strategies_value" OWNER TO "postgres";
 COMMENT ON COLUMN "public"."market_strategies_value"."updated_at" IS '@omit create,update,delete';
 COMMENT ON COLUMN "public"."market_strategies_value"."sync_id" IS '@omit create,update,delete';
+COMMENT ON TABLE "public"."market_strategies_value" IS '@omit';
 
 -- ----------------------------
 -- Table structure for meeting_agenda_sections
@@ -605,6 +614,7 @@ CREATE TABLE "public"."meeting_agenda_sections" (
 ALTER TABLE "public"."meeting_agenda_sections" OWNER TO "postgres";
 COMMENT ON COLUMN "public"."meeting_agenda_sections"."updated_at" IS '@omit create,update,delete';
 COMMENT ON COLUMN "public"."meeting_agenda_sections"."sync_id" IS '@omit create,update,delete';
+COMMENT ON TABLE "public"."meeting_agenda_sections" IS '@omit delete';
 
 -- ----------------------------
 -- Table structure for meeting_agenda_statuses
@@ -627,6 +637,7 @@ CREATE TABLE "public"."meeting_agenda_statuses" (
 ALTER TABLE "public"."meeting_agenda_statuses" OWNER TO "postgres";
 COMMENT ON COLUMN "public"."meeting_agenda_statuses"."updated_at" IS '@omit create,update,delete';
 COMMENT ON COLUMN "public"."meeting_agenda_statuses"."sync_id" IS '@omit create,update,delete';
+COMMENT ON TABLE "public"."meeting_agenda_statuses" IS '@omit create,update,delete';
 
 -- ----------------------------
 -- Table structure for meeting_agenda_types
@@ -646,6 +657,7 @@ CREATE TABLE "public"."meeting_agenda_types" (
 ALTER TABLE "public"."meeting_agenda_types" OWNER TO "postgres";
 COMMENT ON COLUMN "public"."meeting_agenda_types"."updated_at" IS '@omit create,update,delete';
 COMMENT ON COLUMN "public"."meeting_agenda_types"."sync_id" IS '@omit create,update,delete';
+COMMENT ON TABLE "public"."meeting_agenda_types" IS '@omit delete';
 
 -- ----------------------------
 -- Table structure for meeting_agendas
@@ -664,8 +676,8 @@ CREATE TABLE "public"."meeting_agendas" (
   "state_id" varchar(50) COLLATE "pg_catalog"."default" NOT NULL DEFAULT 'ACTIVE'::character varying,
   "sync_id" int4 NOT NULL,
   "copied_from_meeting_agenda_id" uuid,
-  "company_id" uuid NOT NULL,
   "meeting_agenda_type_id" varchar(255) COLLATE "pg_catalog"."default" DEFAULT 'CUSTOM'::character varying,
+  "company_id" uuid NOT NULL,
   "scribe_user_id" uuid,
   "facilitator_user_id" uuid,
   "repeat_interval" int4 DEFAULT 1,
@@ -676,6 +688,7 @@ CREATE TABLE "public"."meeting_agendas" (
 ALTER TABLE "public"."meeting_agendas" OWNER TO "postgres";
 COMMENT ON COLUMN "public"."meeting_agendas"."updated_at" IS '@omit create,update,delete';
 COMMENT ON COLUMN "public"."meeting_agendas"."sync_id" IS '@omit create,update,delete';
+COMMENT ON TABLE "public"."meeting_agendas" IS '@omit delete';
 
 -- ----------------------------
 -- Table structure for meeting_external_sync_infos
@@ -691,6 +704,7 @@ CREATE TABLE "public"."meeting_external_sync_infos" (
 ;
 ALTER TABLE "public"."meeting_external_sync_infos" OWNER TO "postgres";
 COMMENT ON COLUMN "public"."meeting_external_sync_infos"."updated_at" IS '@omit create,update,delete';
+COMMENT ON TABLE "public"."meeting_external_sync_infos" IS '@omit delete';
 
 -- ----------------------------
 -- Table structure for meeting_info_statuses
@@ -713,6 +727,7 @@ CREATE TABLE "public"."meeting_info_statuses" (
 ALTER TABLE "public"."meeting_info_statuses" OWNER TO "postgres";
 COMMENT ON COLUMN "public"."meeting_info_statuses"."updated_at" IS '@omit create,update,delete';
 COMMENT ON COLUMN "public"."meeting_info_statuses"."sync_id" IS '@omit create,update,delete';
+COMMENT ON TABLE "public"."meeting_info_statuses" IS '@omit create,update,delete';
 
 -- ----------------------------
 -- Table structure for meeting_infos
@@ -741,6 +756,7 @@ CREATE TABLE "public"."meeting_infos" (
 ALTER TABLE "public"."meeting_infos" OWNER TO "postgres";
 COMMENT ON COLUMN "public"."meeting_infos"."updated_at" IS '@omit create,update,delete';
 COMMENT ON COLUMN "public"."meeting_infos"."sync_id" IS '@omit create,update,delete';
+COMMENT ON TABLE "public"."meeting_infos" IS '@omit delete';
 
 -- ----------------------------
 -- Table structure for meeting_ratings
@@ -762,6 +778,7 @@ CREATE TABLE "public"."meeting_ratings" (
 ALTER TABLE "public"."meeting_ratings" OWNER TO "postgres";
 COMMENT ON COLUMN "public"."meeting_ratings"."updated_at" IS '@omit create,update,delete';
 COMMENT ON COLUMN "public"."meeting_ratings"."sync_id" IS '@omit create,update,delete';
+COMMENT ON TABLE "public"."meeting_ratings" IS '@omit delete';
 
 -- ----------------------------
 -- Table structure for meeting_repeats
@@ -778,6 +795,7 @@ CREATE TABLE "public"."meeting_repeats" (
 )
 ;
 ALTER TABLE "public"."meeting_repeats" OWNER TO "postgres";
+COMMENT ON TABLE "public"."meeting_repeats" IS '@omit delete';
 
 -- ----------------------------
 -- Table structure for meeting_section_infos
@@ -790,14 +808,15 @@ CREATE TABLE "public"."meeting_section_infos" (
   "section_id" uuid NOT NULL,
   "created_at" timestamptz(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   "updated_at" timestamptz(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "duration" int4 NOT NULL DEFAULT 0,
   "company_id" uuid NOT NULL,
-  "sync_id" int4 NOT NULL,
-  "duration" int4 NOT NULL DEFAULT 0
+  "sync_id" int4 NOT NULL
 )
 ;
 ALTER TABLE "public"."meeting_section_infos" OWNER TO "postgres";
 COMMENT ON COLUMN "public"."meeting_section_infos"."updated_at" IS '@omit create,update,delete';
 COMMENT ON COLUMN "public"."meeting_section_infos"."sync_id" IS '@omit create,update,delete';
+COMMENT ON TABLE "public"."meeting_section_infos" IS '@omit delete';
 
 -- ----------------------------
 -- Table structure for meeting_statuses
@@ -818,6 +837,7 @@ CREATE TABLE "public"."meeting_statuses" (
 ALTER TABLE "public"."meeting_statuses" OWNER TO "postgres";
 COMMENT ON COLUMN "public"."meeting_statuses"."updated_at" IS '@omit create,update,delete';
 COMMENT ON COLUMN "public"."meeting_statuses"."sync_id" IS '@omit create,update,delete';
+COMMENT ON TABLE "public"."meeting_statuses" IS '@omit create,update,delete';
 
 -- ----------------------------
 -- Table structure for meeting_summary_emails
@@ -836,6 +856,7 @@ CREATE TABLE "public"."meeting_summary_emails" (
 )
 ;
 ALTER TABLE "public"."meeting_summary_emails" OWNER TO "postgres";
+COMMENT ON TABLE "public"."meeting_summary_emails" IS '@omit';
 
 -- ----------------------------
 -- Table structure for meetings
@@ -866,6 +887,7 @@ CREATE TABLE "public"."meetings" (
 ALTER TABLE "public"."meetings" OWNER TO "postgres";
 COMMENT ON COLUMN "public"."meetings"."updated_at" IS '@omit create,update,delete';
 COMMENT ON COLUMN "public"."meetings"."sync_id" IS '@omit create,update,delete';
+COMMENT ON TABLE "public"."meetings" IS '@omit delete';
 
 -- ----------------------------
 -- Table structure for milestone_statuses
@@ -932,6 +954,105 @@ CREATE TABLE "public"."notifications" (
 ALTER TABLE "public"."notifications" OWNER TO "postgres";
 COMMENT ON COLUMN "public"."notifications"."sync_id" IS '@omit create,update,delete';
 COMMENT ON COLUMN "public"."notifications"."updated_at" IS '@omit create,update,delete';
+COMMENT ON TABLE "public"."notifications" IS '@omit delete';
+
+-- ----------------------------
+-- Table structure for oauth_access_tokens
+-- ----------------------------
+DROP TABLE IF EXISTS "public"."oauth_access_tokens";
+CREATE TABLE "public"."oauth_access_tokens" (
+  "id" uuid NOT NULL DEFAULT gen_random_uuid(),
+  "access_token" text COLLATE "pg_catalog"."default" NOT NULL,
+  "client_id" varchar(255) COLLATE "pg_catalog"."default" NOT NULL,
+  "user_id" uuid NOT NULL,
+  "company_id" uuid NOT NULL,
+  "user_email" varchar(255) COLLATE "pg_catalog"."default" NOT NULL,
+  "scope" varchar(255) COLLATE "pg_catalog"."default",
+  "expires_at" timestamptz(6) NOT NULL,
+  "created_at" timestamptz(6) NOT NULL DEFAULT now(),
+  "last_used_at" timestamptz(6),
+  "state_id" varchar(50) COLLATE "pg_catalog"."default" NOT NULL DEFAULT 'ACTIVE'::character varying,
+  "refresh_token" text COLLATE "pg_catalog"."default",
+  "refresh_token_expires_at" timestamptz(6),
+  "id_token" text COLLATE "pg_catalog"."default"
+)
+;
+ALTER TABLE "public"."oauth_access_tokens" OWNER TO "postgres";
+COMMENT ON COLUMN "public"."oauth_access_tokens"."access_token" IS 'JWT access token (can be several hundred characters)';
+COMMENT ON COLUMN "public"."oauth_access_tokens"."refresh_token" IS 'Refresh token for obtaining new access tokens';
+COMMENT ON COLUMN "public"."oauth_access_tokens"."id_token" IS 'OIDC ID token (JWT) containing user identity claims';
+COMMENT ON TABLE "public"."oauth_access_tokens" IS '@omit';
+
+-- ----------------------------
+-- Table structure for oauth_authorization_codes
+-- ----------------------------
+DROP TABLE IF EXISTS "public"."oauth_authorization_codes";
+CREATE TABLE "public"."oauth_authorization_codes" (
+  "id" uuid NOT NULL DEFAULT gen_random_uuid(),
+  "code" varchar(255) COLLATE "pg_catalog"."default" NOT NULL,
+  "client_id" varchar(255) COLLATE "pg_catalog"."default" NOT NULL,
+  "user_id" uuid NOT NULL,
+  "company_id" uuid NOT NULL,
+  "redirect_uri" text COLLATE "pg_catalog"."default" NOT NULL,
+  "scope" varchar(255) COLLATE "pg_catalog"."default",
+  "expires_at" timestamptz(6) NOT NULL,
+  "created_at" timestamptz(6) NOT NULL DEFAULT now(),
+  "used" bool NOT NULL DEFAULT false,
+  "nonce" varchar(255) COLLATE "pg_catalog"."default",
+  "code_challenge" varchar(255) COLLATE "pg_catalog"."default",
+  "code_challenge_method" varchar(10) COLLATE "pg_catalog"."default"
+)
+;
+ALTER TABLE "public"."oauth_authorization_codes" OWNER TO "postgres";
+COMMENT ON COLUMN "public"."oauth_authorization_codes"."nonce" IS 'OIDC nonce value for ID token validation';
+COMMENT ON COLUMN "public"."oauth_authorization_codes"."code_challenge" IS 'PKCE code challenge for enhanced security';
+COMMENT ON COLUMN "public"."oauth_authorization_codes"."code_challenge_method" IS 'PKCE code challenge method (S256 or plain)';
+
+-- ----------------------------
+-- Table structure for oauth_clients
+-- ----------------------------
+DROP TABLE IF EXISTS "public"."oauth_clients";
+CREATE TABLE "public"."oauth_clients" (
+  "id" uuid NOT NULL DEFAULT gen_random_uuid(),
+  "client_id" varchar(255) COLLATE "pg_catalog"."default" NOT NULL,
+  "client_secret" varchar(255) COLLATE "pg_catalog"."default" NOT NULL,
+  "client_name" varchar(255) COLLATE "pg_catalog"."default" NOT NULL,
+  "redirect_uris" text[] COLLATE "pg_catalog"."default" NOT NULL,
+  "grant_types" text[] COLLATE "pg_catalog"."default" DEFAULT ARRAY['authorization_code'::text, 'refresh_token'::text],
+  "state_id" varchar(50) COLLATE "pg_catalog"."default" NOT NULL DEFAULT 'ACTIVE'::character varying,
+  "created_at" timestamptz(6) NOT NULL DEFAULT now(),
+  "updated_at" timestamptz(6) NOT NULL DEFAULT now()
+)
+;
+ALTER TABLE "public"."oauth_clients" OWNER TO "postgres";
+
+-- ----------------------------
+-- Table structure for oauth_jwks
+-- ----------------------------
+DROP TABLE IF EXISTS "public"."oauth_jwks";
+CREATE TABLE "public"."oauth_jwks" (
+  "id" uuid NOT NULL DEFAULT gen_random_uuid(),
+  "kid" varchar(255) COLLATE "pg_catalog"."default" NOT NULL,
+  "kty" varchar(50) COLLATE "pg_catalog"."default" NOT NULL,
+  "use_type" varchar(50) COLLATE "pg_catalog"."default" NOT NULL,
+  "alg" varchar(50) COLLATE "pg_catalog"."default" NOT NULL,
+  "public_key" text COLLATE "pg_catalog"."default" NOT NULL,
+  "private_key" text COLLATE "pg_catalog"."default" NOT NULL,
+  "state_id" varchar(50) COLLATE "pg_catalog"."default" NOT NULL DEFAULT 'ACTIVE'::character varying,
+  "expires_at" timestamptz(6),
+  "created_at" timestamptz(6) NOT NULL DEFAULT now(),
+  "updated_at" timestamptz(6) NOT NULL DEFAULT now()
+)
+;
+ALTER TABLE "public"."oauth_jwks" OWNER TO "postgres";
+COMMENT ON COLUMN "public"."oauth_jwks"."kid" IS 'Key ID - unique identifier for the key';
+COMMENT ON COLUMN "public"."oauth_jwks"."kty" IS 'Key type (e.g., RSA, EC)';
+COMMENT ON COLUMN "public"."oauth_jwks"."use_type" IS 'Key usage type (sig for signing, enc for encryption)';
+COMMENT ON COLUMN "public"."oauth_jwks"."alg" IS 'Cryptographic algorithm (e.g., RS256)';
+COMMENT ON COLUMN "public"."oauth_jwks"."public_key" IS 'Public key in PEM format';
+COMMENT ON COLUMN "public"."oauth_jwks"."private_key" IS 'Private key in PEM format (encrypted at rest recommended)';
+COMMENT ON COLUMN "public"."oauth_jwks"."expires_at" IS 'Optional expiration date for key rotation';
+COMMENT ON TABLE "public"."oauth_jwks" IS 'JSON Web Key Sets (JWKS) for signing OAuth JWT tokens';
 
 -- ----------------------------
 -- Table structure for org_chart_roles_responsibilities
@@ -953,6 +1074,7 @@ CREATE TABLE "public"."org_chart_roles_responsibilities" (
 ALTER TABLE "public"."org_chart_roles_responsibilities" OWNER TO "postgres";
 COMMENT ON COLUMN "public"."org_chart_roles_responsibilities"."updated_at" IS '@omit create,update,delete';
 COMMENT ON COLUMN "public"."org_chart_roles_responsibilities"."sync_id" IS '@omit create,update,delete';
+COMMENT ON TABLE "public"."org_chart_roles_responsibilities" IS '@omit delete';
 
 -- ----------------------------
 -- Table structure for org_chart_seat_docs
@@ -961,7 +1083,7 @@ DROP TABLE IF EXISTS "public"."org_chart_seat_docs";
 CREATE TABLE "public"."org_chart_seat_docs" (
   "id" uuid NOT NULL DEFAULT gen_random_uuid(),
   "org_chart_seat_id" uuid NOT NULL,
-  "file_name" varchar(50) COLLATE "pg_catalog"."default" NOT NULL,
+  "file_name" varchar(255) COLLATE "pg_catalog"."default" NOT NULL,
   "file_url" varchar(255) COLLATE "pg_catalog"."default" NOT NULL DEFAULT ''::character varying,
   "order" int4 NOT NULL,
   "created_at" timestamptz(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -974,6 +1096,7 @@ CREATE TABLE "public"."org_chart_seat_docs" (
 ALTER TABLE "public"."org_chart_seat_docs" OWNER TO "postgres";
 COMMENT ON COLUMN "public"."org_chart_seat_docs"."updated_at" IS '@omit create,update,delete';
 COMMENT ON COLUMN "public"."org_chart_seat_docs"."sync_id" IS '@omit create,update,delete';
+COMMENT ON TABLE "public"."org_chart_seat_docs" IS '@omit delete';
 
 -- ----------------------------
 -- Table structure for org_chart_seats
@@ -990,12 +1113,14 @@ CREATE TABLE "public"."org_chart_seats" (
   "state_id" varchar(50) COLLATE "pg_catalog"."default" NOT NULL DEFAULT 'ACTIVE'::character varying,
   "sync_id" int4 NOT NULL,
   "company_id" uuid NOT NULL,
-  "holders" varchar(5000) COLLATE "pg_catalog"."default"
+  "holders" varchar(5000) COLLATE "pg_catalog"."default",
+  "is_assistant" bool NOT NULL DEFAULT false
 )
 ;
 ALTER TABLE "public"."org_chart_seats" OWNER TO "postgres";
 COMMENT ON COLUMN "public"."org_chart_seats"."updated_at" IS '@omit create,update,delete';
 COMMENT ON COLUMN "public"."org_chart_seats"."sync_id" IS '@omit create,update,delete';
+COMMENT ON TABLE "public"."org_chart_seats" IS '@omit delete';
 
 -- ----------------------------
 -- Table structure for org_chart_shared_users
@@ -1015,6 +1140,7 @@ CREATE TABLE "public"."org_chart_shared_users" (
 ALTER TABLE "public"."org_chart_shared_users" OWNER TO "postgres";
 COMMENT ON COLUMN "public"."org_chart_shared_users"."updated_at" IS '@omit create,update,delete';
 COMMENT ON COLUMN "public"."org_chart_shared_users"."sync_id" IS '@omit create,update,delete';
+COMMENT ON TABLE "public"."org_chart_shared_users" IS '@omit delete';
 
 -- ----------------------------
 -- Table structure for org_charts
@@ -1023,19 +1149,20 @@ DROP TABLE IF EXISTS "public"."org_charts";
 CREATE TABLE "public"."org_charts" (
   "id" uuid NOT NULL DEFAULT gen_random_uuid(),
   "name" varchar(512) COLLATE "pg_catalog"."default" NOT NULL,
+  "description" text COLLATE "pg_catalog"."default",
+  "is_primary_chart" int4 NOT NULL DEFAULT 0,
   "user_id" uuid NOT NULL,
   "created_at" timestamptz(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   "updated_at" timestamptz(6) NOT NULL,
   "state_id" varchar(50) COLLATE "pg_catalog"."default" NOT NULL DEFAULT 'ACTIVE'::character varying,
   "sync_id" int4 NOT NULL,
-  "company_id" uuid NOT NULL,
-  "description" text COLLATE "pg_catalog"."default",
-  "is_primary_chart" int4 NOT NULL DEFAULT 0
+  "company_id" uuid NOT NULL
 )
 ;
 ALTER TABLE "public"."org_charts" OWNER TO "postgres";
 COMMENT ON COLUMN "public"."org_charts"."updated_at" IS '@omit create,update,delete';
 COMMENT ON COLUMN "public"."org_charts"."sync_id" IS '@omit create,update,delete';
+COMMENT ON TABLE "public"."org_charts" IS '@omit delete';
 
 -- ----------------------------
 -- Table structure for org_checkup_answers
@@ -1058,6 +1185,7 @@ CREATE TABLE "public"."org_checkup_answers" (
 ALTER TABLE "public"."org_checkup_answers" OWNER TO "postgres";
 COMMENT ON COLUMN "public"."org_checkup_answers"."updated_at" IS '@omit create,update,delete';
 COMMENT ON COLUMN "public"."org_checkup_answers"."sync_id" IS '@omit create,update,delete';
+COMMENT ON TABLE "public"."org_checkup_answers" IS '@omit delete';
 
 -- ----------------------------
 -- Table structure for org_checkup_statuses
@@ -1076,6 +1204,7 @@ CREATE TABLE "public"."org_checkup_statuses" (
 ALTER TABLE "public"."org_checkup_statuses" OWNER TO "postgres";
 COMMENT ON COLUMN "public"."org_checkup_statuses"."updated_at" IS '@omit create,update,delete';
 COMMENT ON COLUMN "public"."org_checkup_statuses"."sync_id" IS '@omit create,update,delete';
+COMMENT ON TABLE "public"."org_checkup_statuses" IS '@omit';
 
 -- ----------------------------
 -- Table structure for org_checkups
@@ -1097,6 +1226,7 @@ CREATE TABLE "public"."org_checkups" (
 ALTER TABLE "public"."org_checkups" OWNER TO "postgres";
 COMMENT ON COLUMN "public"."org_checkups"."updated_at" IS '@omit create,update,delete';
 COMMENT ON COLUMN "public"."org_checkups"."sync_id" IS '@omit create,update,delete';
+COMMENT ON TABLE "public"."org_checkups" IS '@omit delete';
 
 -- ----------------------------
 -- Table structure for partner_companies
@@ -1114,6 +1244,7 @@ CREATE TABLE "public"."partner_companies" (
 ;
 ALTER TABLE "public"."partner_companies" OWNER TO "postgres";
 COMMENT ON COLUMN "public"."partner_companies"."sync_id" IS '@omit create,update,delete';
+COMMENT ON TABLE "public"."partner_companies" IS '@omit delete';
 
 -- ----------------------------
 -- Table structure for partners
@@ -1133,6 +1264,7 @@ CREATE TABLE "public"."partners" (
 ;
 ALTER TABLE "public"."partners" OWNER TO "postgres";
 COMMENT ON COLUMN "public"."partners"."sync_id" IS '@omit create,update,delete';
+COMMENT ON TABLE "public"."partners" IS '@omit delete';
 
 -- ----------------------------
 -- Table structure for people_analyzer_session_statuses
@@ -1152,6 +1284,7 @@ CREATE TABLE "public"."people_analyzer_session_statuses" (
 ALTER TABLE "public"."people_analyzer_session_statuses" OWNER TO "postgres";
 COMMENT ON COLUMN "public"."people_analyzer_session_statuses"."updated_at" IS '@omit create,update,delete';
 COMMENT ON COLUMN "public"."people_analyzer_session_statuses"."sync_id" IS '@omit create,update,delete';
+COMMENT ON TABLE "public"."people_analyzer_session_statuses" IS '@omit create,update,delete';
 
 -- ----------------------------
 -- Table structure for people_analyzer_session_users
@@ -1175,6 +1308,7 @@ CREATE TABLE "public"."people_analyzer_session_users" (
 ALTER TABLE "public"."people_analyzer_session_users" OWNER TO "postgres";
 COMMENT ON COLUMN "public"."people_analyzer_session_users"."updated_at" IS '@omit create,update,delete';
 COMMENT ON COLUMN "public"."people_analyzer_session_users"."sync_id" IS '@omit create,update,delete';
+COMMENT ON TABLE "public"."people_analyzer_session_users" IS '@omit delete';
 
 -- ----------------------------
 -- Table structure for people_analyzer_session_users_scores
@@ -1195,6 +1329,7 @@ CREATE TABLE "public"."people_analyzer_session_users_scores" (
 ALTER TABLE "public"."people_analyzer_session_users_scores" OWNER TO "postgres";
 COMMENT ON COLUMN "public"."people_analyzer_session_users_scores"."updated_at" IS '@omit create,update,delete';
 COMMENT ON COLUMN "public"."people_analyzer_session_users_scores"."sync_id" IS '@omit create,update,delete';
+COMMENT ON TABLE "public"."people_analyzer_session_users_scores" IS '@omit delete';
 
 -- ----------------------------
 -- Table structure for people_analyzer_sessions
@@ -1218,6 +1353,7 @@ CREATE TABLE "public"."people_analyzer_sessions" (
 ALTER TABLE "public"."people_analyzer_sessions" OWNER TO "postgres";
 COMMENT ON COLUMN "public"."people_analyzer_sessions"."updated_at" IS '@omit create,update,delete';
 COMMENT ON COLUMN "public"."people_analyzer_sessions"."sync_id" IS '@omit create,update,delete';
+COMMENT ON TABLE "public"."people_analyzer_sessions" IS '@omit delete';
 
 -- ----------------------------
 -- Table structure for previous_platforms
@@ -1236,6 +1372,7 @@ CREATE TABLE "public"."previous_platforms" (
 ALTER TABLE "public"."previous_platforms" OWNER TO "postgres";
 COMMENT ON COLUMN "public"."previous_platforms"."updated_at" IS '@omit create,update,delete';
 COMMENT ON COLUMN "public"."previous_platforms"."sync_id" IS '@omit create,update,delete';
+COMMENT ON TABLE "public"."previous_platforms" IS '@omit delete';
 
 -- ----------------------------
 -- Table structure for related_items
@@ -1256,6 +1393,7 @@ CREATE TABLE "public"."related_items" (
 ;
 ALTER TABLE "public"."related_items" OWNER TO "postgres";
 COMMENT ON COLUMN "public"."related_items"."sync_id" IS '@omit create,update,delete';
+COMMENT ON TABLE "public"."related_items" IS '@omit delete';
 
 -- ----------------------------
 -- Table structure for relation_types
@@ -1282,6 +1420,7 @@ CREATE TABLE "public"."roadmap_item_votes" (
 )
 ;
 ALTER TABLE "public"."roadmap_item_votes" OWNER TO "postgres";
+COMMENT ON TABLE "public"."roadmap_item_votes" IS '@omit';
 
 -- ----------------------------
 -- Table structure for roadmap_items
@@ -1304,6 +1443,7 @@ CREATE TABLE "public"."roadmap_items" (
 )
 ;
 ALTER TABLE "public"."roadmap_items" OWNER TO "postgres";
+COMMENT ON TABLE "public"."roadmap_items" IS '@omit';
 
 -- ----------------------------
 -- Table structure for roadmap_phases
@@ -1320,6 +1460,7 @@ CREATE TABLE "public"."roadmap_phases" (
 )
 ;
 ALTER TABLE "public"."roadmap_phases" OWNER TO "postgres";
+COMMENT ON TABLE "public"."roadmap_phases" IS '@omit';
 
 -- ----------------------------
 -- Table structure for rock_files
@@ -1339,6 +1480,7 @@ CREATE TABLE "public"."rock_files" (
 ALTER TABLE "public"."rock_files" OWNER TO "postgres";
 COMMENT ON COLUMN "public"."rock_files"."updated_at" IS '@omit create,update,delete';
 COMMENT ON COLUMN "public"."rock_files"."sync_id" IS '@omit create,update,delete';
+COMMENT ON TABLE "public"."rock_files" IS '@omit delete';
 
 -- ----------------------------
 -- Table structure for rock_statuses
@@ -1361,6 +1503,7 @@ CREATE TABLE "public"."rock_statuses" (
 ALTER TABLE "public"."rock_statuses" OWNER TO "postgres";
 COMMENT ON COLUMN "public"."rock_statuses"."updated_at" IS '@omit create,update,delete';
 COMMENT ON COLUMN "public"."rock_statuses"."sync_id" IS '@omit create,update,delete';
+COMMENT ON TABLE "public"."rock_statuses" IS '@omit create,update,delete';
 
 -- ----------------------------
 -- Table structure for rocks
@@ -1372,8 +1515,8 @@ CREATE TABLE "public"."rocks" (
   "due_date" date NOT NULL,
   "name" varchar(512) COLLATE "pg_catalog"."default" NOT NULL DEFAULT ''::character varying,
   "rock_status_id" varchar(50) COLLATE "pg_catalog"."default" NOT NULL,
-  "status_updated_at" timestamptz(6) NOT NULL,
-  "type" varchar(50) COLLATE "pg_catalog"."default" NOT NULL DEFAULT ''::character varying,
+  "status_updated_at" timestamptz(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "type" varchar(50) COLLATE "pg_catalog"."default" NOT NULL DEFAULT 'personal'::character varying,
   "user_id" uuid NOT NULL,
   "created_at" timestamptz(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   "updated_at" timestamptz(6) NOT NULL,
@@ -1385,6 +1528,7 @@ CREATE TABLE "public"."rocks" (
 ALTER TABLE "public"."rocks" OWNER TO "postgres";
 COMMENT ON COLUMN "public"."rocks"."updated_at" IS '@omit create,update,delete';
 COMMENT ON COLUMN "public"."rocks"."sync_id" IS '@omit create,update,delete';
+COMMENT ON TABLE "public"."rocks" IS '@omit delete';
 
 -- ----------------------------
 -- Table structure for service_api_translations
@@ -1400,10 +1544,12 @@ CREATE TABLE "public"."service_api_translations" (
   "nl" text COLLATE "pg_catalog"."default",
   "pt" text COLLATE "pg_catalog"."default",
   "sv" text COLLATE "pg_catalog"."default",
-  "zh" text COLLATE "pg_catalog"."default"
+  "zh" text COLLATE "pg_catalog"."default",
+  "tr" text COLLATE "pg_catalog"."default"
 )
 ;
 ALTER TABLE "public"."service_api_translations" OWNER TO "postgres";
+COMMENT ON TABLE "public"."service_api_translations" IS '@omit';
 
 -- ----------------------------
 -- Table structure for states
@@ -1423,6 +1569,7 @@ CREATE TABLE "public"."states" (
 ALTER TABLE "public"."states" OWNER TO "postgres";
 COMMENT ON COLUMN "public"."states"."updated_at" IS '@omit create,update,delete';
 COMMENT ON COLUMN "public"."states"."sync_id" IS '@omit create,update,delete';
+COMMENT ON TABLE "public"."states" IS '@omit';
 
 -- ----------------------------
 -- Table structure for stripe_customers
@@ -1457,6 +1604,7 @@ CREATE TABLE "public"."stripe_customers" (
 ;
 ALTER TABLE "public"."stripe_customers" OWNER TO "postgres";
 COMMENT ON COLUMN "public"."stripe_customers"."sync_id" IS '@omit create,update,delete';
+COMMENT ON TABLE "public"."stripe_customers" IS '@omit delete';
 
 -- ----------------------------
 -- Table structure for stripe_subscriptions
@@ -1512,6 +1660,7 @@ CREATE TABLE "public"."swot_items" (
 ALTER TABLE "public"."swot_items" OWNER TO "postgres";
 COMMENT ON COLUMN "public"."swot_items"."updated_at" IS '@omit create,update,delete';
 COMMENT ON COLUMN "public"."swot_items"."sync_id" IS '@omit create,update,delete';
+COMMENT ON TABLE "public"."swot_items" IS '@omit delete';
 
 -- ----------------------------
 -- Table structure for sync
@@ -1527,6 +1676,26 @@ CREATE TABLE "public"."sync" (
 ALTER TABLE "public"."sync" OWNER TO "postgres";
 COMMENT ON COLUMN "public"."sync"."sync_id" IS '@omit create,update,delete';
 COMMENT ON COLUMN "public"."sync"."updated_at" IS '@omit create,update,delete';
+
+-- ----------------------------
+-- Table structure for sync_updates
+-- ----------------------------
+DROP TABLE IF EXISTS "public"."sync_updates";
+CREATE TABLE "public"."sync_updates" (
+  "id" uuid NOT NULL DEFAULT gen_random_uuid(),
+  "old_data" jsonb NOT NULL,
+  "new_data" jsonb NOT NULL,
+  "table_name" varchar(255) COLLATE "pg_catalog"."default" NOT NULL,
+  "entity_id" varchar(255) COLLATE "pg_catalog"."default" NOT NULL,
+  "user_id" uuid NOT NULL,
+  "company_id" uuid NOT NULL,
+  "state_id" varchar(50) COLLATE "pg_catalog"."default" NOT NULL DEFAULT 'ACTIVE'::character varying,
+  "created_at" timestamptz(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "sync_id" int4 NOT NULL
+)
+;
+ALTER TABLE "public"."sync_updates" OWNER TO "postgres";
+COMMENT ON TABLE "public"."sync_updates" IS '@omit delete';
 
 -- ----------------------------
 -- Table structure for tags
@@ -1545,6 +1714,7 @@ CREATE TABLE "public"."tags" (
 ALTER TABLE "public"."tags" OWNER TO "postgres";
 COMMENT ON COLUMN "public"."tags"."updated_at" IS '@omit create,update,delete';
 COMMENT ON COLUMN "public"."tags"."sync_id" IS '@omit create,update,delete';
+COMMENT ON TABLE "public"."tags" IS '@omit';
 
 -- ----------------------------
 -- Table structure for teams
@@ -1568,6 +1738,7 @@ CREATE TABLE "public"."teams" (
 ALTER TABLE "public"."teams" OWNER TO "postgres";
 COMMENT ON COLUMN "public"."teams"."updated_at" IS '@omit create,update,delete';
 COMMENT ON COLUMN "public"."teams"."sync_id" IS '@omit create,update,delete';
+COMMENT ON TABLE "public"."teams" IS '@omit delete';
 
 -- ----------------------------
 -- Table structure for teams_on_data_fields
@@ -1587,7 +1758,7 @@ CREATE TABLE "public"."teams_on_data_fields" (
 ALTER TABLE "public"."teams_on_data_fields" OWNER TO "postgres";
 COMMENT ON COLUMN "public"."teams_on_data_fields"."updated_at" IS '@omit create,update,delete';
 COMMENT ON COLUMN "public"."teams_on_data_fields"."sync_id" IS '@omit create,update,delete';
-COMMENT ON TABLE "public"."teams_on_data_fields" IS 'pivot:team';
+COMMENT ON TABLE "public"."teams_on_data_fields" IS '@omit delete';
 
 -- ----------------------------
 -- Table structure for teams_on_rocks
@@ -1607,7 +1778,7 @@ CREATE TABLE "public"."teams_on_rocks" (
 ALTER TABLE "public"."teams_on_rocks" OWNER TO "postgres";
 COMMENT ON COLUMN "public"."teams_on_rocks"."updated_at" IS '@omit create,update,delete';
 COMMENT ON COLUMN "public"."teams_on_rocks"."sync_id" IS '@omit create,update,delete';
-COMMENT ON TABLE "public"."teams_on_rocks" IS 'pivot:team';
+COMMENT ON TABLE "public"."teams_on_rocks" IS '@omit delete';
 
 -- ----------------------------
 -- Table structure for testimonials
@@ -1626,6 +1797,7 @@ CREATE TABLE "public"."testimonials" (
 )
 ;
 ALTER TABLE "public"."testimonials" OWNER TO "postgres";
+COMMENT ON TABLE "public"."testimonials" IS '@omit';
 
 -- ----------------------------
 -- Table structure for todo_external_sync_infos
@@ -1641,6 +1813,7 @@ CREATE TABLE "public"."todo_external_sync_infos" (
 )
 ;
 ALTER TABLE "public"."todo_external_sync_infos" OWNER TO "postgres";
+COMMENT ON TABLE "public"."todo_external_sync_infos" IS '@omit delete';
 
 -- ----------------------------
 -- Table structure for todo_files
@@ -1660,6 +1833,7 @@ CREATE TABLE "public"."todo_files" (
 ALTER TABLE "public"."todo_files" OWNER TO "postgres";
 COMMENT ON COLUMN "public"."todo_files"."updated_at" IS '@omit create,update,delete';
 COMMENT ON COLUMN "public"."todo_files"."sync_id" IS '@omit create,update,delete';
+COMMENT ON TABLE "public"."todo_files" IS '@omit delete';
 
 -- ----------------------------
 -- Table structure for todo_statuses
@@ -1682,6 +1856,7 @@ CREATE TABLE "public"."todo_statuses" (
 ALTER TABLE "public"."todo_statuses" OWNER TO "postgres";
 COMMENT ON COLUMN "public"."todo_statuses"."updated_at" IS '@omit create,update,delete';
 COMMENT ON COLUMN "public"."todo_statuses"."sync_id" IS '@omit create,update,delete';
+COMMENT ON TABLE "public"."todo_statuses" IS '@omit create,update,delete';
 
 -- ----------------------------
 -- Table structure for todos
@@ -1692,24 +1867,25 @@ CREATE TABLE "public"."todos" (
   "desc" text COLLATE "pg_catalog"."default" NOT NULL,
   "name" varchar(512) COLLATE "pg_catalog"."default" NOT NULL DEFAULT ''::character varying,
   "priority_no" int4 NOT NULL,
-  "status_updated_at" timestamptz(6) NOT NULL,
+  "status_updated_at" timestamptz(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   "team_id" uuid NOT NULL,
   "todo_status_id" varchar(255) COLLATE "pg_catalog"."default" NOT NULL,
-  "type" varchar(50) COLLATE "pg_catalog"."default" NOT NULL DEFAULT ''::character varying,
+  "type" varchar(50) COLLATE "pg_catalog"."default" NOT NULL DEFAULT 'team'::character varying,
+  "user_id" uuid,
+  "order" int4 NOT NULL DEFAULT 5000,
   "created_at" timestamptz(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   "updated_at" timestamptz(6) NOT NULL,
   "state_id" varchar(50) COLLATE "pg_catalog"."default" NOT NULL DEFAULT 'ACTIVE'::character varying,
   "sync_id" int4 NOT NULL,
   "company_id" uuid NOT NULL,
   "meeting_id" uuid,
-  "due_date" date,
-  "order" int4 NOT NULL DEFAULT 5000,
-  "user_id" uuid
+  "due_date" date
 )
 ;
 ALTER TABLE "public"."todos" OWNER TO "postgres";
 COMMENT ON COLUMN "public"."todos"."updated_at" IS '@omit create,update,delete';
 COMMENT ON COLUMN "public"."todos"."sync_id" IS '@omit create,update,delete';
+COMMENT ON TABLE "public"."todos" IS '@omit delete';
 
 -- ----------------------------
 -- Table structure for translation_suggestion_statuses
@@ -1725,6 +1901,7 @@ CREATE TABLE "public"."translation_suggestion_statuses" (
 )
 ;
 ALTER TABLE "public"."translation_suggestion_statuses" OWNER TO "postgres";
+COMMENT ON TABLE "public"."translation_suggestion_statuses" IS '@omit';
 
 -- ----------------------------
 -- Table structure for translation_suggestions
@@ -1744,6 +1921,7 @@ CREATE TABLE "public"."translation_suggestions" (
 )
 ;
 ALTER TABLE "public"."translation_suggestions" OWNER TO "postgres";
+COMMENT ON TABLE "public"."translation_suggestions" IS '@omit';
 
 -- ----------------------------
 -- Table structure for user_api_keys
@@ -1757,11 +1935,14 @@ CREATE TABLE "public"."user_api_keys" (
   "label" varchar(255) COLLATE "pg_catalog"."default" NOT NULL DEFAULT ''::character varying,
   "created_at" timestamptz(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   "last_used_at" timestamptz(6),
-  "revoked" bool NOT NULL DEFAULT false
+  "revoked" bool NOT NULL DEFAULT false,
+  "platform" text COLLATE "pg_catalog"."default" NOT NULL DEFAULT ''::text,
+  "location" text COLLATE "pg_catalog"."default" NOT NULL DEFAULT ''::text
 )
 ;
 ALTER TABLE "public"."user_api_keys" OWNER TO "postgres";
 COMMENT ON COLUMN "public"."user_api_keys"."key" IS '@omit';
+COMMENT ON TABLE "public"."user_api_keys" IS '@omit';
 
 -- ----------------------------
 -- Table structure for user_permissions
@@ -1820,6 +2001,7 @@ CREATE TABLE "public"."user_statuses" (
 ALTER TABLE "public"."user_statuses" OWNER TO "postgres";
 COMMENT ON COLUMN "public"."user_statuses"."updated_at" IS '@omit create,update,delete';
 COMMENT ON COLUMN "public"."user_statuses"."sync_id" IS '@omit create,update,delete';
+COMMENT ON TABLE "public"."user_statuses" IS '@omit create,update,delete';
 
 -- ----------------------------
 -- Table structure for users
@@ -1850,7 +2032,8 @@ CREATE TABLE "public"."users" (
   "integration_microsoft_calendar_setup" bool NOT NULL DEFAULT false,
   "integration_microsoft_calendar_tokens" text COLLATE "pg_catalog"."default" NOT NULL DEFAULT ''::text,
   "show_welcome_message" bool NOT NULL DEFAULT true,
-  "color" varchar(7) COLLATE "pg_catalog"."default"
+  "color" varchar(7) COLLATE "pg_catalog"."default",
+  "mcp_connected_at" timestamptz(6) DEFAULT NULL::timestamp with time zone
 )
 ;
 ALTER TABLE "public"."users" OWNER TO "postgres";
@@ -1858,6 +2041,8 @@ COMMENT ON COLUMN "public"."users"."updated_at" IS '@omit create,update,delete';
 COMMENT ON COLUMN "public"."users"."sync_id" IS '@omit create,update,delete';
 COMMENT ON COLUMN "public"."users"."integration_google_calendar_tokens" IS '@omit';
 COMMENT ON COLUMN "public"."users"."integration_microsoft_calendar_tokens" IS '@omit';
+COMMENT ON COLUMN "public"."users"."mcp_connected_at" IS 'Timestamp of first MCP service connection';
+COMMENT ON TABLE "public"."users" IS '@omit delete';
 
 -- ----------------------------
 -- Table structure for users_on_teams
@@ -1877,6 +2062,7 @@ CREATE TABLE "public"."users_on_teams" (
 ALTER TABLE "public"."users_on_teams" OWNER TO "postgres";
 COMMENT ON COLUMN "public"."users_on_teams"."updated_at" IS '@omit create,update,delete';
 COMMENT ON COLUMN "public"."users_on_teams"."sync_id" IS '@omit create,update,delete';
+COMMENT ON TABLE "public"."users_on_teams" IS '@omit delete';
 
 -- ----------------------------
 -- Table structure for vision_core_focus_types
@@ -1887,7 +2073,6 @@ CREATE TABLE "public"."vision_core_focus_types" (
   "cascade_all" bool NOT NULL DEFAULT false,
   "desc" text COLLATE "pg_catalog"."default" NOT NULL DEFAULT ''::text,
   "name" varchar(512) COLLATE "pg_catalog"."default" NOT NULL,
-  "vision_id" uuid,
   "type" varchar(50) COLLATE "pg_catalog"."default" NOT NULL,
   "src" varchar(5000) COLLATE "pg_catalog"."default" NOT NULL DEFAULT ''::text,
   "created_at" timestamptz(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -1895,12 +2080,14 @@ CREATE TABLE "public"."vision_core_focus_types" (
   "state_id" varchar(50) COLLATE "pg_catalog"."default" NOT NULL DEFAULT 'ACTIVE'::character varying,
   "sync_id" int4 NOT NULL,
   "company_id" uuid NOT NULL,
+  "vision_id" uuid,
   "core_focus_name" varchar(255) COLLATE "pg_catalog"."default" NOT NULL DEFAULT ''::text
 )
 ;
 ALTER TABLE "public"."vision_core_focus_types" OWNER TO "postgres";
 COMMENT ON COLUMN "public"."vision_core_focus_types"."updated_at" IS '@omit create,update,delete';
 COMMENT ON COLUMN "public"."vision_core_focus_types"."sync_id" IS '@omit create,update,delete';
+COMMENT ON TABLE "public"."vision_core_focus_types" IS '@omit delete';
 
 -- ----------------------------
 -- Table structure for vision_core_value_details
@@ -1924,6 +2111,7 @@ CREATE TABLE "public"."vision_core_value_details" (
 ALTER TABLE "public"."vision_core_value_details" OWNER TO "postgres";
 COMMENT ON COLUMN "public"."vision_core_value_details"."updated_at" IS '@omit create,update,delete';
 COMMENT ON COLUMN "public"."vision_core_value_details"."sync_id" IS '@omit create,update,delete';
+COMMENT ON TABLE "public"."vision_core_value_details" IS '@omit delete';
 
 -- ----------------------------
 -- Table structure for vision_core_values
@@ -1933,17 +2121,18 @@ CREATE TABLE "public"."vision_core_values" (
   "id" uuid NOT NULL DEFAULT gen_random_uuid(),
   "cascade_all" bool NOT NULL DEFAULT false,
   "name" varchar(512) COLLATE "pg_catalog"."default" NOT NULL DEFAULT ''::character varying,
-  "vision_id" uuid,
   "created_at" timestamptz(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   "updated_at" timestamptz(6) NOT NULL,
   "state_id" varchar(50) COLLATE "pg_catalog"."default" NOT NULL DEFAULT 'ACTIVE'::character varying,
   "sync_id" int4 NOT NULL,
-  "company_id" uuid NOT NULL
+  "company_id" uuid NOT NULL,
+  "vision_id" uuid
 )
 ;
 ALTER TABLE "public"."vision_core_values" OWNER TO "postgres";
 COMMENT ON COLUMN "public"."vision_core_values"."updated_at" IS '@omit create,update,delete';
 COMMENT ON COLUMN "public"."vision_core_values"."sync_id" IS '@omit create,update,delete';
+COMMENT ON TABLE "public"."vision_core_values" IS '@omit delete';
 
 -- ----------------------------
 -- Table structure for vision_display_layouts
@@ -1955,7 +2144,6 @@ CREATE TABLE "public"."vision_display_layouts" (
   "layout" varchar(50) COLLATE "pg_catalog"."default" NOT NULL,
   "page" varchar(50) COLLATE "pg_catalog"."default" NOT NULL,
   "srno" int4 NOT NULL,
-  "vision_id" uuid,
   "user_id" uuid NOT NULL,
   "visibility" varchar(50) COLLATE "pg_catalog"."default" NOT NULL,
   "w" int4 NOT NULL,
@@ -1967,12 +2155,14 @@ CREATE TABLE "public"."vision_display_layouts" (
   "state_id" varchar(50) COLLATE "pg_catalog"."default" NOT NULL DEFAULT 'ACTIVE'::character varying,
   "sync_id" int4 NOT NULL,
   "company_id" uuid NOT NULL,
+  "vision_id" uuid,
   "custom_focus_ids" text COLLATE "pg_catalog"."default" NOT NULL DEFAULT ''::text
 )
 ;
 ALTER TABLE "public"."vision_display_layouts" OWNER TO "postgres";
 COMMENT ON COLUMN "public"."vision_display_layouts"."updated_at" IS '@omit create,update,delete';
 COMMENT ON COLUMN "public"."vision_display_layouts"."sync_id" IS '@omit create,update,delete';
+COMMENT ON TABLE "public"."vision_display_layouts" IS '@omit delete';
 
 -- ----------------------------
 -- Table structure for vision_goal_details
@@ -1984,19 +2174,20 @@ CREATE TABLE "public"."vision_goal_details" (
   "position" int4 NOT NULL DEFAULT 2000,
   "status" bool NOT NULL DEFAULT true,
   "vision_three_year_goal_id" uuid NOT NULL,
-  "vision_id" uuid,
   "type" varchar(50) COLLATE "pg_catalog"."default" NOT NULL,
   "desc" text COLLATE "pg_catalog"."default" NOT NULL DEFAULT ''::text,
   "created_at" timestamptz(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   "updated_at" timestamptz(6) NOT NULL,
   "state_id" varchar(50) COLLATE "pg_catalog"."default" NOT NULL DEFAULT 'ACTIVE'::character varying,
   "sync_id" int4 NOT NULL,
-  "company_id" uuid NOT NULL
+  "company_id" uuid NOT NULL,
+  "vision_id" uuid
 )
 ;
 ALTER TABLE "public"."vision_goal_details" OWNER TO "postgres";
 COMMENT ON COLUMN "public"."vision_goal_details"."updated_at" IS '@omit create,update,delete';
 COMMENT ON COLUMN "public"."vision_goal_details"."sync_id" IS '@omit create,update,delete';
+COMMENT ON TABLE "public"."vision_goal_details" IS '@omit delete';
 
 -- ----------------------------
 -- Table structure for vision_goal_doc_details
@@ -2018,6 +2209,7 @@ CREATE TABLE "public"."vision_goal_doc_details" (
 ALTER TABLE "public"."vision_goal_doc_details" OWNER TO "postgres";
 COMMENT ON COLUMN "public"."vision_goal_doc_details"."updated_at" IS '@omit create,update,delete';
 COMMENT ON COLUMN "public"."vision_goal_doc_details"."sync_id" IS '@omit create,update,delete';
+COMMENT ON TABLE "public"."vision_goal_doc_details" IS '@omit delete';
 
 -- ----------------------------
 -- Table structure for vision_histories
@@ -2027,7 +2219,6 @@ CREATE TABLE "public"."vision_histories" (
   "id" uuid NOT NULL DEFAULT gen_random_uuid(),
   "name" varchar(512) COLLATE "pg_catalog"."default" NOT NULL,
   "team_id" uuid NOT NULL,
-  "vision_id" uuid,
   "user_id" uuid NOT NULL,
   "vision_history_comments" text COLLATE "pg_catalog"."default" NOT NULL DEFAULT ''::text,
   "vision_history_core_focus_types" text COLLATE "pg_catalog"."default" NOT NULL DEFAULT ''::text,
@@ -2047,18 +2238,20 @@ CREATE TABLE "public"."vision_histories" (
   "vision_history_profit_revenue_details" text COLLATE "pg_catalog"."default" NOT NULL DEFAULT ''::text,
   "vision_history_rocks" text COLLATE "pg_catalog"."default" NOT NULL DEFAULT ''::text,
   "vision_history_three_year_goals" text COLLATE "pg_catalog"."default" NOT NULL DEFAULT ''::text,
+  "is_current_version" int4 NOT NULL DEFAULT 0,
   "position" int2 NOT NULL DEFAULT 20000,
   "created_at" timestamptz(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   "updated_at" timestamptz(6) NOT NULL,
   "state_id" varchar(50) COLLATE "pg_catalog"."default" NOT NULL DEFAULT 'ACTIVE'::character varying,
   "sync_id" int4 NOT NULL,
   "company_id" uuid NOT NULL,
-  "is_current_version" int4 NOT NULL DEFAULT 0
+  "vision_id" uuid
 )
 ;
 ALTER TABLE "public"."vision_histories" OWNER TO "postgres";
 COMMENT ON COLUMN "public"."vision_histories"."updated_at" IS '@omit create,update,delete';
 COMMENT ON COLUMN "public"."vision_histories"."sync_id" IS '@omit create,update,delete';
+COMMENT ON TABLE "public"."vision_histories" IS '@omit delete';
 
 -- ----------------------------
 -- Table structure for vision_issues
@@ -2068,18 +2261,19 @@ CREATE TABLE "public"."vision_issues" (
   "id" uuid NOT NULL DEFAULT gen_random_uuid(),
   "cascade_all" bool NOT NULL DEFAULT false,
   "name" varchar(512) COLLATE "pg_catalog"."default" NOT NULL,
-  "vision_id" uuid,
   "team_id" uuid NOT NULL,
   "created_at" timestamptz(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   "updated_at" timestamptz(6) NOT NULL,
   "state_id" varchar(50) COLLATE "pg_catalog"."default" NOT NULL DEFAULT 'ACTIVE'::character varying,
   "sync_id" int4 NOT NULL,
-  "company_id" uuid NOT NULL
+  "company_id" uuid NOT NULL,
+  "vision_id" uuid
 )
 ;
 ALTER TABLE "public"."vision_issues" OWNER TO "postgres";
 COMMENT ON COLUMN "public"."vision_issues"."updated_at" IS '@omit create,update,delete';
 COMMENT ON COLUMN "public"."vision_issues"."sync_id" IS '@omit create,update,delete';
+COMMENT ON TABLE "public"."vision_issues" IS '@omit delete';
 
 -- ----------------------------
 -- Table structure for vision_kpis_on_three_year_goals
@@ -2100,6 +2294,7 @@ CREATE TABLE "public"."vision_kpis_on_three_year_goals" (
 ALTER TABLE "public"."vision_kpis_on_three_year_goals" OWNER TO "postgres";
 COMMENT ON COLUMN "public"."vision_kpis_on_three_year_goals"."updated_at" IS '@omit create,update,delete';
 COMMENT ON COLUMN "public"."vision_kpis_on_three_year_goals"."sync_id" IS '@omit create,update,delete';
+COMMENT ON TABLE "public"."vision_kpis_on_three_year_goals" IS '@omit delete';
 
 -- ----------------------------
 -- Table structure for vision_market_strategies
@@ -2115,13 +2310,13 @@ CREATE TABLE "public"."vision_market_strategies" (
   "name" varchar(512) COLLATE "pg_catalog"."default" NOT NULL,
   "proven_process" varchar(512) COLLATE "pg_catalog"."default" NOT NULL,
   "proven_process_desc" varchar(5000) COLLATE "pg_catalog"."default" NOT NULL DEFAULT ''::text,
-  "vision_id" uuid,
   "unique_value_proposition" varchar(5000) COLLATE "pg_catalog"."default" NOT NULL,
   "created_at" timestamptz(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   "updated_at" timestamptz(6) NOT NULL,
   "state_id" varchar(50) COLLATE "pg_catalog"."default" NOT NULL DEFAULT 'ACTIVE'::character varying,
   "sync_id" int4 NOT NULL,
   "company_id" uuid NOT NULL,
+  "vision_id" uuid,
   "show_proven_process" bool NOT NULL DEFAULT true,
   "show_guarantee" bool NOT NULL DEFAULT true,
   "is_custom" int4 NOT NULL DEFAULT 0
@@ -2130,6 +2325,7 @@ CREATE TABLE "public"."vision_market_strategies" (
 ALTER TABLE "public"."vision_market_strategies" OWNER TO "postgres";
 COMMENT ON COLUMN "public"."vision_market_strategies"."updated_at" IS '@omit create,update,delete';
 COMMENT ON COLUMN "public"."vision_market_strategies"."sync_id" IS '@omit create,update,delete';
+COMMENT ON TABLE "public"."vision_market_strategies" IS '@omit delete';
 
 -- ----------------------------
 -- Table structure for vision_market_strategies_doc_details
@@ -2151,6 +2347,7 @@ CREATE TABLE "public"."vision_market_strategies_doc_details" (
 ALTER TABLE "public"."vision_market_strategies_doc_details" OWNER TO "postgres";
 COMMENT ON COLUMN "public"."vision_market_strategies_doc_details"."updated_at" IS '@omit create,update,delete';
 COMMENT ON COLUMN "public"."vision_market_strategies_doc_details"."sync_id" IS '@omit create,update,delete';
+COMMENT ON TABLE "public"."vision_market_strategies_doc_details" IS '@omit delete';
 
 -- ----------------------------
 -- Table structure for vision_market_strategies_unique_details
@@ -2172,6 +2369,7 @@ CREATE TABLE "public"."vision_market_strategies_unique_details" (
 ALTER TABLE "public"."vision_market_strategies_unique_details" OWNER TO "postgres";
 COMMENT ON COLUMN "public"."vision_market_strategies_unique_details"."updated_at" IS '@omit create,update,delete';
 COMMENT ON COLUMN "public"."vision_market_strategies_unique_details"."sync_id" IS '@omit create,update,delete';
+COMMENT ON TABLE "public"."vision_market_strategies_unique_details" IS '@omit delete';
 
 -- ----------------------------
 -- Table structure for vision_profit_revenue_details
@@ -2180,7 +2378,6 @@ DROP TABLE IF EXISTS "public"."vision_profit_revenue_details";
 CREATE TABLE "public"."vision_profit_revenue_details" (
   "id" uuid NOT NULL DEFAULT gen_random_uuid(),
   "vision_three_year_goal_id" uuid NOT NULL,
-  "vision_id" uuid,
   "entity" varchar(255) COLLATE "pg_catalog"."default" NOT NULL,
   "type" varchar(255) COLLATE "pg_catalog"."default" NOT NULL,
   "value" varchar(255) COLLATE "pg_catalog"."default" NOT NULL,
@@ -2190,12 +2387,14 @@ CREATE TABLE "public"."vision_profit_revenue_details" (
   "updated_at" timestamptz(6) NOT NULL,
   "state_id" varchar(50) COLLATE "pg_catalog"."default" NOT NULL,
   "sync_id" int4 NOT NULL,
-  "company_id" uuid NOT NULL
+  "company_id" uuid NOT NULL,
+  "vision_id" uuid
 )
 ;
 ALTER TABLE "public"."vision_profit_revenue_details" OWNER TO "postgres";
 COMMENT ON COLUMN "public"."vision_profit_revenue_details"."updated_at" IS '@omit create,update,delete';
 COMMENT ON COLUMN "public"."vision_profit_revenue_details"."sync_id" IS '@omit create,update,delete';
+COMMENT ON TABLE "public"."vision_profit_revenue_details" IS '@omit delete';
 
 -- ----------------------------
 -- Table structure for vision_three_year_goals
@@ -2206,18 +2405,19 @@ CREATE TABLE "public"."vision_three_year_goals" (
   "cascade_all" bool NOT NULL DEFAULT false,
   "future_date" date NOT NULL,
   "name" varchar(512) COLLATE "pg_catalog"."default" NOT NULL,
-  "vision_id" uuid,
   "type" varchar(50) COLLATE "pg_catalog"."default" NOT NULL,
   "created_at" timestamptz(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   "updated_at" timestamptz(6) NOT NULL,
   "state_id" varchar(50) COLLATE "pg_catalog"."default" NOT NULL DEFAULT 'ACTIVE'::character varying,
   "sync_id" int4 NOT NULL,
-  "company_id" uuid NOT NULL
+  "company_id" uuid NOT NULL,
+  "vision_id" uuid
 )
 ;
 ALTER TABLE "public"."vision_three_year_goals" OWNER TO "postgres";
 COMMENT ON COLUMN "public"."vision_three_year_goals"."updated_at" IS '@omit create,update,delete';
 COMMENT ON COLUMN "public"."vision_three_year_goals"."sync_id" IS '@omit create,update,delete';
+COMMENT ON TABLE "public"."vision_three_year_goals" IS '@omit delete';
 
 -- ----------------------------
 -- Table structure for visions
@@ -2226,17 +2426,18 @@ DROP TABLE IF EXISTS "public"."visions";
 CREATE TABLE "public"."visions" (
   "id" uuid NOT NULL DEFAULT gen_random_uuid(),
   "team_id" uuid NOT NULL,
+  "is_leadership" bool NOT NULL DEFAULT false,
   "created_at" timestamptz(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   "updated_at" timestamptz(6) NOT NULL,
   "state_id" varchar(50) COLLATE "pg_catalog"."default" NOT NULL DEFAULT 'ACTIVE'::character varying,
   "sync_id" int4 NOT NULL,
-  "company_id" uuid NOT NULL,
-  "is_leadership" bool NOT NULL DEFAULT false
+  "company_id" uuid NOT NULL
 )
 ;
 ALTER TABLE "public"."visions" OWNER TO "postgres";
 COMMENT ON COLUMN "public"."visions"."updated_at" IS '@omit create,update,delete';
 COMMENT ON COLUMN "public"."visions"."sync_id" IS '@omit create,update,delete';
+COMMENT ON TABLE "public"."visions" IS '@omit delete';
 
 -- ----------------------------
 -- Function structure for allcompaniesforuser
@@ -2261,6 +2462,77 @@ $BODY$
   LANGUAGE plpgsql VOLATILE SECURITY DEFINER
   COST 100;
 ALTER FUNCTION "public"."allcompaniesforuser"("user_email" text) OWNER TO "postgres";
+
+-- ----------------------------
+-- Function structure for copy_meeting_agendas
+-- ----------------------------
+DROP FUNCTION IF EXISTS "public"."copy_meeting_agendas"("source_team_id" uuid, "target_team_id" uuid);
+CREATE FUNCTION "public"."copy_meeting_agendas"("source_team_id" uuid, "target_team_id" uuid)
+  RETURNS "pg_catalog"."void" AS $BODY$
+DECLARE
+    target_company_id uuid;
+    new_agenda_id uuid;
+    new_section_id uuid;
+    agenda_record meeting_agendas%ROWTYPE;
+    section_record meeting_agenda_sections%ROWTYPE;
+BEGIN
+    -- Get the company_id for the target team
+    SELECT company_id INTO target_company_id
+    FROM teams
+    WHERE id = target_team_id;
+
+    -- Ensure the target team exists and has a valid company_id
+    IF target_company_id IS NULL THEN
+        RAISE EXCEPTION 'Invalid target team ID';
+    END IF;
+
+    -- Loop through all active, built-in meeting agendas for the source team
+    FOR agenda_record IN
+        SELECT *
+        FROM meeting_agendas
+        WHERE team_id = source_team_id
+          AND built_in = true
+          AND state_id = 'ACTIVE'
+    LOOP
+        -- Insert the copied meeting agenda for the target team, with copied_from_meeting_agenda_id set to source agenda id
+        INSERT INTO meeting_agendas (
+            built_in, "desc", meeting_agenda_status_id, meeting_repeats_id,
+            name, team_id, created_at, updated_at, state_id, sync_id, company_id, copied_from_meeting_agenda_id
+        )
+        VALUES (
+            agenda_record.built_in, agenda_record.desc, agenda_record.meeting_agenda_status_id,
+            agenda_record.meeting_repeats_id, agenda_record.name, target_team_id,
+            CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, agenda_record.state_id,
+            agenda_record.sync_id, target_company_id, agenda_record.id 
+        )
+        RETURNING id INTO new_agenda_id;
+
+        -- Loop through all active sections associated with the current agenda
+        FOR section_record IN
+            SELECT *
+            FROM meeting_agenda_sections
+            WHERE meeting_agenda_id = agenda_record.id
+              AND state_id = 'ACTIVE'
+        LOOP
+            -- Insert the copied section for the new agenda
+            INSERT INTO meeting_agenda_sections (
+                "desc", duration, embed_url, meeting_agenda_id, name, "order",
+                type, visible, created_at, updated_at, state_id, sync_id, company_id
+            )
+            VALUES (
+                section_record.desc, section_record.duration, section_record.embed_url, new_agenda_id,
+                section_record.name, section_record."order", section_record.type,
+                section_record.visible, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP,
+                section_record.state_id, section_record.sync_id, target_company_id
+            )
+            RETURNING id INTO new_section_id;
+        END LOOP;
+    END LOOP;
+END;
+$BODY$
+  LANGUAGE plpgsql VOLATILE SECURITY DEFINER
+  COST 100;
+ALTER FUNCTION "public"."copy_meeting_agendas"("source_team_id" uuid, "target_team_id" uuid) OWNER TO "postgres";
 
 -- ----------------------------
 -- Function structure for copy_meeting_agendas
@@ -2347,77 +2619,6 @@ $BODY$
   LANGUAGE plpgsql VOLATILE SECURITY DEFINER
   COST 100;
 ALTER FUNCTION "public"."copy_meeting_agendas"("source_team_id" uuid, "target_team_id" uuid, "lang_code" varchar) OWNER TO "postgres";
-
--- ----------------------------
--- Function structure for copy_meeting_agendas
--- ----------------------------
-DROP FUNCTION IF EXISTS "public"."copy_meeting_agendas"("source_team_id" uuid, "target_team_id" uuid);
-CREATE FUNCTION "public"."copy_meeting_agendas"("source_team_id" uuid, "target_team_id" uuid)
-  RETURNS "pg_catalog"."void" AS $BODY$
-DECLARE
-    target_company_id uuid;
-    new_agenda_id uuid;
-    new_section_id uuid;
-    agenda_record meeting_agendas%ROWTYPE;
-    section_record meeting_agenda_sections%ROWTYPE;
-BEGIN
-    -- Get the company_id for the target team
-    SELECT company_id INTO target_company_id
-    FROM teams
-    WHERE id = target_team_id;
-
-    -- Ensure the target team exists and has a valid company_id
-    IF target_company_id IS NULL THEN
-        RAISE EXCEPTION 'Invalid target team ID';
-    END IF;
-
-    -- Loop through all active, built-in meeting agendas for the source team
-    FOR agenda_record IN
-        SELECT *
-        FROM meeting_agendas
-        WHERE team_id = source_team_id
-          AND built_in = true
-          AND state_id = 'ACTIVE'
-    LOOP
-        -- Insert the copied meeting agenda for the target team, with copied_from_meeting_agenda_id set to source agenda id
-        INSERT INTO meeting_agendas (
-            built_in, "desc", meeting_agenda_status_id, meeting_repeats_id,
-            name, team_id, created_at, updated_at, state_id, sync_id, company_id, copied_from_meeting_agenda_id
-        )
-        VALUES (
-            agenda_record.built_in, agenda_record.desc, agenda_record.meeting_agenda_status_id,
-            agenda_record.meeting_repeats_id, agenda_record.name, target_team_id,
-            CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, agenda_record.state_id,
-            agenda_record.sync_id, target_company_id, agenda_record.id 
-        )
-        RETURNING id INTO new_agenda_id;
-
-        -- Loop through all active sections associated with the current agenda
-        FOR section_record IN
-            SELECT *
-            FROM meeting_agenda_sections
-            WHERE meeting_agenda_id = agenda_record.id
-              AND state_id = 'ACTIVE'
-        LOOP
-            -- Insert the copied section for the new agenda
-            INSERT INTO meeting_agenda_sections (
-                "desc", duration, embed_url, meeting_agenda_id, name, "order",
-                type, visible, created_at, updated_at, state_id, sync_id, company_id
-            )
-            VALUES (
-                section_record.desc, section_record.duration, section_record.embed_url, new_agenda_id,
-                section_record.name, section_record."order", section_record.type,
-                section_record.visible, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP,
-                section_record.state_id, section_record.sync_id, target_company_id
-            )
-            RETURNING id INTO new_section_id;
-        END LOOP;
-    END LOOP;
-END;
-$BODY$
-  LANGUAGE plpgsql VOLATILE SECURITY DEFINER
-  COST 100;
-ALTER FUNCTION "public"."copy_meeting_agendas"("source_team_id" uuid, "target_team_id" uuid) OWNER TO "postgres";
 
 -- ----------------------------
 -- Function structure for current_company_id
@@ -2636,6 +2837,8 @@ CREATE FUNCTION "public"."notify_to_sync_updates"("old_data" jsonb, "new_data" j
         payload JSONB;
         text_field varchar(255);
         field_keys varchar(255)[];
+        normalized_old_data jsonb;
+        normalized_new_data jsonb;
     BEGIN
 
         -- Declare list of fields to include in the payload
@@ -2654,18 +2857,22 @@ CREATE FUNCTION "public"."notify_to_sync_updates"("old_data" jsonb, "new_data" j
             old_data := jsonb_set(old_data, ARRAY['mentions'], to_jsonb(extract_mentions(old_data->>text_field)), true);
         end if;
 
-        payload := json_build_object(
-            'old_data', normalize_jsonb(field_keys, old_data),
-            'new_data', normalize_jsonb(field_keys, new_data),
-            'table_name', table_name,
-            'entity_id', new_data->>'id',
-            'user_id', user_id,
-            'company_id', new_data->>'company_id'
-        );
+        normalized_new_data := normalize_jsonb(field_keys, new_data);
+        normalized_old_data := normalize_jsonb(field_keys, old_data);
 
-        -- Safety net - send pg_notify the payload if its under ~8KB
-        IF length(payload::text) <= 7900 THEN
-            PERFORM pg_notify('sync_updates', payload::text);
+        -- Insert into sync_updates table
+        IF normalized_new_data IS DISTINCT FROM normalized_old_data THEN
+          INSERT INTO sync_updates (old_data, new_data, table_name, entity_id, user_id, company_id, state_id, sync_id)
+          VALUES (
+              normalized_old_data,
+              normalized_new_data,
+              table_name::text,
+              COALESCE(new_data->>'id', old_data->>'id'),
+              user_id,
+              COALESCE((new_data->>'company_id')::uuid, (old_data->>'company_id')::uuid),
+              'DELETED',
+              FLOOR(EXTRACT(EPOCH FROM now()))::bigint
+          );
         END IF;
     end;
     $BODY$
@@ -3007,14 +3214,14 @@ SELECT setval('"public"."help_content_tips_id_seq"', 83, true);
 -- ----------------------------
 ALTER SEQUENCE "public"."roadmap_item_votes_id_seq"
 OWNED BY "public"."roadmap_item_votes"."id";
-SELECT setval('"public"."roadmap_item_votes_id_seq"', 174, true);
+SELECT setval('"public"."roadmap_item_votes_id_seq"', 204, true);
 
 -- ----------------------------
 -- Alter sequences owned by
 -- ----------------------------
 ALTER SEQUENCE "public"."roadmap_items_id_seq"
 OWNED BY "public"."roadmap_items"."id";
-SELECT setval('"public"."roadmap_items_id_seq"', 106, true);
+SELECT setval('"public"."roadmap_items_id_seq"', 107, true);
 
 -- ----------------------------
 -- Alter sequences owned by
@@ -3082,8 +3289,8 @@ ALTER TABLE "public"."companies" ADD CONSTRAINT "companies_previous_company_code
 -- ----------------------------
 -- Checks structure for table companies
 -- ----------------------------
-ALTER TABLE "public"."companies" ADD CONSTRAINT "companies_subscription_state_check" CHECK (subscription_state::text = ANY (ARRAY['NORMAL'::character varying::text, 'SPONSORED'::character varying::text, 'SPONSORED-IMPLEMENTER'::character varying::text, 'NO-PURCHASE-INTENT'::character varying::text]));
 ALTER TABLE "public"."companies" ADD CONSTRAINT "companies_name_display_order_check" CHECK (name_display_order::text = ANY (ARRAY['WESTERN'::character varying::text, 'EASTERN'::character varying::text]));
+ALTER TABLE "public"."companies" ADD CONSTRAINT "companies_subscription_state_check" CHECK (subscription_state::text = ANY (ARRAY['NORMAL'::character varying::text, 'SPONSORED'::character varying::text, 'SPONSORED-IMPLEMENTER'::character varying::text, 'NO-PURCHASE-INTENT'::character varying::text]));
 
 -- ----------------------------
 -- Primary Key structure for table companies
@@ -3199,36 +3406,6 @@ EXECUTE PROCEDURE "public"."update_lastsyncid_dateupdate"();
 -- Primary Key structure for table data_values
 -- ----------------------------
 ALTER TABLE "public"."data_values" ADD CONSTRAINT "datavalues_pkey" PRIMARY KEY ("id");
-
--- ----------------------------
--- Indexes structure for table del_del_users_on_todos
--- ----------------------------
-CREATE INDEX "users_on_todos_company_id_idx" ON "public"."del_del_users_on_todos" USING btree (
-  "company_id" "pg_catalog"."uuid_ops" ASC NULLS LAST
-);
-CREATE INDEX "users_on_todos_todo_id_idx" ON "public"."del_del_users_on_todos" USING btree (
-  "todo_id" "pg_catalog"."uuid_ops" ASC NULLS LAST
-);
-CREATE INDEX "users_on_todos_user_id_idx" ON "public"."del_del_users_on_todos" USING btree (
-  "user_id" "pg_catalog"."uuid_ops" ASC NULLS LAST
-);
-
--- ----------------------------
--- Triggers structure for table del_del_users_on_todos
--- ----------------------------
-CREATE TRIGGER "update_lastsyncid_dateupdate_users_on_todos" BEFORE INSERT OR UPDATE ON "public"."del_del_users_on_todos"
-FOR EACH ROW
-EXECUTE PROCEDURE "public"."update_lastsyncid_dateupdate"();
-
--- ----------------------------
--- Uniques structure for table del_del_users_on_todos
--- ----------------------------
-ALTER TABLE "public"."del_del_users_on_todos" ADD CONSTRAINT "users_on_todos_user_id_todo_id_key" UNIQUE ("user_id", "todo_id");
-
--- ----------------------------
--- Primary Key structure for table del_del_users_on_todos
--- ----------------------------
-ALTER TABLE "public"."del_del_users_on_todos" ADD CONSTRAINT "users_on_todos_pkey" PRIMARY KEY ("id");
 
 -- ----------------------------
 -- Indexes structure for table eos_implementers
@@ -3388,6 +3565,12 @@ CREATE INDEX "issues_user_id_idx" ON "public"."issues" USING btree (
 CREATE TRIGGER "update_lastsyncid_dateupdate_issues" BEFORE INSERT OR UPDATE ON "public"."issues"
 FOR EACH ROW
 EXECUTE PROCEDURE "public"."update_lastsyncid_dateupdate"();
+
+-- ----------------------------
+-- Checks structure for table issues
+-- ----------------------------
+ALTER TABLE "public"."issues" ADD CONSTRAINT "issues_priority_no_check" CHECK (priority_no = ANY (ARRAY[999, 1, 2, 3]));
+ALTER TABLE "public"."issues" ADD CONSTRAINT "issues_type_check" CHECK (type::text = ANY (ARRAY['short-term'::character varying::text, 'long-term'::character varying::text]));
 
 -- ----------------------------
 -- Primary Key structure for table issues
@@ -3769,6 +3952,70 @@ EXECUTE PROCEDURE "public"."update_lastsyncid_dateupdate"();
 ALTER TABLE "public"."notifications" ADD CONSTRAINT "notifications_pkey" PRIMARY KEY ("id");
 
 -- ----------------------------
+-- Indexes structure for table oauth_access_tokens
+-- ----------------------------
+CREATE INDEX "idx_oauth_tokens_access_token" ON "public"."oauth_access_tokens" USING btree (
+  "access_token" COLLATE "pg_catalog"."default" "pg_catalog"."text_ops" ASC NULLS LAST
+);
+CREATE INDEX "idx_oauth_tokens_refresh_token" ON "public"."oauth_access_tokens" USING btree (
+  "refresh_token" COLLATE "pg_catalog"."default" "pg_catalog"."text_ops" ASC NULLS LAST
+);
+
+-- ----------------------------
+-- Uniques structure for table oauth_access_tokens
+-- ----------------------------
+ALTER TABLE "public"."oauth_access_tokens" ADD CONSTRAINT "oauth_access_tokens_access_token_key" UNIQUE ("access_token");
+
+-- ----------------------------
+-- Primary Key structure for table oauth_access_tokens
+-- ----------------------------
+ALTER TABLE "public"."oauth_access_tokens" ADD CONSTRAINT "oauth_access_tokens_pkey" PRIMARY KEY ("id");
+
+-- ----------------------------
+-- Indexes structure for table oauth_authorization_codes
+-- ----------------------------
+CREATE INDEX "idx_oauth_auth_codes_code" ON "public"."oauth_authorization_codes" USING btree (
+  "code" COLLATE "pg_catalog"."default" "pg_catalog"."text_ops" ASC NULLS LAST
+);
+
+-- ----------------------------
+-- Uniques structure for table oauth_authorization_codes
+-- ----------------------------
+ALTER TABLE "public"."oauth_authorization_codes" ADD CONSTRAINT "oauth_authorization_codes_code_key" UNIQUE ("code");
+
+-- ----------------------------
+-- Primary Key structure for table oauth_authorization_codes
+-- ----------------------------
+ALTER TABLE "public"."oauth_authorization_codes" ADD CONSTRAINT "oauth_authorization_codes_pkey" PRIMARY KEY ("id");
+
+-- ----------------------------
+-- Uniques structure for table oauth_clients
+-- ----------------------------
+ALTER TABLE "public"."oauth_clients" ADD CONSTRAINT "oauth_clients_client_id_key" UNIQUE ("client_id");
+
+-- ----------------------------
+-- Primary Key structure for table oauth_clients
+-- ----------------------------
+ALTER TABLE "public"."oauth_clients" ADD CONSTRAINT "oauth_clients_pkey" PRIMARY KEY ("id");
+
+-- ----------------------------
+-- Indexes structure for table oauth_jwks
+-- ----------------------------
+CREATE INDEX "idx_oauth_jwks_kid" ON "public"."oauth_jwks" USING btree (
+  "kid" COLLATE "pg_catalog"."default" "pg_catalog"."text_ops" ASC NULLS LAST
+);
+
+-- ----------------------------
+-- Uniques structure for table oauth_jwks
+-- ----------------------------
+ALTER TABLE "public"."oauth_jwks" ADD CONSTRAINT "oauth_jwks_kid_key" UNIQUE ("kid");
+
+-- ----------------------------
+-- Primary Key structure for table oauth_jwks
+-- ----------------------------
+ALTER TABLE "public"."oauth_jwks" ADD CONSTRAINT "oauth_jwks_pkey" PRIMARY KEY ("id");
+
+-- ----------------------------
 -- Indexes structure for table org_chart_roles_responsibilities
 -- ----------------------------
 CREATE INDEX "org_chart_roles_responsibilities_company_id_sync_id_idx" ON "public"."org_chart_roles_responsibilities" USING btree (
@@ -3920,6 +4167,9 @@ ALTER TABLE "public"."org_checkup_statuses" ADD CONSTRAINT "org_checkup_statuses
 -- ----------------------------
 -- Indexes structure for table org_checkups
 -- ----------------------------
+CREATE UNIQUE INDEX "org_checkups_company_active_in_progress_unique" ON "public"."org_checkups" USING btree (
+  "company_id" "pg_catalog"."uuid_ops" ASC NULLS LAST
+) WHERE state_id::text = 'ACTIVE'::text AND org_checkup_status_id::text = 'IN-PROGRESS'::text;
 CREATE INDEX "org_checkups_company_id_idx" ON "public"."org_checkups" USING btree (
   "company_id" "pg_catalog"."uuid_ops" ASC NULLS LAST,
   "sync_id" "pg_catalog"."int4_ops" ASC NULLS LAST,
@@ -4189,9 +4439,19 @@ FOR EACH ROW
 EXECUTE PROCEDURE "public"."update_lastsyncid_dateupdate"();
 
 -- ----------------------------
+-- Checks structure for table rocks
+-- ----------------------------
+ALTER TABLE "public"."rocks" ADD CONSTRAINT "rocks_type_check" CHECK (type::text = ANY (ARRAY['personal'::character varying::text, 'company'::character varying::text]));
+
+-- ----------------------------
 -- Primary Key structure for table rocks
 -- ----------------------------
 ALTER TABLE "public"."rocks" ADD CONSTRAINT "rocks_pkey" PRIMARY KEY ("id");
+
+-- ----------------------------
+-- Primary Key structure for table service_api_translations
+-- ----------------------------
+ALTER TABLE "public"."service_api_translations" ADD CONSTRAINT "service_api_translations_pkey" PRIMARY KEY ("id");
 
 -- ----------------------------
 -- Indexes structure for table states
@@ -4280,6 +4540,11 @@ CREATE INDEX "sync_sync_id_updated_at_company_id_idx" ON "public"."sync" USING b
 -- Primary Key structure for table sync
 -- ----------------------------
 ALTER TABLE "public"."sync" ADD CONSTRAINT "lastSyncId_pkey" PRIMARY KEY ("company_id");
+
+-- ----------------------------
+-- Primary Key structure for table sync_updates
+-- ----------------------------
+ALTER TABLE "public"."sync_updates" ADD CONSTRAINT "sync_updates_pkey" PRIMARY KEY ("id");
 
 -- ----------------------------
 -- Indexes structure for table tags
@@ -4438,6 +4703,11 @@ CREATE INDEX "todos_user_id_idx" ON "public"."todos" USING btree (
 CREATE TRIGGER "update_lastsyncid_dateupdate_todos" BEFORE INSERT OR UPDATE ON "public"."todos"
 FOR EACH ROW
 EXECUTE PROCEDURE "public"."update_lastsyncid_dateupdate"();
+
+-- ----------------------------
+-- Checks structure for table todos
+-- ----------------------------
+ALTER TABLE "public"."todos" ADD CONSTRAINT "todos_type_check" CHECK (type::text = ANY (ARRAY['team'::character varying::text, 'private'::character varying::text]));
 
 -- ----------------------------
 -- Primary Key structure for table todos
@@ -4959,13 +5229,6 @@ ALTER TABLE "public"."data_values" ADD CONSTRAINT "data_values_data_field_id_fke
 ALTER TABLE "public"."data_values" ADD CONSTRAINT "data_values_state_id_fkey" FOREIGN KEY ("state_id") REFERENCES "public"."states" ("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- ----------------------------
--- Foreign Keys structure for table del_del_users_on_todos
--- ----------------------------
-ALTER TABLE "public"."del_del_users_on_todos" ADD CONSTRAINT "users_on_todos_company_id_fkey" FOREIGN KEY ("company_id") REFERENCES "public"."companies" ("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-ALTER TABLE "public"."del_del_users_on_todos" ADD CONSTRAINT "users_on_todos_todo_id_fkey" FOREIGN KEY ("todo_id") REFERENCES "public"."todos" ("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-ALTER TABLE "public"."del_del_users_on_todos" ADD CONSTRAINT "users_on_todos_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "public"."users" ("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- ----------------------------
 -- Foreign Keys structure for table external_lookup_cache
 -- ----------------------------
 ALTER TABLE "public"."external_lookup_cache" ADD CONSTRAINT "external_lookup_cache_company_id_fkey" FOREIGN KEY ("company_id") REFERENCES "public"."companies" ("id") ON DELETE NO ACTION ON UPDATE NO ACTION;
@@ -5288,6 +5551,12 @@ ALTER TABLE "public"."swot_items" ADD CONSTRAINT "swot_items_team_id_fkey" FOREI
 -- ----------------------------
 ALTER TABLE "public"."sync" ADD CONSTRAINT "lastsyncids_company_id_fkey" FOREIGN KEY ("company_id") REFERENCES "public"."companies" ("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 COMMENT ON CONSTRAINT "lastsyncids_company_id_fkey" ON "public"."sync" IS '@foreignSingleFieldName companyId';
+
+-- ----------------------------
+-- Foreign Keys structure for table sync_updates
+-- ----------------------------
+ALTER TABLE "public"."sync_updates" ADD CONSTRAINT "sync_updates_company_id_fkey" FOREIGN KEY ("company_id") REFERENCES "public"."companies" ("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "public"."sync_updates" ADD CONSTRAINT "sync_updates_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "public"."users" ("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- ----------------------------
 -- Foreign Keys structure for table tags
