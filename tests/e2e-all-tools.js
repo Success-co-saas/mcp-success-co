@@ -64,6 +64,7 @@ const createdItems = {
   comments: [],
   meetings: [],
   scorecardEntries: [],
+  scorecardMeasurables: [],
 };
 
 // Store team and user data for use in tests
@@ -77,6 +78,7 @@ let testData = {
   headlineId: null,
   meetingId: null,
   dataFieldId: null,
+  measurableId: null,
 };
 
 /**
@@ -371,15 +373,30 @@ async function testGetScorecardMeasurables() {
     
     // getScorecardMeasurables returns { scorecardMeasurables: [...] }
     if (data.scorecardMeasurables && Array.isArray(data.scorecardMeasurables)) {
-      // Store a data field ID if available
-      if (data.scorecardMeasurables.length > 0 && data.scorecardMeasurables[0].dataFieldId) {
-        testData.dataFieldId = data.scorecardMeasurables[0].dataFieldId;
+      // Store a data field ID if available (for testing entry creation)
+      if (data.scorecardMeasurables.length > 0) {
+        const measurable = data.scorecardMeasurables[0];
+        // Store both the measurable ID and dataFieldId
+        if (measurable.id) {
+          testData.dataFieldId = measurable.id;
+          testData.measurableId = measurable.id;
+        } else if (measurable.dataFieldId) {
+          testData.dataFieldId = measurable.dataFieldId;
+          testData.measurableId = measurable.dataFieldId;
+        }
       }
       logResult("getScorecardMeasurables", "pass", `Found ${data.scorecardMeasurables.length} measurables`);
     } else if (data.results && Array.isArray(data.results)) {
       // Alternative format
-      if (data.results.length > 0 && data.results[0].dataFieldId) {
-        testData.dataFieldId = data.results[0].dataFieldId;
+      if (data.results.length > 0) {
+        const measurable = data.results[0];
+        if (measurable.id) {
+          testData.dataFieldId = measurable.id;
+          testData.measurableId = measurable.id;
+        } else if (measurable.dataFieldId) {
+          testData.dataFieldId = measurable.dataFieldId;
+          testData.measurableId = measurable.dataFieldId;
+        }
       }
       logResult("getScorecardMeasurables", "pass", `Found ${data.results.length} measurables`);
     } else {
@@ -1170,6 +1187,89 @@ async function testCommentLifecycle() {
 }
 
 // ============================================================================
+// WRITE TOOLS TESTS - SCORECARD MEASURABLES
+// ============================================================================
+
+async function testScorecardMeasurables() {
+  console.log("\n🔄 Testing Scorecard Measurables (Create/Update/Delete)...\n");
+  
+  let createdMeasurableId = null;
+  
+  // CREATE
+  try {
+    if (!testData.teamId) {
+      logResult("createScorecardMeasurable", "skip", "No team ID available");
+    } else {
+      const result = await callTool("createScorecardMeasurable", {
+        name: "E2E Test Measurable",
+        desc: "Test measurable for E2E testing",
+        type: "weekly",
+        unitType: "number",
+        goalTarget: "100",
+        teamId: testData.teamId,
+      });
+      const data = parseResult(result);
+      
+      if (data.success && data.measurable?.id) {
+        createdMeasurableId = data.measurable.id;
+        createdItems.scorecardMeasurables.push(createdMeasurableId);
+        logResult("createScorecardMeasurable", "pass", `Created measurable: ${createdMeasurableId}`);
+      } else {
+        logResult("createScorecardMeasurable", "fail", "Failed to create measurable");
+      }
+    }
+  } catch (error) {
+    logResult("createScorecardMeasurable", "fail", "", error);
+  }
+  
+  // UPDATE
+  try {
+    if (!createdMeasurableId) {
+      logResult("updateScorecardMeasurable", "skip", "No measurable ID from create");
+    } else {
+      const result = await callTool("updateScorecardMeasurable", {
+        measurableId: createdMeasurableId,
+        name: "E2E Test Measurable (Updated)",
+        goalTarget: "150",
+      });
+      const data = parseResult(result);
+      
+      if (data.success) {
+        logResult("updateScorecardMeasurable", "pass", "Updated measurable");
+      } else {
+        logResult("updateScorecardMeasurable", "fail", "Failed to update measurable");
+      }
+    }
+  } catch (error) {
+    logResult("updateScorecardMeasurable", "fail", "", error);
+  }
+  
+  // DELETE
+  try {
+    if (!createdMeasurableId) {
+      logResult("deleteScorecardMeasurable", "skip", "No measurable ID from create");
+    } else {
+      const result = await callTool("deleteScorecardMeasurable", {
+        measurableId: createdMeasurableId,
+      });
+      const data = parseResult(result);
+      
+      if (data.success) {
+        // Remove from createdItems since we deleted it successfully
+        createdItems.scorecardMeasurables = createdItems.scorecardMeasurables.filter(
+          id => id !== createdMeasurableId
+        );
+        logResult("deleteScorecardMeasurable", "pass", "Deleted measurable");
+      } else {
+        logResult("deleteScorecardMeasurable", "fail", "Failed to delete measurable");
+      }
+    }
+  } catch (error) {
+    logResult("deleteScorecardMeasurable", "fail", "", error);
+  }
+}
+
+// ============================================================================
 // WRITE TOOLS TESTS - SCORECARD ENTRY
 // ============================================================================
 
@@ -1270,6 +1370,16 @@ async function cleanup() {
       console.log(`   Failed to delete rock ${rockId}: ${error.message}`);
     }
   }
+  
+  // Delete scorecard measurables
+  for (const measurableId of createdItems.scorecardMeasurables) {
+    try {
+      await callTool("deleteScorecardMeasurable", { measurableId });
+      console.log(`   Deleted scorecard measurable: ${measurableId}`);
+    } catch (error) {
+      console.log(`   Failed to delete scorecard measurable ${measurableId}: ${error.message}`);
+    }
+  }
 }
 
 // ============================================================================
@@ -1324,6 +1434,7 @@ async function runAllTests() {
     await testRockLifecycle();
     await testHeadlineLifecycle();
     await testCommentLifecycle();
+    await testScorecardMeasurables();
     await testScorecardEntry();
     
     // ========================================================================
