@@ -645,12 +645,12 @@ export async function getMeetingDetails(args) {
 
       const meetingInfos = meetingInfosResult.data.data.meetingInfos.nodes;
       
-      // Find L10 meeting info (WEEKLY-L10 type)
-      const l10MeetingInfo = meetingInfos.find(
+      // Find ALL L10 meeting infos (WEEKLY-L10 type)
+      const l10MeetingInfos = meetingInfos.filter(
         (mi) => mi.meetingAgenda?.meetingAgendaTypeId === "WEEKLY-L10"
       );
 
-      if (!l10MeetingInfo) {
+      if (l10MeetingInfos.length === 0) {
         return {
           content: [
             {
@@ -665,14 +665,17 @@ export async function getMeetingDetails(args) {
         };
       }
 
-      // Get the most recent FINISHED meeting for this meeting info
+      // Get the most recent FINISHED meeting across ALL L10 meeting infos
+      const meetingInfoIds = l10MeetingInfos.map((mi) => mi.id);
+      const meetingInfoIdsStr = meetingInfoIds.map((id) => `"${id}"`).join(", ");
+      
       const recentMeetingQuery = `
         query {
           meetings(
             first: 1, 
             orderBy: DATE_DESC,
             filter: {
-              meetingInfoId: {equalTo: "${l10MeetingInfo.id}"}, 
+              meetingInfoId: {in: [${meetingInfoIdsStr}]}, 
               stateId: {equalTo: "${stateId}"},
               meetingStatusId: {equalTo: "FINISHED"}
             }
