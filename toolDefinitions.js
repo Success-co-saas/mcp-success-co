@@ -1521,7 +1521,7 @@ export const toolDefinitions = [
         .enum(["No priority", "Low", "Medium", "High"])
         .optional()
         .describe(
-          "Priority level: 'High' (most urgent), 'Medium', 'Low', or 'No priority' (defaults to 'Medium')"
+          "Priority level: 'High' (most urgent), 'Medium', 'Low', or 'No priority' (defaults to 'No priority')"
         ),
       type: z
         .enum(["Short-term", "Long-term"])
