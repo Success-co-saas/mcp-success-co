@@ -127,6 +127,18 @@ export async function authMiddleware(req, res, next) {
     return next();
   }
 
+  // Skip authentication for browser requests (GET with text/html accept header)
+  const acceptHeader = req.headers.accept || "";
+  const isBrowserRequest =
+    req.method === "GET" &&
+    acceptHeader.includes("text/html") &&
+    !req.headers["mcp-session-id"];
+  
+  if (isBrowserRequest) {
+    logger.debug("[AUTH] Skipping auth for browser request", { requestId: req.requestId });
+    return next();
+  }
+
   // Log authentication attempts (redacted for security)
   const authHeader = req.headers.authorization;
   if (authHeader) {
