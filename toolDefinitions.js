@@ -1384,6 +1384,7 @@ export const toolDefinitions = [
     handler: async ({
       first,
       offset,
+      stateId,
       checkupId,
       createdAfter,
       createdBefore,
@@ -1391,6 +1392,7 @@ export const toolDefinitions = [
       await getOrgCheckups({
         first,
         offset,
+        stateId,
         checkupId,
         createdAfter,
         createdBefore,
@@ -1403,6 +1405,13 @@ export const toolDefinitions = [
         .default(50)
         .describe("Optional page size (defaults to 50)"),
       offset: z.number().int().optional().describe("Optional offset"),
+      stateId: z
+        .string()
+        .optional()
+        .default("ACTIVE")
+        .describe(
+          "Optional state filter (ACTIVE, ARCHIVED, DELETED) - defaults to ACTIVE"
+        ),
       checkupId: z
         .string()
         .optional()
