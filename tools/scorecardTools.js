@@ -79,23 +79,10 @@ export async function getScorecardMeasurables(args) {
 
   try {
     const isDevMode = getIsDevMode();
-    
-    logger.info(`[SCORECARD] getScorecardMeasurables START`, {
-      leadershipTeam,
-      providedTeamId: teamId,
-      type,
-      startDate,
-      endDate,
-      status,
-      first,
-      offset,
-    });
 
     // If teamId is provided, first get the dataFieldIds for that team
     let teamDataFieldIds = null;
     if (teamId) {
-      logger.info(`[SCORECARD] Looking up data fields for team`, { teamId });
-
       const teamsOnDataFieldsQuery = `
         query {
           teamsOnDataFields(filter: {teamId: {equalTo: "${teamId}"}, stateId: {equalTo: "${stateId}"}}) {
@@ -129,19 +116,12 @@ export async function getScorecardMeasurables(args) {
           (rel) => rel.dataFieldId
         ) || [];
 
-      logger.info(`[SCORECARD] Team data field lookup complete`, {
-        teamId,
-        dataFieldCount: teamDataFieldIds.length,
-        dataFieldIds: teamDataFieldIds.slice(0, 5), // Log first 5
-      });
-
       // If teamId was provided but no dataFields found for that team, 
       // log a warning but continue with query (will return all data fields for the company)
       // This handles cases where data fields exist but aren't explicitly linked to teams
       if (teamDataFieldIds.length === 0) {
         logger.warn(
-          `[SCORECARD] No data fields explicitly linked to team. Continuing without team filter.`,
-          { teamId }
+          `[SCORECARD] No data fields linked to team ${teamId}. Continuing without team filter.`
         );
         // Set teamDataFieldIds to null so the filter is not applied
         teamDataFieldIds = null;
@@ -226,15 +206,6 @@ export async function getScorecardMeasurables(args) {
     }
 
     const dataFields = dataFieldsResult.data?.data?.dataFields?.nodes || [];
-    
-    logger.info(`[SCORECARD] GraphQL dataFields query complete`, {
-      dataFieldCount: dataFields.length,
-      firstDataField: dataFields.length > 0 ? {
-        id: dataFields[0].id,
-        name: dataFields[0].name,
-        type: dataFields[0].type,
-      } : null,
-    });
 
     // Apply additional filters if provided
     let filteredDataFields = dataFields;
@@ -247,33 +218,16 @@ export async function getScorecardMeasurables(args) {
         annually: "ANNUALLY",
       };
       const dataFieldType = typeMapping[type];
-      logger.info(`[SCORECARD] Filtering by type`, { 
-        requestedType: type, 
-        mappedType: dataFieldType 
-      });
       
       if (dataFieldType) {
-        const beforeCount = filteredDataFields.length;
         filteredDataFields = filteredDataFields.filter(
           (field) => field.type === dataFieldType
         );
-        logger.info(`[SCORECARD] Type filtering complete`, {
-          beforeCount,
-          afterCount: filteredDataFields.length,
-          removedCount: beforeCount - filteredDataFields.length,
-        });
       }
     }
 
     // If no data fields found, return empty result
     if (filteredDataFields.length === 0) {
-      logger.warn(`[SCORECARD] No data fields found after filtering!`, {
-        originalCount: dataFields.length,
-        afterTypeFilter: filteredDataFields.length,
-        requestedType: type,
-        teamId: teamId || "none",
-      });
-      
       return {
         content: [
           {
@@ -282,13 +236,6 @@ export async function getScorecardMeasurables(args) {
               {
                 scorecardMeasurables: [],
                 totalCount: 0,
-                debug: {
-                  message: "No data fields found after filtering",
-                  originalDataFieldCount: dataFields.length,
-                  afterTypeFilter: filteredDataFields.length,
-                  requestedType: type,
-                  teamId: teamId || "none",
-                },
               },
               null,
               2
@@ -339,15 +286,6 @@ export async function getScorecardMeasurables(args) {
       calculatedEndDate = endDateObj.toISOString().split("T")[0];
     }
 
-    logger.info(`[SCORECARD] Date range for data values`, {
-      providedStartDate: startDate,
-      providedEndDate: endDate,
-      calculatedStartDate,
-      calculatedEndDate,
-      periods,
-      timeframe,
-    });
-
     // Get data values for all data fields directly with GraphQL query
     const filters = [`stateId: {equalTo: "${stateId}"}`];
 
@@ -368,11 +306,6 @@ export async function getScorecardMeasurables(args) {
     }
 
     const dataValuesFilterStr = filters.join(", ");
-    
-    logger.info(`[SCORECARD] Querying data values`, {
-      filterCount: filters.length,
-      filters: dataValuesFilterStr,
-    });
 
     const dataValuesQuery = `
       query {
@@ -412,17 +345,6 @@ export async function getScorecardMeasurables(args) {
     }
 
     const dataValues = dataValuesResult.data?.data?.dataValues?.nodes || [];
-    const totalDataValueCount = dataValuesResult.data?.data?.dataValues?.totalCount || 0;
-    
-    logger.info(`[SCORECARD] Data values query complete`, {
-      dataValueCount: dataValues.length,
-      totalCount: totalDataValueCount,
-      firstValue: dataValues.length > 0 ? {
-        dataFieldId: dataValues[0].dataFieldId,
-        startDate: dataValues[0].startDate,
-        value: dataValues[0].value,
-      } : null,
-    });
 
     // Group data values by data field ID
     const valuesByField = {};
@@ -431,11 +353,6 @@ export async function getScorecardMeasurables(args) {
         valuesByField[value.dataFieldId] = [];
       }
       valuesByField[value.dataFieldId].push(value);
-    });
-    
-    logger.info(`[SCORECARD] Grouped data values by field`, {
-      fieldsWithValues: Object.keys(valuesByField).length,
-      totalFilteredDataFields: filteredDataFields.length,
     });
 
     // Helper function to sort values by date (most recent first)
@@ -470,12 +387,6 @@ export async function getScorecardMeasurables(args) {
         values: sortedValues,
         timeframe: fieldTimeframe,
       };
-    });
-
-    logger.info(`[SCORECARD] getScorecardMeasurables COMPLETE`, {
-      measurablesReturned: scorecardMeasurables.length,
-      measurablesWithValues: scorecardMeasurables.filter(m => m.values.length > 0).length,
-      totalValues: scorecardMeasurables.reduce((sum, m) => sum + m.values.length, 0),
     });
 
     return {
