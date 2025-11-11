@@ -608,34 +608,6 @@ async function testGetMeetingDetails() {
   }
 }
 
-async function testGetPeopleAnalyzerSessions() {
-  try {
-    const result = await callTool("getPeopleAnalyzerSessions", { first: 10 });
-    const data = parseResult(result);
-    
-    // Check if it's an error message
-    if (typeof data === 'string' && data.includes('Error')) {
-      logResult("getPeopleAnalyzerSessions", "fail", data);
-      return;
-    }
-    
-    // Check for text response
-    if (data._isText) {
-      logResult("getPeopleAnalyzerSessions", "pass", "Retrieved sessions (text format)");
-      return;
-    }
-    
-    if (data.results && Array.isArray(data.results)) {
-      logResult("getPeopleAnalyzerSessions", "pass", `Found ${data.results.length} sessions`);
-    } else if (data.sessions && Array.isArray(data.sessions)) {
-      logResult("getPeopleAnalyzerSessions", "pass", `Found ${data.sessions.length} sessions`);
-    } else {
-      logResult("getPeopleAnalyzerSessions", "fail", `Unexpected format: ${JSON.stringify(data).substring(0, 100)}`);
-    }
-  } catch (error) {
-    logResult("getPeopleAnalyzerSessions", "fail", "", error);
-  }
-}
 
 async function testGetOrgCheckups() {
   try {
@@ -1522,7 +1494,6 @@ async function runAllTests() {
     await testGetLeadershipVTO();
     await testGetAccountabilityChart();
     await testGetMeetingDetails();
-    await testGetPeopleAnalyzerSessions();
     await testGetOrgCheckups();
     await testGetComments();
     await testGetExecutionHealth();

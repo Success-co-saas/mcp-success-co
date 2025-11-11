@@ -454,50 +454,6 @@ The MCP server now includes enhanced headline filtering for sentiment analysis, 
    - Tool: `getHeadlines`
    - Params: `keyword="client feedback"` or `keyword="customer"`
 
-## People Analyzer
-
-The MCP server includes comprehensive People Analyzer tools for tracking GWC (Gets it, Wants it, Capacity) scores and Right Person/Right Seat evaluations.
-
-### People Analyzer Tool
-
-**Tool: `getPeopleAnalyzerSessions`**
-
-Returns sessions with user scores including:
-
-- **getsIt** - Understanding of the role (1-5 scale)
-- **wantsIt** - Desire to do the role (1-5 scale)
-- **capacityToDoIt** - Ability to perform the role (1-5 scale)
-- **rightPerson** - Cultural fit with core values (1-5 scale)
-- **rightSeat** - Fit for the specific role (1-5 scale)
-
-**Parameters:**
-
-- `teamId` - Filter by team (e.g., leadership team)
-- `sessionId` - Specific session
-- `createdAfter` / `createdBefore` - Date range filtering
-
-**Example Queries:**
-
-1. **"Show me the people analyzer results for the leadership team"**
-
-   - Tool: `getPeopleAnalyzerSessions`
-   - Params: `teamId=<leadership team ID>`
-
-2. **"Who's rated below a 3 on 'Gets it'?"**
-
-   - Tool: `getPeopleAnalyzerSessions`
-   - Analysis: Filter results where `getsIt < 3`
-
-3. **"Who doesn't meet our core values consistently?"**
-
-   - Tool: `getPeopleAnalyzerSessions`
-   - Analysis: Filter results where `rightPerson < 3`
-
-4. **"Summarize people analyzer trends for the last quarter"**
-
-   - Tool: `getPeopleAnalyzerSessions`
-   - Params: `createdAfter=<quarter start>`, `createdBefore=<quarter end>`
-
 ## Organization Checkup
 
 The MCP server includes Organization Checkup tools for tracking organizational health scores and identifying improvement areas.
@@ -869,7 +825,6 @@ Combine:
 - `getRocks` - Overdue or incomplete rocks by owner
 - `getTodos` - Overdue todos by owner
 - `getIssues` - Long-standing open issues
-- `getPeopleAnalyzerSessions` - GWC scores
 
 ### 4. **"Generate a leadership meeting agenda using current Rocks, Issues, and Scorecard data"**
 

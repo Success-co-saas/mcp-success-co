@@ -85,9 +85,6 @@ export {
   updateScorecardMeasurableEntry,
 } from "./scorecardTools.js";
 
-// People Analyzer
-export { getPeopleAnalyzerSessions } from "./peopleAnalyzerTools.js";
-
 // Org Checkups
 export { getOrgCheckups } from "./orgCheckupsTools.js";
 
