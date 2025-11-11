@@ -296,6 +296,7 @@ export async function getUserWorkload(args = {}) {
 
   // Build filters
   // Note: Issues and todos have direct teamId field, but rocks use teamsOnRocks junction table
+  // Users use usersOnTeams junction table
   const teamFilterForIssuesAndTodos = teamId ? `, teamId: {equalTo: "${teamId}"}` : "";
   const userFilter = userId ? `, userId: {equalTo: "${userId}"}` : "";
   const issuesAndTodosFilters = [teamFilterForIssuesAndTodos, userFilter].filter(Boolean).join("");
@@ -320,7 +321,7 @@ export async function getUserWorkload(args = {}) {
           userId
         }
       }
-      users(filter: {stateId: {equalTo: "ACTIVE"}${teamFilterForIssuesAndTodos}}) {
+      users(filter: {stateId: {equalTo: "ACTIVE"}}) {
         nodes {
           id
           firstName
@@ -331,30 +332,51 @@ export async function getUserWorkload(args = {}) {
     }
   `;
   
-  // Also query teamsOnRocks if filtering by team
-  const teamsOnRocksQuery = teamId ? `
-    query {
-      teamsOnRocks(filter: {teamId: {equalTo: "${teamId}"}, stateId: {equalTo: "ACTIVE"}}) {
-        nodes {
-          rockId
+  // Build additional queries for team-based filtering
+  const additionalQueries = [];
+  
+  // Query teamsOnRocks if filtering by team
+  if (teamId) {
+    additionalQueries.push(
+      callSuccessCoGraphQL(`
+        query {
+          teamsOnRocks(filter: {teamId: {equalTo: "${teamId}"}, stateId: {equalTo: "ACTIVE"}}) {
+            nodes {
+              rockId
+            }
+          }
         }
-      }
-    }
-  ` : null;
+      `)
+    );
+  }
+  
+  // Query usersOnTeams if filtering by team
+  if (teamId) {
+    additionalQueries.push(
+      callSuccessCoGraphQL(`
+        query {
+          usersOnTeams(filter: {teamId: {equalTo: "${teamId}"}, stateId: {equalTo: "ACTIVE"}}) {
+            nodes {
+              userId
+            }
+          }
+        }
+      `)
+    );
+  }
 
   let result;
   let teamsOnRocksResult = null;
+  let usersOnTeamsResult = null;
   
   try {
-    const queryPromises = [callSuccessCoGraphQL(query)];
-    if (teamsOnRocksQuery) {
-      queryPromises.push(callSuccessCoGraphQL(teamsOnRocksQuery));
-    }
-    
+    const queryPromises = [callSuccessCoGraphQL(query), ...additionalQueries];
     const results = await Promise.all(queryPromises);
+    
     result = results[0];
-    if (teamsOnRocksQuery) {
+    if (teamId) {
       teamsOnRocksResult = results[1];
+      usersOnTeamsResult = results[2];
     }
   } catch (error) {
     console.error("[getUserWorkload] GraphQL call failed:", error);
@@ -389,12 +411,23 @@ export async function getUserWorkload(args = {}) {
       ],
     };
   }
+  
+  if (usersOnTeamsResult && !usersOnTeamsResult.ok) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error fetching team users data: ${usersOnTeamsResult.error}`,
+        },
+      ],
+    };
+  }
 
   const data = result.data?.data;
   let rocks = data?.rocks?.nodes || [];
   const issues = data?.issues?.nodes || [];
   const todos = data?.todos?.nodes || [];
-  const users = data?.users?.nodes || [];
+  let users = data?.users?.nodes || [];
   
   // Filter rocks by team if teamId was provided
   if (teamId && teamsOnRocksResult) {
@@ -402,6 +435,14 @@ export async function getUserWorkload(args = {}) {
       teamsOnRocksResult.data?.data?.teamsOnRocks?.nodes?.map(tor => tor.rockId) || []
     );
     rocks = rocks.filter(rock => teamRockIds.has(rock.id));
+  }
+  
+  // Filter users by team if teamId was provided
+  if (teamId && usersOnTeamsResult) {
+    const teamUserIds = new Set(
+      usersOnTeamsResult.data?.data?.usersOnTeams?.nodes?.map(uot => uot.userId) || []
+    );
+    users = users.filter(user => teamUserIds.has(user.id));
   }
 
   // Count items by user
