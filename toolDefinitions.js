@@ -307,11 +307,6 @@ export const toolDefinitions = [
         effectiveUserId = auth.userId;
       }
 
-      // Auto-inject userId if not provided
-      if (!effectiveUserId) {
-        effectiveUserId = auth && !auth.isApiKeyMode ? auth.userId : undefined;
-      }
-
       return await getRocks({
         first,
         offset,
@@ -1063,9 +1058,7 @@ export const toolDefinitions = [
       leadershipTeam: z
         .boolean()
         .optional()
-        .describe(
-          "If true, automatically associate with the leadership team"
-        ),
+        .describe("If true, automatically associate with the leadership team"),
     },
     required: ["name"],
   },
@@ -1134,9 +1127,7 @@ export const toolDefinitions = [
       unitComparison: z
         .enum([">=", "<=", "=", ">", "<"])
         .optional()
-        .describe(
-          "Update comparison operator: '>=', '<=', '=', '>', or '<'"
-        ),
+        .describe("Update comparison operator: '>=', '<=', '=', '>', or '<'"),
       goalTarget: z
         .string()
         .optional()
@@ -1157,10 +1148,7 @@ export const toolDefinitions = [
         .boolean()
         .optional()
         .describe("Update whether to show total in reports"),
-      autoFormat: z
-        .boolean()
-        .optional()
-        .describe("Update auto format setting"),
+      autoFormat: z.boolean().optional().describe("Update auto format setting"),
       autoRoundDecimals: z
         .boolean()
         .optional()
@@ -1811,9 +1799,7 @@ export const toolDefinitions = [
       priority: z
         .enum(["High", "Medium", "Low", "No priority"])
         .optional()
-        .describe(
-          "Priority level: 'High', 'Medium', 'Low', or 'No priority'"
-        ),
+        .describe("Priority level: 'High', 'Medium', 'Low', or 'No priority'"),
     },
     required: ["todoId"],
   },
@@ -2960,7 +2946,7 @@ export function registerToolsOnServer(server) {
 
     // Build annotations object with readOnlyHint
     const annotations = { ...tool.annotations };
-    
+
     // Ensure readOnlyHint matches the tool's readOnly setting
     if (tool.readOnly !== undefined) {
       annotations.readOnlyHint = tool.readOnly;
