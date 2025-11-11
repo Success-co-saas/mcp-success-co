@@ -15,7 +15,7 @@ import { validateStateId } from "../utils/helpers.js";
  * @param {string} [args.createdBefore] - Filter checkups created before this date
  * @returns {Promise<{content: Array<{type: string, text: string}>}>}
  */
-export async function getOrgCheckups(args) {
+export async function getOrgCheckups(args = {}) {
   const {
     first = 50,
     offset = 0,
@@ -85,7 +85,9 @@ export async function getOrgCheckups(args) {
               id
               orgCheckupId
               questionNumber
-              answerValue
+              score
+              createdByUserId
+              isFinal
               createdAt
               updatedAt
             }
