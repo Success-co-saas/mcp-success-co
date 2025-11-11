@@ -400,8 +400,16 @@ export async function mcpGetHandler(req, res) {
     h1 {
       color: #667eea;
       font-size: 2em;
-      margin-bottom: 20px;
+      margin-bottom: 10px;
       text-align: center;
+    }
+    .subtitle {
+      color: #764ba2;
+      font-size: 1.1em;
+      font-weight: 500;
+      text-align: center;
+      margin-bottom: 20px;
+      font-style: italic;
     }
     h2 {
       color: #333;
@@ -507,6 +515,7 @@ export async function mcpGetHandler(req, res) {
     </div>
     
     <h1>Success.co AI Connector</h1>
+    <p class="subtitle">Supercharging EOS with the Power of AI</p>
     
     <p>Connect your AI assistant (like Claude, ChatGPT, or others) directly to your Success.co workspace!</p>
     
