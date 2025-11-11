@@ -123,7 +123,6 @@ Total Tests:    45
 - ✅ `getLeadershipVTO` - Get Vision/Traction Organizer
 - ✅ `getAccountabilityChart` - Get org structure
 - ✅ `getMeetingDetails` - Get detailed meeting data
-- ✅ `getPeopleAnalyzerSessions` - Get people analyzer scores
 - ✅ `getOrgCheckups` - Get org checkup sessions
 - ✅ `getComments` - List comments
 - ✅ `getExecutionHealth` - Get execution health metrics
