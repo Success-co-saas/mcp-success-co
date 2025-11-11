@@ -872,17 +872,19 @@ export async function getMeetingDetails(args) {
  * Create a new meeting
  * @param {Object} args - Arguments object
  * @param {string} args.date - Meeting date (YYYY-MM-DD format, required)
+ * @param {string} [args.time] - Meeting start time (HH:MM format, optional, in user's timezone)
  * @param {string} [args.meetingAgendaId] - Meeting agenda ID (provide either this or meetingAgendaType)
  * @param {string} [args.meetingAgendaType] - Meeting agenda type: ANNUAL-PLANNING-DAY-1, ANNUAL-PLANNING-DAY-2, QUARTERLY-PULSING-AGENDA, WEEKLY-L10, FOCUS-DAY, or VISION-BUILDING-SESSION
  * @param {string} [args.teamId] - Team ID (provide either this or leadershipTeam)
  * @param {boolean} [args.leadershipTeam] - If true, use the leadership team
  * @param {string} [args.name] - Optional name for the meeting info (defaults to agenda name)
  * @returns {Promise<{content: Array<{type: string, text: string}>}>}
- * @note Meeting status defaults to 'NOT-STARTED'. Start and end times are set when the meeting is started/ended.
+ * @note Meeting status defaults to 'NOT-STARTED'. Start time is set from the time parameter (in user's timezone), end time is set when meeting is ended.
  */
 export async function createMeeting(args) {
   const {
     date,
+    time,
     meetingAgendaId: providedAgendaId,
     meetingAgendaType,
     teamId: providedTeamId,
@@ -954,6 +956,93 @@ export async function createMeeting(args) {
 
   const companyId = context.companyId;
   const userId = context.userId;
+
+  // Validate time format if provided
+  if (time && !/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(time)) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: "Error: Invalid time format. Please use HH:MM format (e.g., '14:30' or '09:00')",
+        },
+      ],
+    };
+  }
+
+  // Fetch user's timezone from database if time is provided
+  let userTimezone = 'UTC';
+  let startTime = null;
+  
+  if (time) {
+    const db = getDatabase();
+    if (db) {
+      try {
+        const userResult = await db`
+          SELECT time_zone
+          FROM users
+          WHERE id = ${userId}
+          LIMIT 1
+        `;
+
+        if (userResult.length > 0 && userResult[0].time_zone) {
+          userTimezone = userResult[0].time_zone;
+        }
+      } catch (error) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Error fetching user timezone: ${error.message}`,
+            },
+          ],
+        };
+      }
+
+      // Use PostgreSQL to convert the date/time in user's timezone to a proper timestamptz
+      // This leverages PostgreSQL's timezone handling capabilities
+      try {
+        const timestampResult = await db`
+          SELECT (${date}::date + ${time}::time) AT TIME ZONE ${userTimezone} AS timestamp_utc
+        `;
+
+        if (timestampResult.length > 0 && timestampResult[0].timestamp_utc) {
+          // Get the timestamp in ISO format
+          startTime = timestampResult[0].timestamp_utc.toISOString();
+        } else {
+          throw new Error('Failed to convert date/time to timezone-aware timestamp');
+        }
+      } catch (error) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Error converting date/time with timezone: ${error.message}`,
+            },
+          ],
+        };
+      }
+    } else {
+      // Fallback if no database connection - use simple ISO format
+      const dateTimeString = `${date}T${time}:00`;
+      
+      try {
+        const parsedDate = new Date(dateTimeString);
+        if (isNaN(parsedDate.getTime())) {
+          throw new Error('Invalid date/time combination');
+        }
+        startTime = dateTimeString;
+      } catch (error) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Error: Invalid date/time combination. ${error.message}`,
+            },
+          ],
+        };
+      }
+    }
+  }
 
   // Resolve teamId if leadershipTeam is true
   let teamId = providedTeamId;
@@ -1119,6 +1208,7 @@ export async function createMeeting(args) {
         meetingStatusId: "NOT-STARTED",
         companyId,
         stateId: "ACTIVE",
+        ...(startTime && { startTime }),
       },
     },
   };

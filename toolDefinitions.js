@@ -1845,7 +1845,7 @@ export const toolDefinitions = [
   {
     name: "createMeeting",
     description:
-      "Create a new meeting instance in Success.co. Perfect for queries like 'Schedule a Level 10 meeting for the leadership team next Monday'. Provide either meetingAgendaId or meetingAgendaType (e.g., 'WEEKLY-L10', 'QUARTERLY-PULSING-AGENDA'). The tool will create a meeting info and then the meeting automatically. Meeting status defaults to 'NOT-STARTED', and start/end times are set when the meeting is started/ended.",
+      "Create a new meeting instance in Success.co. Perfect for queries like 'Schedule a Level 10 meeting for the leadership team next Monday at 2pm'. Provide either meetingAgendaId or meetingAgendaType (e.g., 'WEEKLY-L10', 'QUARTERLY-PULSING-AGENDA'). The tool will create a meeting info and then the meeting automatically. Meeting status defaults to 'NOT-STARTED'. You can optionally specify a start time in the user's timezone using the time parameter (HH:MM format).",
     readOnly: false,
     annotations: {
       title: "Create Meeting",
@@ -1856,6 +1856,7 @@ export const toolDefinitions = [
     },
     handler: async ({
       date,
+      time,
       meetingAgendaId,
       meetingAgendaType,
       teamId,
@@ -1864,6 +1865,7 @@ export const toolDefinitions = [
     }) =>
       await createMeeting({
         date,
+        time,
         meetingAgendaId,
         meetingAgendaType,
         teamId,
@@ -1875,6 +1877,12 @@ export const toolDefinitions = [
         .string()
         .describe(
           "Meeting date in YYYY-MM-DD format (required). For 'next Monday', calculate the date."
+        ),
+      time: z
+        .string()
+        .optional()
+        .describe(
+          "Meeting start time in HH:MM format (optional, 24-hour format in user's timezone). Examples: '14:30', '09:00', '16:45'. The time will be automatically converted based on the user's configured timezone."
         ),
       meetingAgendaId: z
         .string()
