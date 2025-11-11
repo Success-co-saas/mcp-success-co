@@ -1,15 +1,30 @@
-// Test the enhanced getTodos tool with new filters
-import { getTodos } from "./tools.js";
-import { init } from "./tools.js";
+#!/usr/bin/env node
+
+/**
+ * Test the enhanced getTodos tool with new filters
+ */
+
+import dotenv from "dotenv";
+import path from "path";
+import { fileURLToPath } from "url";
+import { getTodos, init } from "../tools.js";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: path.join(__dirname, "..", ".env") });
 
 // Initialize tools with environment config
 init({
-  NODE_ENV: process.env.NODE_ENV,
+  NODE_ENV: process.env.NODE_ENV || "development",
   DEBUG: process.env.DEBUG,
   GRAPHQL_ENDPOINT: process.env.GRAPHQL_ENDPOINT,
-  GRAPHQL_ENDPOINT: process.env.GRAPHQL_ENDPOINT,
-  GRAPHQL_ENDPOINT: process.env.GRAPHQL_ENDPOINT,
   DEVMODE_SUCCESS_API_KEY: process.env.DEVMODE_SUCCESS_API_KEY,
+  DEVMODE_SUCCESS_USE_API_KEY: process.env.DEVMODE_SUCCESS_USE_API_KEY,
+  DATABASE_URL: process.env.DATABASE_URL,
+  DB_HOST: process.env.DB_HOST,
+  DB_PORT: process.env.DB_PORT,
+  DB_DATABASE: process.env.DB_DATABASE,
+  DB_USER: process.env.DB_USER,
+  DB_PASS: process.env.DB_PASS,
 });
 
 async function testEnhancedGetTodos() {

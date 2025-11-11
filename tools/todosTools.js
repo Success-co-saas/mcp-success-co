@@ -141,26 +141,29 @@ export async function getTodos(args) {
   }
   // If status is "ALL", don't add any status filter
 
-  // Add date filters for creation
-  if (createdAfter) {
-    filterItems.push(`createdAt: {greaterThanOrEqualTo: "${createdAfter}"}`);
-  }
-  if (createdBefore) {
-    filterItems.push(`createdAt: {lessThanOrEqualTo: "${createdBefore}"}`);
+  // Add date filters for creation (combine into single createdAt filter)
+  if (createdAfter || createdBefore) {
+    const createdAtFilters = [];
+    if (createdAfter) {
+      createdAtFilters.push(`greaterThanOrEqualTo: "${createdAfter}"`);
+    }
+    if (createdBefore) {
+      createdAtFilters.push(`lessThanOrEqualTo: "${createdBefore}"`);
+    }
+    filterItems.push(`createdAt: {${createdAtFilters.join(", ")}}`);
   }
 
-  // Add date filters for completion (statusUpdatedAt when status is COMPLETE)
+  // Add date filters for completion (combine into single statusUpdatedAt filter)
   if (completedAfter || completedBefore) {
+    const statusUpdatedAtFilters = [];
     if (completedAfter) {
-      filterItems.push(
-        `statusUpdatedAt: {greaterThanOrEqualTo: "${completedAfter}"}`
-      );
+      statusUpdatedAtFilters.push(`greaterThanOrEqualTo: "${completedAfter}"`);
     }
     if (completedBefore) {
-      filterItems.push(
-        `statusUpdatedAt: {lessThanOrEqualTo: "${completedBefore}"}`
-      );
+      statusUpdatedAtFilters.push(`lessThanOrEqualTo: "${completedBefore}"`);
     }
+    filterItems.push(`statusUpdatedAt: {${statusUpdatedAtFilters.join(", ")}}`);
+    
     // Only include completed todos when using completion date filters
     if (!status || status === "ALL") {
       filterItems.push(`todoStatusId: {equalTo: "COMPLETE"}`);
