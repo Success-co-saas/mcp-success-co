@@ -6,10 +6,9 @@ import path from "path";
 import { fileURLToPath } from "url";
 import postgres from "postgres";
 import { AsyncLocalStorage } from "async_hooks";
-import { clearDebugLog } from "../helpers.js";
+import { logger } from "../utils/logger.js";
 
-// Logging - Debug
-const DEBUG_LOG_FILE = "/tmp/mcp-success-co-debug.log";
+// Configuration
 let isDevMode = false;
 let envConfig = {};
 
@@ -325,13 +324,12 @@ export function init(config) {
   isDevMode =
     envConfig.NODE_ENV === "development" || envConfig.DEBUG === "true";
 
-  // Clear debug log at startup if we're in debug mode
-  clearDebugLog(DEBUG_LOG_FILE, isDevMode);
-
   // Initialize database connection if config is available
   if (envConfig.DATABASE_URL || envConfig.DB_HOST) {
     initDatabaseConnection();
   }
+  
+  logger.info("[CORE] Tools initialized", { isDevMode });
 }
 
 /**
@@ -378,7 +376,7 @@ export function shouldUseApiKeyMode() {
 }
 
 /**
- * Log GraphQL request and response to debug file
+ * Log GraphQL request and response
  * @param {string} url - The GraphQL endpoint URL
  * @param {string} query - The GraphQL query
  * @param {Object} variables - The GraphQL variables
@@ -388,30 +386,17 @@ export function shouldUseApiKeyMode() {
 export function logGraphQLCall(url, query, variables, response, status) {
   if (!isDevMode) return;
 
-  try {
-    const timestamp = new Date().toISOString();
-    const logEntry = {
-      timestamp,
-      url,
-      query: query.replace(/\s+/g, " ").trim(), // Clean up whitespace
-      variables: variables ? JSON.stringify(variables, null, 2) : null,
-      status,
-      response: response ? JSON.stringify(response, null, 2) : null,
-    };
-
-    const logLine =
-      `\n=== GraphQL Call ${timestamp} ===\n` +
-      `URL: ${logEntry.url}\n` +
-      `Status: ${logEntry.status}\n` +
-      `Query: ${logEntry.query}\n` +
-      (logEntry.variables ? `Variables: ${logEntry.variables}\n` : "") +
-      `Response: ${logEntry.response}\n` +
-      `=== End GraphQL Call ===\n`;
-
-    fs.appendFileSync(DEBUG_LOG_FILE, logLine, "utf8");
-  } catch (error) {
-    // Silently fail logging to avoid breaking the main functionality
-    console.error("Failed to write GraphQL debug log:", error.message);
+  const cleanQuery = query.replace(/\s+/g, " ").trim();
+  logger.debug("[GRAPHQL] Request", {
+    url,
+    query: cleanQuery.substring(0, 200) + (cleanQuery.length > 200 ? "..." : ""),
+    status,
+    hasVariables: !!variables,
+    hasResponse: !!response,
+  });
+  
+  if (response && response.errors) {
+    logger.error("[GRAPHQL] Errors in response", { errors: response.errors });
   }
 }
 
@@ -422,29 +407,7 @@ export function logGraphQLCall(url, query, variables, response, status) {
  */
 export function logToolCallStart(toolName, args) {
   if (!isDevMode) return;
-
-  try {
-    const timestamp = new Date().toISOString();
-    const logEntry = {
-      timestamp,
-      toolName,
-      args: args ? JSON.stringify(args, null, 2) : null,
-    };
-
-    const logLine =
-      `\n${"=".repeat(80)}\n` +
-      `>>> TOOL CALL START: ${logEntry.toolName} [${timestamp}]\n` +
-      `${"=".repeat(80)}\n` +
-      (logEntry.args
-        ? `Arguments:\n${logEntry.args}\n`
-        : "Arguments: (none)\n") +
-      `${"-".repeat(80)}\n`;
-
-    fs.appendFileSync(DEBUG_LOG_FILE, logLine, "utf8");
-  } catch (error) {
-    // Silently fail logging to avoid breaking the main functionality
-    console.error("Failed to write tool debug start log:", error.message);
-  }
+  logger.info(`[TOOL] ${toolName} - START`, { args });
 }
 
 /**
@@ -455,28 +418,15 @@ export function logToolCallStart(toolName, args) {
  */
 export function logToolCallEnd(toolName, result, error = null) {
   if (!isDevMode) return;
-
-  try {
-    const timestamp = new Date().toISOString();
-    const logEntry = {
-      timestamp,
-      toolName,
-      result: result ? JSON.stringify(result, null, 2) : null,
-      error: error,
-    };
-
-    const logLine =
-      `${"-".repeat(80)}\n` +
-      `<<< TOOL CALL END: ${logEntry.toolName} [${timestamp}]\n` +
-      (logEntry.error
-        ? `ERROR:\n${logEntry.error}\n`
-        : `Result:\n${logEntry.result}\n`) +
-      `${"=".repeat(80)}\n`;
-
-    fs.appendFileSync(DEBUG_LOG_FILE, logLine, "utf8");
-  } catch (error) {
-    // Silently fail logging to avoid breaking the main functionality
-    console.error("Failed to write tool debug end log:", error.message);
+  
+  if (error) {
+    logger.error(`[TOOL] ${toolName} - ERROR`, { error });
+  } else {
+    // For large results, just log summary info
+    const resultSummary = result?.content?.[0]?.text 
+      ? `${result.content[0].text.substring(0, 100)}...`
+      : "success";
+    logger.info(`[TOOL] ${toolName} - END`, { resultSummary });
   }
 }
 

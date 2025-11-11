@@ -1,6 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import { logger } from "../logger.js";
+import { logger } from "../utils/logger.js";
 import { sessionManager } from "../utils/sessionManager.js";
 import {
   detectTransportType,
@@ -299,13 +299,24 @@ export async function mcpHandler(req, res) {
       logger.warn(
         `[MCP] No session found for non-initialize request. Session ID: ${sessionId}`
       );
+
+      // Provide detailed error message
+      const errorMessage = sessionId
+        ? `Session not found: ${sessionId}. The session may have expired or the server was restarted. Please reconnect your MCP client (reinitialize the connection).`
+        : "No session ID provided. MCP clients must send an 'initialize' request first to establish a session.";
+
       return res.status(400).json({
         jsonrpc: "2.0",
         error: {
           code: -32000,
-          message: "Bad Request: No valid session ID provided",
+          message: errorMessage,
+          data: {
+            sessionId: sessionId || "missing",
+            activeSessions: sessionManager.count("streamable"),
+            hint: "Send an 'initialize' request to create a new session, or restart your MCP client.",
+          },
         },
-        id: null,
+        id: req.body?.id || null,
       });
     }
 

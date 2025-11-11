@@ -1,5 +1,5 @@
 import { CORS_ORIGIN } from "../config.js";
-import { logger } from "../logger.js";
+import { logger } from "../utils/logger.js";
 
 /**
  * CORS middleware for MCP server

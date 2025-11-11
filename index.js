@@ -3,7 +3,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { initOAuthValidator } from "./oauth-validator.js";
 import { init, testDatabaseConnection } from "./tools.js";
-import { initLogger, logger } from "./logger.js";
+import { initLogger, logger } from "./utils/logger.js";
 import config, {
   VERSION,
   PORT,

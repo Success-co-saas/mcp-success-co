@@ -177,11 +177,6 @@ export const toolDefinitions = [
         effectiveUserId = auth.userId;
       }
 
-      // Auto-inject userId if not provided
-      if (!effectiveUserId) {
-        effectiveUserId = auth && !auth.isApiKeyMode ? auth.userId : undefined;
-      }
-
       return await getTodos({
         first,
         offset,
@@ -498,10 +493,8 @@ export const toolDefinitions = [
         effectiveUserId = auth.userId;
       }
 
-      // Auto-inject userId if not provided
-      if (!effectiveUserId) {
-        effectiveUserId = auth && !auth.isApiKeyMode ? auth.userId : undefined;
-      }
+      // NOTE: Issues are company/team-wide, not personal by default
+      // Do NOT auto-inject userId - only filter by user if explicitly requested
 
       return await getIssues({
         first,
@@ -622,10 +615,8 @@ export const toolDefinitions = [
         effectiveUserId = auth.userId;
       }
 
-      // Auto-inject userId if not provided
-      if (!effectiveUserId) {
-        effectiveUserId = auth && !auth.isApiKeyMode ? auth.userId : undefined;
-      }
+      // NOTE: Headlines are company/team news, not personal by default
+      // Do NOT auto-inject userId - only filter by user if explicitly requested
 
       return await getHeadlines({
         first,
@@ -735,10 +726,8 @@ export const toolDefinitions = [
         effectiveUserId = auth.userId;
       }
 
-      // Auto-inject userId if not provided
-      if (!effectiveUserId) {
-        effectiveUserId = auth && !auth.isApiKeyMode ? auth.userId : undefined;
-      }
+      // NOTE: Milestones are on rocks which are company/team-wide, not personal by default
+      // Do NOT auto-inject userId - only filter by user if explicitly requested
 
       return await getMilestones({
         first,
@@ -856,10 +845,8 @@ export const toolDefinitions = [
         effectiveUserId = auth.userId;
       }
 
-      // Auto-inject userId if not provided
-      if (!effectiveUserId) {
-        effectiveUserId = auth && !auth.isApiKeyMode ? auth.userId : undefined;
-      }
+      // NOTE: Unlike todos/rocks/issues, scorecard measurables are company-wide KPIs
+      // Do NOT auto-inject userId - only filter by user if explicitly requested
 
       return await getScorecardMeasurables({
         first,

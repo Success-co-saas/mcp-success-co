@@ -2,7 +2,7 @@
 // Tools for working with teams
 
 import { callSuccessCoGraphQL } from "./core.js";
-import { validateStateId } from "../helpers.js";
+import { validateStateId } from "../utils/helpers.js";
 
 /**
  * List Success.co teams
