@@ -1203,7 +1203,7 @@ export async function createMeeting(args) {
   const meetingVariables = {
     input: {
       meeting: {
-        date,
+        date: startTime || date, // Use startTime for date if provided, otherwise just the date
         meetingInfoId: meetingInfo.id,
         meetingStatusId: "NOT-STARTED",
         companyId,
