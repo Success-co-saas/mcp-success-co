@@ -4,12 +4,13 @@
  * Comprehensive Test Suite for getUserWorkload Tool
  * 
  * This script tests the getUserWorkload tool with various parameter combinations:
- * - Basic usage (no parameters)
- * - With specific teamId
- * - With leadershipTeam flag
- * - With specific userId
- * - With currentUser flag
- * - Combined parameters
+ * 1. Basic usage (no parameters)
+ * 2. With specific teamId
+ * 3. With leadershipTeam flag
+ * 4. With specific userId
+ * 5. With currentUser flag (tests the bug fix for filtering by current user)
+ * 6. Combined parameters (teamId + userId)
+ * 7. Workload accuracy validation
  * 
  * Usage:
  *   node tests/test-getUserWorkload.js
@@ -341,11 +342,74 @@ async function testWithUserId() {
 }
 
 /**
- * Test 5: Combined teamId and userId
+ * Test 5: With currentUser flag (OAuth mode simulation)
+ */
+async function testWithCurrentUser() {
+  try {
+    console.log("\n=== Test 5: With currentUser flag ===");
+    
+    // Note: This test requires OAuth authentication to work properly
+    // In API key mode, it should return an error about requiring OAuth
+    const result = await tools.getUserWorkload({ currentUser: true });
+    const data = parseResult(result);
+    
+    // Check if it's an error message about OAuth requirement (expected in API key mode)
+    if (typeof data === 'string') {
+      if (data.includes('requires OAuth authentication')) {
+        logResult("getUserWorkload (currentUser)", "pass", "Correctly requires OAuth authentication (API key mode detected)");
+        return null;
+      } else if (data.includes('Error')) {
+        logResult("getUserWorkload (currentUser)", "fail", data);
+        return null;
+      }
+    }
+    
+    // If we got data (OAuth mode), validate it
+    const validation = validateWorkloadData(data);
+    if (!validation.valid) {
+      logResult("getUserWorkload (currentUser)", "fail", validation.error);
+      return;
+    }
+    
+    // CRITICAL: When using currentUser=true, should return data for ONLY ONE user
+    if (data.summary.totalUsers !== 1) {
+      logResult(
+        "getUserWorkload (currentUser)", 
+        "fail", 
+        `Expected exactly 1 user (current user), got ${data.summary.totalUsers} users. This indicates the bug where all users were returned.`
+      );
+      console.log(`   ⚠️  BUG DETECTED: currentUser=true returned ${data.summary.totalUsers} users instead of 1`);
+      if (data.userWorkload.length > 0) {
+        console.log(`   Users returned: ${data.userWorkload.map(u => u.userName).join(', ')}`);
+      }
+      return;
+    }
+    
+    logResult(
+      "getUserWorkload (currentUser)",
+      "pass",
+      `Retrieved workload for current user with ${data.summary.totalItems} total items`
+    );
+    
+    if (data.userWorkload.length > 0) {
+      const user = data.userWorkload[0];
+      console.log(`   Current user: ${user.userName} (${user.email})`);
+      console.log(`   Rocks: ${user.rocksCount}, Issues: ${user.issuesCount}, Todos: ${user.todosCount}`);
+    }
+    
+    return data;
+  } catch (error) {
+    logResult("getUserWorkload (currentUser)", "fail", "", error);
+    return null;
+  }
+}
+
+/**
+ * Test 6: Combined teamId and userId
  */
 async function testCombinedTeamAndUser() {
   try {
-    console.log("\n=== Test 5: Combined teamId and userId ===");
+    console.log("\n=== Test 6: Combined teamId and userId ===");
     
     // First get a team ID and user ID
     const teamsResult = await tools.getTeams({ first: 1 });
@@ -401,7 +465,7 @@ async function testCombinedTeamAndUser() {
 }
 
 /**
- * Test 6: Verify workload counts are accurate
+ * Test 7: Verify workload counts are accurate
  */
 async function testWorkloadAccuracy(basicData) {
   if (!basicData) {
@@ -410,7 +474,7 @@ async function testWorkloadAccuracy(basicData) {
   }
   
   try {
-    console.log("\n=== Test 6: Verify workload accuracy ===");
+    console.log("\n=== Test 7: Verify workload accuracy ===");
     
     // Verify that totalItems equals sum of all items
     let calculatedTotal = 0;
@@ -503,6 +567,7 @@ async function runAllTests() {
   await testWithTeamId();
   await testWithLeadershipTeam();
   await testWithUserId();
+  await testWithCurrentUser();
   await testCombinedTeamAndUser();
   await testWorkloadAccuracy(basicData);
   
