@@ -20,7 +20,6 @@ import {
   getLeadershipVTO,
   getAccountabilityChart,
   getMeetingDetails,
-  getPeopleAnalyzerSessions,
   getOrgCheckups,
   createIssue,
   createRock,
@@ -1367,69 +1366,6 @@ export const toolDefinitions = [
         .optional()
         .describe(
           "If true, automatically use the leadership team ID (shortcut instead of providing teamId). Use with lastFinishedL10=true to get the last finished L10 meeting for the leadership team."
-        ),
-    },
-    required: [],
-  },
-  {
-    name: "getPeopleAnalyzerSessions",
-    description:
-      "Get People Analyzer sessions with user scores including 'Gets it', 'Wants it', 'Capacity to do it', 'Right person', and 'Right seat' ratings. Use leadershipTeam=true to automatically filter by the leadership team. Perfect for queries like 'Show me the people analyzer results for the leadership team', 'Who's rated below a 3 on Gets it?', or 'Summarize people analyzer trends for the last quarter'.",
-    readOnly: true,
-    annotations: {
-      title: "Get People Analyzer Sessions",
-      readOnlyHint: true,
-      idempotentHint: true,
-      openWorldHint: true,
-    },
-    handler: async ({
-      first,
-      offset,
-      teamId,
-      leadershipTeam,
-      sessionId,
-      createdAfter,
-      createdBefore,
-    }) =>
-      await getPeopleAnalyzerSessions({
-        first,
-        offset,
-        teamId,
-        leadershipTeam,
-        sessionId,
-        createdAfter,
-        createdBefore,
-      }),
-    schema: {
-      first: z
-        .number()
-        .int()
-        .optional()
-        .default(50)
-        .describe("Optional page size (defaults to 50)"),
-      offset: z.number().int().optional().describe("Optional offset"),
-      teamId: z.string().optional().describe("Filter by team ID"),
-      leadershipTeam: z
-        .boolean()
-        .optional()
-        .describe(
-          "If true, automatically use the leadership team ID (shortcut instead of calling getTeams first)"
-        ),
-      sessionId: z
-        .string()
-        .optional()
-        .describe("Filter by specific session ID"),
-      createdAfter: z
-        .string()
-        .optional()
-        .describe(
-          "Filter sessions created after this date (ISO 8601 format, e.g., 2024-01-01T00:00:00Z)"
-        ),
-      createdBefore: z
-        .string()
-        .optional()
-        .describe(
-          "Filter sessions created before this date (ISO 8601 format, e.g., 2024-12-31T23:59:59Z)"
         ),
     },
     required: [],

@@ -31,11 +31,10 @@ The comprehensive E2E test suite successfully tests all MCP tools through their 
 10. ✅ `getLeadershipVTO` - Successfully retrieves VTO data (markdown format)
 11. ✅ `getAccountabilityChart` - Successfully retrieves org structure (markdown format)
 12. ✅ `getMeetingDetails` - Successfully retrieves detailed meeting data
-13. ✅ `getPeopleAnalyzerSessions` - Successfully retrieves people analyzer data
-14. ✅ `getOrgCheckups` - Successfully retrieves org checkup sessions
-15. ✅ `getComments` - Successfully retrieves comments
-16. ✅ `getExecutionHealth` - Successfully retrieves execution health metrics
-17. ✅ `getUserWorkload` - Successfully retrieves workload analysis
+13. ✅ `getOrgCheckups` - Successfully retrieves org checkup sessions
+14. ✅ `getComments` - Successfully retrieves comments
+15. ✅ `getExecutionHealth` - Successfully retrieves execution health metrics
+16. ✅ `getUserWorkload` - Successfully retrieves workload analysis
 
 ### ❌ Failing (4/21 - 19%)
 
