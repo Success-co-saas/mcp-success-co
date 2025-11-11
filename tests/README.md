@@ -54,6 +54,15 @@ This is a safety feature - API key mode is only available when explicitly enable
 node tests/e2e-all-tools.js
 ```
 
+### Run Specific Tool Tests
+
+Some tools have dedicated comprehensive test files:
+
+```bash
+# Test getUserWorkload tool specifically
+node tests/test-getUserWorkload.js
+```
+
 ### Expected Output
 
 ```

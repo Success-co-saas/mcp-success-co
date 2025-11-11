@@ -657,6 +657,7 @@ async function testGetExecutionHealth() {
 
 async function testGetUserWorkload() {
   try {
+    // Test 1: Basic usage
     const result = await callTool("getUserWorkload", {});
     const data = parseResult(result);
     
@@ -672,12 +673,48 @@ async function testGetUserWorkload() {
       return;
     }
     
-    if (data && Array.isArray(data.users)) {
-      logResult("getUserWorkload", "pass", `Found ${data.users.length} users`);
-    } else if (data && typeof data === 'object') {
-      logResult("getUserWorkload", "pass", "Retrieved workload data");
-    } else {
-      logResult("getUserWorkload", "fail", `Unexpected format: ${JSON.stringify(data).substring(0, 100)}`);
+    // Validate structure
+    if (!data.summary || !Array.isArray(data.userWorkload)) {
+      logResult("getUserWorkload", "fail", "Invalid data structure");
+      return;
+    }
+    
+    logResult("getUserWorkload", "pass", `Retrieved workload for ${data.summary.totalUsers} users with ${data.summary.totalItems} items`);
+    
+    // Test 2: With teamId if we have one
+    if (testData.teamId) {
+      try {
+        const teamResult = await callTool("getUserWorkload", { teamId: testData.teamId });
+        const teamData = parseResult(teamResult);
+        
+        if (typeof teamData === 'string' && teamData.includes('Error')) {
+          logResult("getUserWorkload (with teamId)", "fail", teamData);
+        } else if (teamData.summary && Array.isArray(teamData.userWorkload)) {
+          logResult("getUserWorkload (with teamId)", "pass", `Retrieved workload for ${teamData.summary.totalUsers} team members`);
+        } else {
+          logResult("getUserWorkload (with teamId)", "fail", "Invalid response");
+        }
+      } catch (error) {
+        logResult("getUserWorkload (with teamId)", "fail", "", error);
+      }
+    }
+    
+    // Test 3: With userId if we have one
+    if (testData.userId) {
+      try {
+        const userResult = await callTool("getUserWorkload", { userId: testData.userId });
+        const userData = parseResult(userResult);
+        
+        if (typeof userData === 'string' && userData.includes('Error')) {
+          logResult("getUserWorkload (with userId)", "fail", userData);
+        } else if (userData.summary && Array.isArray(userData.userWorkload)) {
+          logResult("getUserWorkload (with userId)", "pass", `Retrieved workload for specific user`);
+        } else {
+          logResult("getUserWorkload (with userId)", "fail", "Invalid response");
+        }
+      } catch (error) {
+        logResult("getUserWorkload (with userId)", "fail", "", error);
+      }
     }
   } catch (error) {
     logResult("getUserWorkload", "fail", "", error);
