@@ -180,142 +180,6 @@ export async function mcpHandler(req, res) {
     const transportType = detectTransportType(req);
     const guidance = getTransportGuidance("/mcp");
 
-    // Detect browser requests and show friendly HTML page
-    const acceptHeader = req.headers.accept || "";
-    const isBrowserRequest =
-      req.method === "GET" &&
-      acceptHeader.includes("text/html") &&
-      !req.headers["mcp-session-id"];
-
-    if (isBrowserRequest) {
-      logger.info(
-        "[MCP] Browser request detected, returning friendly HTML page"
-      );
-      return res.status(200).send(`
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Success.co MCP Server</title>
-  <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: #333;
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 20px;
-    }
-    .container {
-      background: white;
-      border-radius: 12px;
-      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-      max-width: 600px;
-      padding: 40px;
-    }
-    h1 {
-      color: #667eea;
-      font-size: 2em;
-      margin-bottom: 10px;
-    }
-    .subtitle {
-      color: #666;
-      font-size: 0.9em;
-      margin-bottom: 30px;
-    }
-    h2 {
-      color: #333;
-      font-size: 1.3em;
-      margin-top: 25px;
-      margin-bottom: 10px;
-    }
-    p {
-      line-height: 1.6;
-      margin-bottom: 15px;
-      color: #555;
-    }
-    .info-box {
-      background: #f8f9fa;
-      border-left: 4px solid #667eea;
-      padding: 15px;
-      margin: 20px 0;
-      border-radius: 4px;
-    }
-    .info-box p {
-      margin-bottom: 0;
-    }
-    .links {
-      margin-top: 30px;
-      padding-top: 20px;
-      border-top: 1px solid #e0e0e0;
-    }
-    a {
-      color: #667eea;
-      text-decoration: none;
-      font-weight: 500;
-    }
-    a:hover {
-      text-decoration: underline;
-    }
-    .link-item {
-      margin: 10px 0;
-    }
-    code {
-      background: #f4f4f4;
-      padding: 2px 6px;
-      border-radius: 3px;
-      font-size: 0.9em;
-      color: #d63384;
-    }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <h1>Success.co MCP Server</h1>
-    <p class="subtitle">Model Context Protocol v${VERSION}</p>
-    
-    <p>Welcome! This is the Success.co MCP (Model Context Protocol) server endpoint.</p>
-    
-    <div class="info-box">
-      <p><strong>Note:</strong> This endpoint is designed for MCP client applications, not web browsers. You're seeing this page because you opened this URL in your browser.</p>
-    </div>
-    
-    <h2>What is MCP?</h2>
-    <p>The Model Context Protocol (MCP) is an open protocol that enables AI assistants like Claude to securely connect to your data and tools. This server provides access to your Success.co workspace data and operations.</p>
-    
-    <h2>For Developers</h2>
-    <p>To connect to this MCP server, you'll need:</p>
-    <ul style="margin-left: 20px; margin-bottom: 15px; color: #555;">
-      <li>An MCP-compatible client (like Claude Desktop)</li>
-      <li>Valid OAuth credentials or API key</li>
-      <li>Proper configuration in your MCP settings</li>
-    </ul>
-    
-    <div class="links">
-      <div class="link-item">
-        📚 <a href="https://github.com/successco/mcp-success-co" target="_blank">View Documentation on GitHub</a>
-      </div>
-      <div class="link-item">
-        💬 <a href="https://www.success.co/support" target="_blank">Get Support</a>
-      </div>
-      <div class="link-item">
-        🏠 <a href="https://www.success.co/" target="_blank">Success.co Homepage</a>
-      </div>
-    </div>
-  </div>
-</body>
-</html>
-      `);
-    }
-
     // Return friendly error for wrong transport type
     if (transportType.isSSERequest) {
       logger.warn("[MCP] SSE request on /mcp endpoint - redirecting to /sse");
@@ -501,7 +365,7 @@ export async function mcpGetHandler(req, res) {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Success.co MCP Server</title>
+  <title>Success.co AI Connector</title>
   <style>
     * {
       margin: 0;
@@ -525,15 +389,19 @@ export async function mcpGetHandler(req, res) {
       max-width: 600px;
       padding: 40px;
     }
+    .logo {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    .logo img {
+      max-width: 200px;
+      height: auto;
+    }
     h1 {
       color: #667eea;
       font-size: 2em;
-      margin-bottom: 10px;
-    }
-    .subtitle {
-      color: #666;
-      font-size: 0.9em;
-      margin-bottom: 30px;
+      margin-bottom: 20px;
+      text-align: center;
     }
     h2 {
       color: #333;
@@ -545,19 +413,76 @@ export async function mcpGetHandler(req, res) {
       line-height: 1.6;
       margin-bottom: 15px;
       color: #555;
+      font-size: 1.05em;
     }
-    .info-box {
-      background: #f8f9fa;
+    .highlight-box {
+      background: #f0f4ff;
       border-left: 4px solid #667eea;
-      padding: 15px;
-      margin: 20px 0;
+      padding: 20px;
+      margin: 25px 0;
       border-radius: 4px;
     }
-    .info-box p {
-      margin-bottom: 0;
+    .highlight-box p {
+      margin-bottom: 10px;
+      color: #333;
+      font-size: 1.1em;
+    }
+    .url-container {
+      margin-top: 15px;
+    }
+    .url-box {
+      background: #fff;
+      border: 2px solid #667eea;
+      padding: 12px;
+      border-radius: 6px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.95em;
+      color: #667eea;
+      text-align: center;
+      word-break: break-all;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .url-text {
+      flex: 1;
+    }
+    .copy-btn {
+      background: #667eea;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.9em;
+      white-space: nowrap;
+      transition: background 0.2s;
+    }
+    .copy-btn:hover {
+      background: #5568d3;
+    }
+    .copy-btn.copied {
+      background: #10b981;
+    }
+    .primary-link {
+      display: block;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white !important;
+      padding: 15px 20px;
+      border-radius: 8px;
+      text-align: center;
+      font-size: 1.1em;
+      font-weight: 600;
+      margin: 25px 0;
+      text-decoration: none !important;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .primary-link:hover {
+      box-shadow: 0 5px 5px rgba(102, 126, 234, 0.3);
     }
     .links {
-      margin-top: 30px;
+      margin-top: 20px;
       padding-top: 20px;
       border-top: 1px solid #e0e0e0;
     }
@@ -571,50 +496,77 @@ export async function mcpGetHandler(req, res) {
     }
     .link-item {
       margin: 10px 0;
-    }
-    code {
-      background: #f4f4f4;
-      padding: 2px 6px;
-      border-radius: 3px;
-      font-size: 0.9em;
-      color: #d63384;
+      font-size: 1.05em;
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>Success.co MCP Server</h1>
-    <p class="subtitle">Model Context Protocol v${VERSION}</p>
-    
-    <p>Welcome! This is the Success.co MCP (Model Context Protocol) server endpoint.</p>
-    
-    <div class="info-box">
-      <p><strong>Note:</strong> This endpoint is designed for MCP client applications, not web browsers. You're seeing this page because you opened this URL in your browser.</p>
+    <div class="logo">
+      <img src="/success-co-logo.png" alt="Success.co" />
     </div>
     
-    <h2>What is MCP?</h2>
-    <p>The Model Context Protocol (MCP) is an open protocol that enables AI assistants like Claude to securely connect to your data and tools. This server provides access to your Success.co workspace data and operations.</p>
+    <h1>Success.co AI Connector</h1>
     
-    <h2>For Developers</h2>
-    <p>To connect to this MCP server, you'll need:</p>
-    <ul style="margin-left: 20px; margin-bottom: 15px; color: #555;">
-      <li>An MCP-compatible client (like Claude Desktop)</li>
-      <li>Valid OAuth credentials or API key</li>
-      <li>Proper configuration in your MCP settings</li>
+    <p>Connect your AI assistant (like Claude, ChatGPT, or others) directly to your Success.co workspace!</p>
+    
+    <div class="highlight-box">
+      <p><strong>How to Connect:</strong></p>
+      <p>Give this URL to your AI assistant to set up the connection:</p>
+      <div class="url-container">
+        <div class="url-box">
+          <span class="url-text">https://www.success.co/mcp</span>
+          <button class="copy-btn" onclick="copyUrl()">Copy</button>
+        </div>
+      </div>
+    </div>
+    
+    <a href="https://www.success.co/docs/guides/ai-mcp-connector" target="_blank" class="primary-link">
+      📚 View Full Setup Instructions
+    </a>
+    
+    <h2>What can you do?</h2>
+    <p>Once connected, you can ask your AI assistant to:</p>
+    <ul style="margin-left: 20px; margin-bottom: 15px; color: #555; line-height: 1.8;">
+      <li>View and manage your Rocks, To-Dos, and Issues</li>
+      <li>Check your meeting agendas and notes</li>
+      <li>Review your Scorecard and metrics</li>
+      <li>Access your V/TO and company goals</li>
+      <li>Get insights on your - ask anything</li>
+      <li>...and much more!</li>
     </ul>
     
     <div class="links">
       <div class="link-item">
-        📚 <a href="https://github.com/successco/mcp-success-co" target="_blank">View Documentation on GitHub</a>
-      </div>
-      <div class="link-item">
-        💬 <a href="https://www.success.co/support" target="_blank">Get Support</a>
+        💬 <a href="https://www.success.co/contact" target="_blank">Need Help? Contact Us</a>
       </div>
       <div class="link-item">
         🏠 <a href="https://www.success.co/" target="_blank">Success.co Homepage</a>
       </div>
     </div>
   </div>
+  
+  <script>
+    function copyUrl() {
+      const url = 'https://www.success.co/mcp';
+      const btn = event.target;
+      
+      navigator.clipboard.writeText(url).then(function() {
+        btn.textContent = 'Copied!';
+        btn.classList.add('copied');
+        setTimeout(function() {
+          btn.textContent = 'Copy';
+          btn.classList.remove('copied');
+        }, 2000);
+      }).catch(function(err) {
+        console.error('Failed to copy:', err);
+        btn.textContent = 'Failed';
+        setTimeout(function() {
+          btn.textContent = 'Copy';
+        }, 2000);
+      });
+    }
+  </script>
 </body>
 </html>
       `);
