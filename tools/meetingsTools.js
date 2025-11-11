@@ -7,7 +7,7 @@ import {
   getUserContext,
   getDatabase,
 } from "./core.js";
-import { validateStateId } from "../helpers.js";
+import { validateStateId } from "../utils/helpers.js";
 import { getCompanyCode, generateObjectUrl } from "./commonHelpers.js";
 
 /**

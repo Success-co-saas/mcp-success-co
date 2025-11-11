@@ -2,7 +2,7 @@
 // Tools for working with company vision, core values, core focus, goals, and strategies
 
 import { callSuccessCoGraphQL } from "./core.js";
-import { validateStateId } from "../helpers.js";
+import { validateStateId } from "../utils/helpers.js";
 
 /**
  * Get the complete leadership Vision/Traction Organizer in one call

@@ -3,12 +3,12 @@
 // This is a refactored version showing the improvements with helper functions
 
 import { callSuccessCoGraphQL } from "./core.js";
-import { validateStateId as validateStateIdOld } from "../helpers.js";
+import { validateStateId as validateStateIdOld } from "../utils/helpers.js";
 import {
   mapPriorityToNumber,
   mapPriorityToText,
   mapIssueTypeToLowercase,
-} from "../helpers.js";
+} from "../utils/helpers.js";
 import {
   requireApiKey,
   requireField,

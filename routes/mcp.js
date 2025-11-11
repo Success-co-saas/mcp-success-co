@@ -1,6 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import { logger } from "../logger.js";
+import { logger } from "../utils/logger.js";
 import { sessionManager } from "../utils/sessionManager.js";
 import {
   detectTransportType,

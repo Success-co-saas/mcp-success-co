@@ -1,6 +1,6 @@
 import { createClient } from "redis";
 import { REDIS_CONN_STRING, STATS_CONFIG } from "../config.js";
-import { logger } from "../logger.js";
+import { logger } from "./logger.js";
 
 /**
  * Redis client for MCP stats tracking

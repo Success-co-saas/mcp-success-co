@@ -2,7 +2,7 @@
 // Tools for creating, reading, updating, and deleting comments
 
 import { callSuccessCoGraphQL, getUserContext } from "./core.js";
-import { validateStateId } from "../helpers.js";
+import { validateStateId } from "../utils/helpers.js";
 
 /**
  * List Success.co comments for an entity

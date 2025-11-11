@@ -1,5 +1,5 @@
 import fs from "fs";
-import { IS_DEVELOPMENT } from "./config.js";
+import { IS_DEVELOPMENT } from "../config.js";
 
 const LOG_FILE = IS_DEVELOPMENT ? "/tmp/mcp-server.log" : null;
 

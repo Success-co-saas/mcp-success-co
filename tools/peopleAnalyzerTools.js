@@ -2,7 +2,7 @@
 // Tools for working with People Analyzer sessions
 
 import { callSuccessCoGraphQL, getLeadershipTeamId } from "./core.js";
-import { validateStateId } from "../helpers.js";
+import { validateStateId } from "../utils/helpers.js";
 
 /**
  * Get People Analyzer sessions and results

@@ -6,7 +6,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import postgres from "postgres";
 import { AsyncLocalStorage } from "async_hooks";
-import { logger } from "../logger.js";
+import { logger } from "../utils/logger.js";
 
 // Configuration
 let isDevMode = false;
