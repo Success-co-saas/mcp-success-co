@@ -2958,12 +2958,21 @@ export function registerToolsOnServer(server) {
       }
     };
 
+    // Build options object with annotations and readOnly flag
+    const options = {};
+    if (tool.annotations) {
+      options.annotations = tool.annotations;
+    }
+    if (tool.readOnly !== undefined) {
+      options.readOnly = tool.readOnly;
+    }
+
     server.tool(
       tool.name,
       tool.description,
       tool.schema,
       wrappedHandler,
-      tool.annotations ? { annotations: tool.annotations } : undefined
+      Object.keys(options).length > 0 ? options : undefined
     );
   });
 }
