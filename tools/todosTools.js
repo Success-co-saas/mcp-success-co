@@ -25,6 +25,7 @@ import { getCompanyCode, generateObjectUrl } from "./commonHelpers.js";
  * @param {boolean} [args.leadershipTeam] - If true, automatically use the leadership team ID
  * @param {string} [args.userId] - Filter by user ID
  * @param {string} [args.status] - Filter by status: "TODO" (default), "COMPLETE", "OVERDUE", or "ALL"
+ * @param {string} [args.type] - Filter by type: "ALL" (default), "TEAM" (team todos), or "PRIVATE"
  * @param {string} [args.keyword] - Search for todos with names containing this keyword (case-insensitive)
  * @param {string} [args.createdAfter] - Filter todos created after this date (ISO 8601 format)
  * @param {string} [args.createdBefore] - Filter todos created before this date (ISO 8601 format)
@@ -42,6 +43,7 @@ export async function getTodos(args) {
     leadershipTeam = false,
     userId,
     status = "TODO",
+    type = "ALL",
     keyword,
     createdAfter,
     createdBefore,
@@ -84,6 +86,18 @@ export async function getTodos(args) {
     };
   }
 
+  // Validate type if provided
+  if (type && !["ALL", "TEAM", "PRIVATE"].includes(type)) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: 'Invalid type - must be "ALL", "TEAM", or "PRIVATE"',
+        },
+      ],
+    };
+  }
+
   const filterItems = [`stateId: {equalTo: "${stateId}"}`];
 
   // Add meetingId filter if fromMeetings is true
@@ -100,6 +114,14 @@ export async function getTodos(args) {
   if (userId) {
     filterItems.push(`userId: {equalTo: "${userId}"}`);
   }
+
+  // Add type filter if provided (skip if "ALL")
+  if (type === "TEAM") {
+    filterItems.push(`type: {equalTo: "team"}`);
+  } else if (type === "PRIVATE") {
+    filterItems.push(`type: {equalTo: "private"}`);
+  }
+  // If type is "ALL", don't add any type filter
 
   // Add keyword filter if provided
   if (keyword) {
