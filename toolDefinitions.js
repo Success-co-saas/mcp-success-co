@@ -856,10 +856,8 @@ export const toolDefinitions = [
         effectiveUserId = auth.userId;
       }
 
-      // Auto-inject userId if not provided
-      if (!effectiveUserId) {
-        effectiveUserId = auth && !auth.isApiKeyMode ? auth.userId : undefined;
-      }
+      // NOTE: Unlike todos/rocks/issues, scorecard measurables are company-wide KPIs
+      // Do NOT auto-inject userId - only filter by user if explicitly requested
 
       return await getScorecardMeasurables({
         first,
