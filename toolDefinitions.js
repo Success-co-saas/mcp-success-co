@@ -2790,11 +2790,6 @@ export const toolDefinitions = [
         effectiveUserId = auth.userId;
       }
 
-      // Auto-inject userId if not provided
-      if (!effectiveUserId) {
-        effectiveUserId = auth && !auth.isApiKeyMode ? auth.userId : undefined;
-      }
-
       return await getUserWorkload({
         teamId,
         leadershipTeam,
