@@ -135,7 +135,7 @@ export const toolDefinitions = [
   {
     name: "getTodos",
     description:
-      "List Success.co todos. Use leadershipTeam=true to automatically filter by the leadership team. Use currentUser=true to filter by the authenticated user. Use fromMeetings=true to get only todos from Level 10 meetings. Filter by teamId, userId, status (TODO, COMPLETE, OVERDUE, ALL), or keyword. Supports date filtering for creation and completion dates.",
+      "List Success.co todos. Use leadershipTeam=true to automatically filter by the leadership team. Use currentUser=true to filter by the authenticated user. Use fromMeetings=true to get only todos from Level 10 meetings. Filter by teamId, userId, status (TODO, COMPLETE, OVERDUE, ALL), type (ALL, TEAM, PRIVATE), or keyword. Supports date filtering for creation and completion dates.",
     readOnly: true,
     annotations: {
       title: "Get Todos",
@@ -152,6 +152,7 @@ export const toolDefinitions = [
       userId,
       currentUser,
       status,
+      type,
       keyword,
       createdAfter,
       createdBefore,
@@ -185,6 +186,7 @@ export const toolDefinitions = [
         leadershipTeam,
         userId: effectiveUserId,
         status,
+        type,
         keyword,
         createdAfter,
         createdBefore,
@@ -226,6 +228,13 @@ export const toolDefinitions = [
         .default("TODO")
         .describe(
           'Filter by status: "TODO" for active todos (default), "COMPLETE" for completed todos, "OVERDUE" for todos past their due date, "ALL" for all todos regardless of status'
+        ),
+      type: z
+        .enum(["ALL", "TEAM", "PRIVATE"])
+        .optional()
+        .default("ALL")
+        .describe(
+          'Filter by type: "ALL" for all todos (default), "TEAM" for team todos, "PRIVATE" for private todos'
         ),
       keyword: z
         .string()
