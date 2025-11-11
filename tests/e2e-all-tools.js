@@ -277,6 +277,75 @@ async function testGetMeetings() {
   }
 }
 
+async function testGetMeetingsDateFilters() {
+  // Test 1: dateAfter only
+  try {
+    if (!testData.teamId) {
+      logResult("getMeetings - dateAfter", "skip", "No team ID available");
+    } else {
+      const result = await callTool("getMeetings", { 
+        teamId: testData.teamId,
+        dateAfter: "2025-01-01",
+        first: 10 
+      });
+      const data = parseResult(result);
+      
+      if (data.results && Array.isArray(data.results)) {
+        logResult("getMeetings - dateAfter", "pass", `Found ${data.results.length} meetings with dateAfter filter`);
+      } else {
+        logResult("getMeetings - dateAfter", "fail", "Invalid response format");
+      }
+    }
+  } catch (error) {
+    logResult("getMeetings - dateAfter", "fail", "", error);
+  }
+
+  // Test 2: dateBefore only
+  try {
+    if (!testData.teamId) {
+      logResult("getMeetings - dateBefore", "skip", "No team ID available");
+    } else {
+      const result = await callTool("getMeetings", { 
+        teamId: testData.teamId,
+        dateBefore: "2025-12-31",
+        first: 10 
+      });
+      const data = parseResult(result);
+      
+      if (data.results && Array.isArray(data.results)) {
+        logResult("getMeetings - dateBefore", "pass", `Found ${data.results.length} meetings with dateBefore filter`);
+      } else {
+        logResult("getMeetings - dateBefore", "fail", "Invalid response format");
+      }
+    }
+  } catch (error) {
+    logResult("getMeetings - dateBefore", "fail", "", error);
+  }
+
+  // Test 3: BOTH dateAfter AND dateBefore (the bug scenario - was causing GraphQL error)
+  try {
+    if (!testData.teamId) {
+      logResult("getMeetings - date range (dateAfter + dateBefore)", "skip", "No team ID available");
+    } else {
+      const result = await callTool("getMeetings", { 
+        teamId: testData.teamId,
+        dateAfter: "2025-11-03",
+        dateBefore: "2025-11-09",
+        first: 10 
+      });
+      const data = parseResult(result);
+      
+      if (data.results && Array.isArray(data.results)) {
+        logResult("getMeetings - date range (dateAfter + dateBefore)", "pass", `✨ Found ${data.results.length} meetings with date range filter (BUG FIXED)`);
+      } else {
+        logResult("getMeetings - date range (dateAfter + dateBefore)", "fail", "Invalid response format");
+      }
+    }
+  } catch (error) {
+    logResult("getMeetings - date range (dateAfter + dateBefore)", "fail", "GraphQL error (duplicate date field)", error);
+  }
+}
+
 async function testGetIssues() {
   try {
     const result = await callTool("getIssues", { first: 10, status: "ALL" });
@@ -1442,6 +1511,7 @@ async function runAllTests() {
     await testGetTodos();
     await testGetRocks();
     await testGetMeetings();
+    await testGetMeetingsDateFilters();
     await testGetIssues();
     await testGetHeadlines();
     await testGetMilestones();

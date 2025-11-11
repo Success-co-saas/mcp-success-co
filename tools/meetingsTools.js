@@ -148,12 +148,16 @@ export async function getMeetings(args) {
     filterItems.push(`meetingAgendaType: {equalTo: "${meetingAgendaType}"}`);
   }
 
-  // Add date filters
-  if (dateAfter) {
-    filterItems.push(`date: {greaterThanOrEqualTo: "${dateAfter}"}`);
-  }
-  if (dateBefore) {
-    filterItems.push(`date: {lessThanOrEqualTo: "${dateBefore}"}`);
+  // Add date filters - combine into single date filter object to avoid duplicate field names
+  if (dateAfter || dateBefore) {
+    const dateFilters = [];
+    if (dateAfter) {
+      dateFilters.push(`greaterThanOrEqualTo: "${dateAfter}"`);
+    }
+    if (dateBefore) {
+      dateFilters.push(`lessThanOrEqualTo: "${dateBefore}"`);
+    }
+    filterItems.push(`date: {${dateFilters.join(", ")}}`);
   }
 
   const filterStr = [
