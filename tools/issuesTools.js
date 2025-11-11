@@ -249,7 +249,7 @@ export async function getIssues(args) {
  * @param {boolean} [args.leadershipTeam] - If true, automatically use the leadership team ID (REQUIRED unless teamId is provided)
  * @param {string} [args.desc] - Issue description
  * @param {string} [args.userId] - User ID to assign the issue to
- * @param {string} [args.priority] - Priority level: 'High', 'Medium', 'Low', or 'No priority' (defaults to 'Medium')
+ * @param {string} [args.priority] - Priority level: 'High', 'Medium', 'Low', or 'No priority' (defaults to 'No priority')
  * @param {string} [args.type] - Issue type: 'Short-term' or 'Long-term' (defaults to 'Short-term')
  * @returns {Promise<{content: Array<{type: string, text: string}>}>}
  */
@@ -260,7 +260,7 @@ export async function createIssue(args) {
     leadershipTeam = false,
     desc = "",
     userId: providedUserId,
-    priority = "Medium",
+    priority = "No priority",
     type: providedType = "Short-term",
   } = args;
 
