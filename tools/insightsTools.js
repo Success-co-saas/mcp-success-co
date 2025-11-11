@@ -42,7 +42,9 @@ export async function getExecutionHealth(args = {}) {
 
   // Build filter for team if provided
   // Note: Issues and todos have direct teamId field, but rocks use teamsOnRocks junction table
-  const teamFilterForIssuesAndTodos = teamId ? `, teamId: {equalTo: "${teamId}"}` : "";
+  const teamFilterForIssuesAndTodos = teamId
+    ? `, teamId: {equalTo: "${teamId}"}`
+    : "";
 
   // Get rocks data (without team filter - we'll filter after getting team rock IDs)
   const rocksQuery = `
@@ -84,7 +86,8 @@ export async function getExecutionHealth(args = {}) {
   `;
 
   // Get team rocks if filtering by team
-  const teamsOnRocksQuery = teamId ? `
+  const teamsOnRocksQuery = teamId
+    ? `
     query {
       teamsOnRocks(filter: {teamId: {equalTo: "${teamId}"}, stateId: {equalTo: "ACTIVE"}}) {
         nodes {
@@ -92,7 +95,8 @@ export async function getExecutionHealth(args = {}) {
         }
       }
     }
-  ` : null;
+  `
+    : null;
 
   // Execute all queries in parallel
   const queryPromises = [
@@ -100,21 +104,27 @@ export async function getExecutionHealth(args = {}) {
     callSuccessCoGraphQL(issuesQuery),
     callSuccessCoGraphQL(todosQuery),
   ];
-  
+
   if (teamsOnRocksQuery) {
     queryPromises.push(callSuccessCoGraphQL(teamsOnRocksQuery));
   }
-  
+
   const results = await Promise.all(queryPromises);
   const [rocksResult, issuesResult, todosResult, teamsOnRocksResult] = results;
 
-  if (!rocksResult.ok || !issuesResult.ok || !todosResult.ok || (teamsOnRocksResult && !teamsOnRocksResult.ok)) {
+  if (
+    !rocksResult.ok ||
+    !issuesResult.ok ||
+    !todosResult.ok ||
+    (teamsOnRocksResult && !teamsOnRocksResult.ok)
+  ) {
     const errors = [];
     if (!rocksResult.ok) errors.push(`Rocks: ${rocksResult.error}`);
     if (!issuesResult.ok) errors.push(`Issues: ${issuesResult.error}`);
     if (!todosResult.ok) errors.push(`Todos: ${todosResult.error}`);
-    if (teamsOnRocksResult && !teamsOnRocksResult.ok) errors.push(`TeamsOnRocks: ${teamsOnRocksResult.error}`);
-    
+    if (teamsOnRocksResult && !teamsOnRocksResult.ok)
+      errors.push(`TeamsOnRocks: ${teamsOnRocksResult.error}`);
+
     return {
       content: [
         {
@@ -128,13 +138,15 @@ export async function getExecutionHealth(args = {}) {
   let rocks = rocksResult.data?.data?.rocks?.nodes || [];
   const issues = issuesResult.data?.data?.issues?.nodes || [];
   const todos = todosResult.data?.data?.todos?.nodes || [];
-  
+
   // Filter rocks by team if teamId was provided
   if (teamId && teamsOnRocksResult) {
     const teamRockIds = new Set(
-      teamsOnRocksResult.data?.data?.teamsOnRocks?.nodes?.map(tor => tor.rockId) || []
+      teamsOnRocksResult.data?.data?.teamsOnRocks?.nodes?.map(
+        (tor) => tor.rockId
+      ) || []
     );
-    rocks = rocks.filter(rock => teamRockIds.has(rock.id));
+    rocks = rocks.filter((rock) => teamRockIds.has(rock.id));
   }
 
   // Calculate rocks metrics
@@ -151,9 +163,7 @@ export async function getExecutionHealth(args = {}) {
     ).length,
     overdue: rocks.filter(
       (r) =>
-        r.dueDate &&
-        new Date(r.dueDate) < now &&
-        r.rockStatusId !== "COMPLETE"
+        r.dueDate && new Date(r.dueDate) < now && r.rockStatusId !== "COMPLETE"
     ).length,
   };
 
@@ -168,8 +178,7 @@ export async function getExecutionHealth(args = {}) {
   // Calculate todos metrics
   const todosMetrics = {
     total: todos.length,
-    overdue: todos.filter((t) => t.dueDate && new Date(t.dueDate) < now)
-      .length,
+    overdue: todos.filter((t) => t.dueDate && new Date(t.dueDate) < now).length,
   };
 
   // Calculate overall health score (0-100)
@@ -186,8 +195,7 @@ export async function getExecutionHealth(args = {}) {
   // Issues impact (30% of score)
   if (issuesMetrics.total > 0) {
     const issuesHealthPercent =
-      ((issuesMetrics.total - issuesMetrics.stuck) / issuesMetrics.total) *
-      100;
+      ((issuesMetrics.total - issuesMetrics.stuck) / issuesMetrics.total) * 100;
     healthScore -= (100 - issuesHealthPercent) * 0.3;
   }
 
@@ -211,27 +219,37 @@ export async function getExecutionHealth(args = {}) {
   const blockers = [];
   if (rocksMetrics.offTrack > 0) {
     blockers.push(
-      `${rocksMetrics.offTrack} rock${rocksMetrics.offTrack > 1 ? "s" : ""} off track`
+      `${rocksMetrics.offTrack} rock${
+        rocksMetrics.offTrack > 1 ? "s" : ""
+      } off track`
     );
   }
   if (rocksMetrics.overdue > 0) {
     blockers.push(
-      `${rocksMetrics.overdue} overdue rock${rocksMetrics.overdue > 1 ? "s" : ""}`
+      `${rocksMetrics.overdue} overdue rock${
+        rocksMetrics.overdue > 1 ? "s" : ""
+      }`
     );
   }
   if (issuesMetrics.stuck > 0) {
     blockers.push(
-      `${issuesMetrics.stuck} stuck issue${issuesMetrics.stuck > 1 ? "s" : ""} (30+ days)`
+      `${issuesMetrics.stuck} stuck issue${
+        issuesMetrics.stuck > 1 ? "s" : ""
+      } (30+ days)`
     );
   }
   if (issuesMetrics.highPriority > 0) {
     blockers.push(
-      `${issuesMetrics.highPriority} high priority issue${issuesMetrics.highPriority > 1 ? "s" : ""}`
+      `${issuesMetrics.highPriority} high priority issue${
+        issuesMetrics.highPriority > 1 ? "s" : ""
+      }`
     );
   }
   if (todosMetrics.overdue > 0) {
     blockers.push(
-      `${todosMetrics.overdue} overdue todo${todosMetrics.overdue > 1 ? "s" : ""}`
+      `${todosMetrics.overdue} overdue todo${
+        todosMetrics.overdue > 1 ? "s" : ""
+      }`
     );
   }
 
@@ -272,11 +290,7 @@ export async function getExecutionHealth(args = {}) {
  */
 export async function getUserWorkload(args = {}) {
   try {
-    const {
-      teamId: providedTeamId,
-      leadershipTeam = false,
-      userId,
-    } = args;
+    const { teamId: providedTeamId, leadershipTeam = false, userId } = args;
 
     // Resolve teamId if leadershipTeam is true
     let teamId = providedTeamId;
@@ -294,16 +308,21 @@ export async function getUserWorkload(args = {}) {
       }
     }
 
-  // Build filters
-  // Note: Issues and todos have direct teamId field, but rocks use teamsOnRocks junction table
-  // Users use usersOnTeams junction table
-  const teamFilterForIssuesAndTodos = teamId ? `, teamId: {equalTo: "${teamId}"}` : "";
-  const userFilter = userId ? `, userId: {equalTo: "${userId}"}` : "";
-  const issuesAndTodosFilters = [teamFilterForIssuesAndTodos, userFilter].filter(Boolean).join("");
-  const rocksFilters = userFilter; // Only user filter for rocks
+    // Build filters
+    // Note: Issues and todos have direct teamId field, but rocks use teamsOnRocks junction table
+    // Users use usersOnTeams junction table
+    const teamFilterForIssuesAndTodos = teamId
+      ? `, teamId: {equalTo: "${teamId}"}`
+      : "";
+    const userFilter = userId ? `, userId: {equalTo: "${userId}"}` : "";
+    const issuesAndTodosFilters = [teamFilterForIssuesAndTodos, userFilter]
+      .filter(Boolean)
+      .join("");
+    const rocksFilters = userFilter; // Only user filter for rocks
+    const userIdFilter = userId ? `, id: {equalTo: "${userId}"}` : "";
 
-  // Get all active rocks, issues, and todos
-  const query = `
+    // Get all active rocks, issues, and todos
+    const query = `
     query {
       rocks(filter: {stateId: {equalTo: "ACTIVE"}, rockStatusId: {notEqualTo: "COMPLETE"}${rocksFilters}}) {
         nodes {
@@ -321,7 +340,7 @@ export async function getUserWorkload(args = {}) {
           userId
         }
       }
-      users(filter: {stateId: {equalTo: "ACTIVE"}}) {
+      users(filter: {stateId: {equalTo: "ACTIVE"}${userIdFilter}}) {
         nodes {
           id
           firstName
@@ -331,14 +350,14 @@ export async function getUserWorkload(args = {}) {
       }
     }
   `;
-  
-  // Build additional queries for team-based filtering
-  const additionalQueries = [];
-  
-  // Query teamsOnRocks if filtering by team
-  if (teamId) {
-    additionalQueries.push(
-      callSuccessCoGraphQL(`
+
+    // Build additional queries for team-based filtering
+    const additionalQueries = [];
+
+    // Query teamsOnRocks if filtering by team
+    if (teamId) {
+      additionalQueries.push(
+        callSuccessCoGraphQL(`
         query {
           teamsOnRocks(filter: {teamId: {equalTo: "${teamId}"}, stateId: {equalTo: "ACTIVE"}}) {
             nodes {
@@ -347,13 +366,13 @@ export async function getUserWorkload(args = {}) {
           }
         }
       `)
-    );
-  }
-  
-  // Query usersOnTeams if filtering by team
-  if (teamId) {
-    additionalQueries.push(
-      callSuccessCoGraphQL(`
+      );
+    }
+
+    // Query usersOnTeams if filtering by team
+    if (teamId) {
+      additionalQueries.push(
+        callSuccessCoGraphQL(`
         query {
           usersOnTeams(filter: {teamId: {equalTo: "${teamId}"}, stateId: {equalTo: "ACTIVE"}}) {
             nodes {
@@ -362,167 +381,171 @@ export async function getUserWorkload(args = {}) {
           }
         }
       `)
-    );
-  }
-
-  let result;
-  let teamsOnRocksResult = null;
-  let usersOnTeamsResult = null;
-  
-  try {
-    const queryPromises = [callSuccessCoGraphQL(query), ...additionalQueries];
-    const results = await Promise.all(queryPromises);
-    
-    result = results[0];
-    if (teamId) {
-      teamsOnRocksResult = results[1];
-      usersOnTeamsResult = results[2];
+      );
     }
-  } catch (error) {
-    console.error("[getUserWorkload] GraphQL call failed:", error);
-    return {
-      content: [
-        {
-          type: "text",
-          text: `Error calling GraphQL: ${error.message}`,
-        },
-      ],
-    };
-  }
-  
-  if (!result.ok) {
-    return {
-      content: [
-        {
-          type: "text",
-          text: `Error fetching workload data: ${result.error}`,
-        },
-      ],
-    };
-  }
-  
-  if (teamsOnRocksResult && !teamsOnRocksResult.ok) {
-    return {
-      content: [
-        {
-          type: "text",
-          text: `Error fetching team rocks data: ${teamsOnRocksResult.error}`,
-        },
-      ],
-    };
-  }
-  
-  if (usersOnTeamsResult && !usersOnTeamsResult.ok) {
-    return {
-      content: [
-        {
-          type: "text",
-          text: `Error fetching team users data: ${usersOnTeamsResult.error}`,
-        },
-      ],
-    };
-  }
 
-  const data = result.data?.data;
-  let rocks = data?.rocks?.nodes || [];
-  const issues = data?.issues?.nodes || [];
-  const todos = data?.todos?.nodes || [];
-  let users = data?.users?.nodes || [];
-  
-  // Filter rocks by team if teamId was provided
-  if (teamId && teamsOnRocksResult) {
-    const teamRockIds = new Set(
-      teamsOnRocksResult.data?.data?.teamsOnRocks?.nodes?.map(tor => tor.rockId) || []
-    );
-    rocks = rocks.filter(rock => teamRockIds.has(rock.id));
-  }
-  
-  // Filter users by team if teamId was provided
-  if (teamId && usersOnTeamsResult) {
-    const teamUserIds = new Set(
-      usersOnTeamsResult.data?.data?.usersOnTeams?.nodes?.map(uot => uot.userId) || []
-    );
-    users = users.filter(user => teamUserIds.has(user.id));
-  }
+    let result;
+    let teamsOnRocksResult = null;
+    let usersOnTeamsResult = null;
 
-  // Count items by user
-  const workloadByUser = {};
+    try {
+      const queryPromises = [callSuccessCoGraphQL(query), ...additionalQueries];
+      const results = await Promise.all(queryPromises);
 
-  users.forEach((user) => {
-    if (user && user.id) {
-      workloadByUser[user.id] = {
-        userId: user.id,
-        userName: `${user.firstName || ""} ${user.lastName || ""}`.trim(),
-        email: user.email || "",
-        rocksCount: 0,
-        issuesCount: 0,
-        todosCount: 0,
-        totalItems: 0,
+      result = results[0];
+      if (teamId) {
+        teamsOnRocksResult = results[1];
+        usersOnTeamsResult = results[2];
+      }
+    } catch (error) {
+      console.error("[getUserWorkload] GraphQL call failed:", error);
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error calling GraphQL: ${error.message}`,
+          },
+        ],
       };
     }
-  });
 
-  rocks.forEach((rock) => {
-    if (rock && rock.userId && workloadByUser[rock.userId]) {
-      workloadByUser[rock.userId].rocksCount++;
-      workloadByUser[rock.userId].totalItems++;
-    }
-  });
-
-  issues.forEach((issue) => {
-    if (issue && issue.userId && workloadByUser[issue.userId]) {
-      workloadByUser[issue.userId].issuesCount++;
-      workloadByUser[issue.userId].totalItems++;
-    }
-  });
-
-  todos.forEach((todo) => {
-    if (todo && todo.userId && workloadByUser[todo.userId]) {
-      workloadByUser[todo.userId].todosCount++;
-      workloadByUser[todo.userId].totalItems++;
-    }
-  });
-
-  // Convert to array and sort by total items
-  const workloadArray = Object.values(workloadByUser).sort(
-    (a, b) => b.totalItems - a.totalItems
-  );
-
-  // Calculate statistics
-  const totalItems = workloadArray.reduce(
-    (sum, user) => sum + user.totalItems,
-    0
-  );
-  const avgItemsPerUser =
-    workloadArray.length > 0
-      ? Math.round(totalItems / workloadArray.length)
-      : 0;
-  const maxItems = workloadArray.length > 0 ? workloadArray[0].totalItems : 0;
-  const overloadedUsers = workloadArray.filter(
-    (u) => u.totalItems > avgItemsPerUser * 1.5
-  );
-
-  return {
-    content: [
-      {
-        type: "text",
-        text: JSON.stringify({
-          summary: {
-            totalUsers: workloadArray.length,
-            totalItems,
-            avgItemsPerUser,
-            maxItems,
-            overloadedUsersCount: overloadedUsers.length,
+    if (!result.ok) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error fetching workload data: ${result.error}`,
           },
-          overloadedUsers: overloadedUsers.map((u) => ({
-            userName: u.userName,
-            totalItems: u.totalItems,
-          })),
-          userWorkload: workloadArray,
-        }),
-      },
-    ],
-  };
+        ],
+      };
+    }
+
+    if (teamsOnRocksResult && !teamsOnRocksResult.ok) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error fetching team rocks data: ${teamsOnRocksResult.error}`,
+          },
+        ],
+      };
+    }
+
+    if (usersOnTeamsResult && !usersOnTeamsResult.ok) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error fetching team users data: ${usersOnTeamsResult.error}`,
+          },
+        ],
+      };
+    }
+
+    const data = result.data?.data;
+    let rocks = data?.rocks?.nodes || [];
+    const issues = data?.issues?.nodes || [];
+    const todos = data?.todos?.nodes || [];
+    let users = data?.users?.nodes || [];
+
+    // Filter rocks by team if teamId was provided
+    if (teamId && teamsOnRocksResult) {
+      const teamRockIds = new Set(
+        teamsOnRocksResult.data?.data?.teamsOnRocks?.nodes?.map(
+          (tor) => tor.rockId
+        ) || []
+      );
+      rocks = rocks.filter((rock) => teamRockIds.has(rock.id));
+    }
+
+    // Filter users by team if teamId was provided
+    if (teamId && usersOnTeamsResult) {
+      const teamUserIds = new Set(
+        usersOnTeamsResult.data?.data?.usersOnTeams?.nodes?.map(
+          (uot) => uot.userId
+        ) || []
+      );
+      users = users.filter((user) => teamUserIds.has(user.id));
+    }
+
+    // Count items by user
+    const workloadByUser = {};
+
+    users.forEach((user) => {
+      if (user && user.id) {
+        workloadByUser[user.id] = {
+          userId: user.id,
+          userName: `${user.firstName || ""} ${user.lastName || ""}`.trim(),
+          email: user.email || "",
+          rocksCount: 0,
+          issuesCount: 0,
+          todosCount: 0,
+          totalItems: 0,
+        };
+      }
+    });
+
+    rocks.forEach((rock) => {
+      if (rock && rock.userId && workloadByUser[rock.userId]) {
+        workloadByUser[rock.userId].rocksCount++;
+        workloadByUser[rock.userId].totalItems++;
+      }
+    });
+
+    issues.forEach((issue) => {
+      if (issue && issue.userId && workloadByUser[issue.userId]) {
+        workloadByUser[issue.userId].issuesCount++;
+        workloadByUser[issue.userId].totalItems++;
+      }
+    });
+
+    todos.forEach((todo) => {
+      if (todo && todo.userId && workloadByUser[todo.userId]) {
+        workloadByUser[todo.userId].todosCount++;
+        workloadByUser[todo.userId].totalItems++;
+      }
+    });
+
+    // Convert to array and sort by total items
+    const workloadArray = Object.values(workloadByUser).sort(
+      (a, b) => b.totalItems - a.totalItems
+    );
+
+    // Calculate statistics
+    const totalItems = workloadArray.reduce(
+      (sum, user) => sum + user.totalItems,
+      0
+    );
+    const avgItemsPerUser =
+      workloadArray.length > 0
+        ? Math.round(totalItems / workloadArray.length)
+        : 0;
+    const maxItems = workloadArray.length > 0 ? workloadArray[0].totalItems : 0;
+    const overloadedUsers = workloadArray.filter(
+      (u) => u.totalItems > avgItemsPerUser * 1.5
+    );
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify({
+            summary: {
+              totalUsers: workloadArray.length,
+              totalItems,
+              avgItemsPerUser,
+              maxItems,
+              overloadedUsersCount: overloadedUsers.length,
+            },
+            overloadedUsers: overloadedUsers.map((u) => ({
+              userName: u.userName,
+              totalItems: u.totalItems,
+            })),
+            userWorkload: workloadArray,
+          }),
+        },
+      ],
+    };
   } catch (error) {
     console.error("[getUserWorkload] Error:", error);
     return {
@@ -561,7 +584,7 @@ export async function getCompanyInsights(args = {}) {
   // Get execution health
   const executionHealth = await getExecutionHealth({ teamId });
   const healthText = executionHealth.content[0].text;
-  
+
   // Try to parse as JSON, if it fails it's probably an error message
   let healthData;
   try {
@@ -584,13 +607,17 @@ export async function getCompanyInsights(args = {}) {
   const currentQuarter = Math.ceil(currentMonth / 3);
   const quarterStartMonth = (currentQuarter - 1) * 3 + 1;
   const quarterEndMonth = currentQuarter * 3;
-  const quarterStartDate = `${now.getFullYear()}-${String(quarterStartMonth).padStart(2, "0")}-01`;
+  const quarterStartDate = `${now.getFullYear()}-${String(
+    quarterStartMonth
+  ).padStart(2, "0")}-01`;
   const lastDayOfMonth = new Date(
     now.getFullYear(),
     quarterEndMonth,
     0
   ).getDate();
-  const quarterEndDate = `${now.getFullYear()}-${String(quarterEndMonth).padStart(2, "0")}-${String(lastDayOfMonth).padStart(2, "0")}`;
+  const quarterEndDate = `${now.getFullYear()}-${String(
+    quarterEndMonth
+  ).padStart(2, "0")}-${String(lastDayOfMonth).padStart(2, "0")}`;
 
   const rocksQuery = `
     query {
@@ -659,14 +686,18 @@ export async function getCompanyInsights(args = {}) {
   if (healthData.rocks.atRisk > 0) {
     insights.push({
       type: "warning",
-      message: `${healthData.rocks.atRisk} rock${healthData.rocks.atRisk > 1 ? "s" : ""} need attention - either off track or not updated in 14+ days`,
+      message: `${healthData.rocks.atRisk} rock${
+        healthData.rocks.atRisk > 1 ? "s" : ""
+      } need attention - either off track or not updated in 14+ days`,
     });
   }
 
   if (healthData.issues.stuck > 0) {
     insights.push({
       type: "warning",
-      message: `${healthData.issues.stuck} issue${healthData.issues.stuck > 1 ? "s" : ""} stuck for 30+ days - review in next L10`,
+      message: `${healthData.issues.stuck} issue${
+        healthData.issues.stuck > 1 ? "s" : ""
+      } stuck for 30+ days - review in next L10`,
     });
   }
 
@@ -699,4 +730,3 @@ export async function getCompanyInsights(args = {}) {
     ],
   };
 }
-
