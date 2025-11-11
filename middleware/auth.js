@@ -1,6 +1,6 @@
 import * as jose from "jose";
 import { IS_DEVELOPMENT, IS_PRODUCTION, DEV_CONFIG, OAUTH_CONFIG } from "../config.js";
-import { logger } from "../logger.js";
+import { logger } from "../utils/logger.js";
 import { checkTokenRevocation, extractBearerToken } from "../oauth-validator.js";
 import crypto from "crypto";
 

@@ -89,23 +89,6 @@ export function mapRockTypeToLowercase(type) {
   return typeMap[type] ?? "company"; // Default to company if invalid value
 }
 
-/**
- * Clear the GraphQL debug log file if it exists
- * @param {string} debugLogFile - Path to the debug log file
- * @param {boolean} devMode - Whether we're in development mode
- */
-export function clearDebugLog(debugLogFile, devMode) {
-  if (!devMode) return;
-
-  try {
-    if (fs.existsSync(debugLogFile)) {
-      fs.writeFileSync(debugLogFile, "", "utf8");
-      console.error(`[DEBUG] Cleared GraphQL debug log: ${debugLogFile}`);
-    }
-  } catch (error) {
-    console.error(`[DEBUG] Failed to clear debug log: ${error.message}`);
-  }
-}
 
 /**
  * Get the last date of the current quarter for a company

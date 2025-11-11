@@ -1,6 +1,6 @@
 import { getStatsRedis, isStatsAvailable } from "./redisClient.js";
 import { STATS_CONFIG } from "../config.js";
-import { logger } from "../logger.js";
+import { logger } from "./logger.js";
 
 /**
  * Track a tool call in Redis

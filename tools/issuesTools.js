@@ -12,7 +12,7 @@ import {
   mapPriorityToNumber,
   mapPriorityToText,
   mapIssueTypeToLowercase,
-} from "../helpers.js";
+} from "../utils/helpers.js";
 import { getCompanyCode, generateObjectUrl } from "./commonHelpers.js";
 
 /**

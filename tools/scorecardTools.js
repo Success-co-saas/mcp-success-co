@@ -12,7 +12,8 @@ import {
   validateStateId,
   validateMeasurableValue,
   calculateStartDateForDataField,
-} from "../helpers.js";
+} from "../utils/helpers.js";
+import { logger } from "../utils/logger.js";
 
 /**
  * Get scorecard measurables (KPIs) with their data values
@@ -77,6 +78,8 @@ export async function getScorecardMeasurables(args) {
   }
 
   try {
+    const isDevMode = getIsDevMode();
+
     // If teamId is provided, first get the dataFieldIds for that team
     let teamDataFieldIds = null;
     if (teamId) {
@@ -95,6 +98,9 @@ export async function getScorecardMeasurables(args) {
       );
 
       if (!teamsOnDataFieldsResult.ok) {
+        logger.error(`[SCORECARD] Error fetching teams on data fields`, { 
+          error: teamsOnDataFieldsResult.error 
+        });
         return {
           content: [
             {
@@ -110,24 +116,15 @@ export async function getScorecardMeasurables(args) {
           (rel) => rel.dataFieldId
         ) || [];
 
-      // If teamId was provided but no dataFields found for that team, return empty result
+      // If teamId was provided but no dataFields found for that team, 
+      // log a warning but continue with query (will return all data fields for the company)
+      // This handles cases where data fields exist but aren't explicitly linked to teams
       if (teamDataFieldIds.length === 0) {
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(
-                {
-                  scorecardMeasurables: [],
-                  totalCount: 0,
-                  message: `No data fields found for team ${teamId}`,
-                },
-                null,
-                2
-              ),
-            },
-          ],
-        };
+        logger.warn(
+          `[SCORECARD] No data fields linked to team ${teamId}. Continuing without team filter.`
+        );
+        // Set teamDataFieldIds to null so the filter is not applied
+        teamDataFieldIds = null;
       }
     }
 
@@ -221,6 +218,7 @@ export async function getScorecardMeasurables(args) {
         annually: "ANNUALLY",
       };
       const dataFieldType = typeMapping[type];
+      
       if (dataFieldType) {
         filteredDataFields = filteredDataFields.filter(
           (field) => field.type === dataFieldType
@@ -333,6 +331,9 @@ export async function getScorecardMeasurables(args) {
     const dataValuesResult = await callSuccessCoGraphQL(dataValuesQuery);
 
     if (!dataValuesResult.ok) {
+      logger.error(`[SCORECARD] Error fetching data values`, {
+        error: dataValuesResult.error,
+      });
       return {
         content: [
           {

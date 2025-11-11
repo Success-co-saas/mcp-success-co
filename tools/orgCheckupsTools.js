@@ -2,7 +2,7 @@
 // Tools for working with organization checkup sessions
 
 import { callSuccessCoGraphQL } from "./core.js";
-import { validateStateId } from "../helpers.js";
+import { validateStateId } from "../utils/helpers.js";
 
 /**
  * Get Organization Checkup sessions and scores
