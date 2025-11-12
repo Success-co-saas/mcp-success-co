@@ -3,8 +3,9 @@
 /**
  * Test: Create Meeting with Time (Timezone Support)
  * 
- * Tests the createMeeting tool with the new time parameter to ensure
- * timezone-aware meeting creation works correctly.
+ * Quick test for createMeeting with time parameter.
+ * For comprehensive tests of both create and update, use:
+ *   node tests/test-meeting-time-comprehensive.js
  * 
  * Usage:
  *   node tests/test-createMeeting-with-time.js
