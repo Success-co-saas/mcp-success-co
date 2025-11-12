@@ -2195,7 +2195,7 @@ export const toolDefinitions = [
   {
     name: "updateMeeting",
     description:
-      "Update an existing meeting in Success.co. Perfect for queries like 'Reschedule next Monday's L10 to Tuesday' or 'Cancel tomorrow's meeting'. Use getMeetings or getMeetingDetails first to find the meeting ID. To cancel a meeting, set state to 'DELETED'.",
+      "Update an existing meeting in Success.co. Perfect for queries like 'Reschedule next Monday's L10 to Tuesday at 3pm' or 'Change tomorrow's meeting time to 10:30am' or 'Cancel tomorrow's meeting'. Use getMeetings or getMeetingDetails first to find the meeting ID. To cancel a meeting, set state to 'DELETED'. You can update the time in the user's timezone using the time parameter.",
     readOnly: false,
     annotations: {
       title: "Update Meeting",
@@ -2204,11 +2204,13 @@ export const toolDefinitions = [
       idempotentHint: true,
       openWorldHint: true,
     },
-    handler: async ({ meetingId, date, state }) =>
+    handler: async ({ meetingId, date, time, state, meetingStatusId }) =>
       await updateMeeting({
         meetingId,
         date,
+        time,
         state,
+        meetingStatusId,
       }),
     schema: {
       meetingId: z
@@ -2220,11 +2222,23 @@ export const toolDefinitions = [
         .string()
         .optional()
         .describe("Update meeting date (YYYY-MM-DD format)"),
+      time: z
+        .string()
+        .optional()
+        .describe(
+          "Update meeting start time in HH:MM format (optional, 24-hour format in user's timezone). Examples: '14:30', '09:00', '16:45'. The time will be automatically converted based on the user's configured timezone. If provided without a date, uses the meeting's existing date."
+        ),
       state: z
         .enum(["ACTIVE", "DELETED"])
         .optional()
         .describe(
           "Meeting state. Set to 'DELETED' to cancel a meeting, 'ACTIVE' to restore it."
+        ),
+      meetingStatusId: z
+        .string()
+        .optional()
+        .describe(
+          "Meeting status ID (e.g., 'NOT-STARTED', 'IN-PROGRESS', 'FINISHED')"
         ),
     },
     required: ["meetingId"],

@@ -1203,7 +1203,7 @@ export async function createMeeting(args) {
   const meetingVariables = {
     input: {
       meeting: {
-        date,
+        date: startTime || date, // Use startTime for date if provided, otherwise just the date
         meetingInfoId: meetingInfo.id,
         meetingStatusId: "NOT-STARTED",
         companyId,
@@ -1354,12 +1354,14 @@ export async function createMeeting(args) {
  * Update an existing meeting
  * @param {Object} args - Arguments object
  * @param {string} args.meetingId - Meeting ID (required)
- * @param {string} [args.date] - Update meeting date
+ * @param {string} [args.date] - Update meeting date (YYYY-MM-DD format)
+ * @param {string} [args.time] - Update meeting start time (HH:MM format, in user's timezone)
  * @param {string} [args.state] - Update state (e.g., 'ACTIVE', 'DELETED')
+ * @param {string} [args.meetingStatusId] - Update meeting status
  * @returns {Promise<{content: Array<{type: string, text: string}>}>}
  */
 export async function updateMeeting(args) {
-  const { meetingId, date, state, name, meetingStatusId } = args;
+  const { meetingId, date, time, state, name, meetingStatusId } = args;
 
   if (!meetingId) {
     return {
@@ -1385,11 +1387,125 @@ export async function updateMeeting(args) {
     };
   }
 
+  const userId = context.userId;
+
+  // Validate time format if provided
+  if (time && !/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(time)) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: "Error: Invalid time format. Please use HH:MM format (e.g., '14:30' or '09:00')",
+        },
+      ],
+    };
+  }
+
+  // Handle time parameter - convert to timezone-aware timestamp
+  let startTime = null;
+  let dateWithTime = null;
+  
+  if (time) {
+    // If time is provided but date is not, fetch the current meeting date
+    let meetingDate = date;
+    
+    if (!meetingDate) {
+      // Fetch current meeting date
+      const currentMeetingQuery = `
+        query {
+          meetings(filter: {id: {equalTo: "${meetingId}"}}) {
+            nodes {
+              date
+            }
+          }
+        }
+      `;
+      
+      const currentMeetingResult = await callSuccessCoGraphQL(currentMeetingQuery);
+      
+      if (!currentMeetingResult.ok || !currentMeetingResult.data?.data?.meetings?.nodes?.[0]) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: "Error: Could not fetch current meeting date. Please provide a date when updating time.",
+            },
+          ],
+        };
+      }
+      
+      // Extract just the date part (YYYY-MM-DD)
+      const currentDate = new Date(currentMeetingResult.data.data.meetings.nodes[0].date);
+      meetingDate = currentDate.toISOString().split('T')[0];
+    }
+
+    const db = getDatabase();
+    if (db) {
+      try {
+        // Fetch user's timezone
+        const userResult = await db`
+          SELECT time_zone
+          FROM users
+          WHERE id = ${userId}
+          LIMIT 1
+        `;
+
+        let userTimezone = 'UTC';
+        if (userResult.length > 0 && userResult[0].time_zone) {
+          userTimezone = userResult[0].time_zone;
+        }
+
+        // Convert date/time in user's timezone to UTC
+        const timestampResult = await db`
+          SELECT (${meetingDate}::date + ${time}::time) AT TIME ZONE ${userTimezone} AS timestamp_utc
+        `;
+
+        if (timestampResult.length > 0 && timestampResult[0].timestamp_utc) {
+          startTime = timestampResult[0].timestamp_utc.toISOString();
+          dateWithTime = startTime; // Set date field to include time
+        } else {
+          throw new Error('Failed to convert date/time to timezone-aware timestamp');
+        }
+      } catch (error) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Error converting date/time with timezone: ${error.message}`,
+            },
+          ],
+        };
+      }
+    } else {
+      // Fallback if no database connection
+      const dateTimeString = `${meetingDate}T${time}:00`;
+      
+      try {
+        const parsedDate = new Date(dateTimeString);
+        if (isNaN(parsedDate.getTime())) {
+          throw new Error('Invalid date/time combination');
+        }
+        startTime = dateTimeString;
+        dateWithTime = startTime;
+      } catch (error) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Error: Invalid date/time combination. ${error.message}`,
+            },
+          ],
+        };
+      }
+    }
+  }
+
   // Validate date is not in the past if date is being updated
-  if (date) {
+  const effectiveDate = dateWithTime || date;
+  if (effectiveDate) {
     const today = new Date();
     today.setHours(0, 0, 0, 0); // Reset to start of day for comparison
-    const meetingDate = new Date(date);
+    const meetingDate = new Date(effectiveDate);
     if (meetingDate < today) {
       return {
         content: [
@@ -1408,6 +1524,7 @@ export async function updateMeeting(args) {
         meeting {
           id
           date
+          startTime
           meetingInfoId
           meetingStatusId
           stateId
@@ -1417,7 +1534,14 @@ export async function updateMeeting(args) {
   `;
 
   const updates = {};
-  if (date) updates.date = date;
+  if (dateWithTime) {
+    // If time was provided, use the combined timestamp for date
+    updates.date = dateWithTime;
+  } else if (date) {
+    // Otherwise use the plain date
+    updates.date = date;
+  }
+  if (startTime) updates.startTime = startTime;
   if (state) updates.stateId = state;
   if (meetingStatusId) updates.meetingStatusId = meetingStatusId;
 
