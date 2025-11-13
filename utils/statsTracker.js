@@ -95,14 +95,6 @@ export async function trackToolCall({
 
     // Execute the multi command
     await multi.exec();
-
-    logger.debug("[STATS] Tracked tool call:", {
-      toolName,
-      companyId,
-      client: client || "none",
-      success,
-      duration,
-    });
   } catch (err) {
     // Don't let stats tracking errors affect the main application
     logger.error("[STATS] Error tracking tool call:", err.message);
@@ -160,12 +152,12 @@ export async function getTopCompanies30d(limit = 20) {
 
     // Get scores for all companies using multi
     const companyIds = keys.map((key) => key.replace("mcp:usage:30d:", ""));
-    
+
     // Fetch scores in parallel
     const scorePromises = companyIds.map((companyId) =>
       redis.zScore(`mcp:usage:30d:${companyId}`, companyId)
     );
-    
+
     const scores = await Promise.all(scorePromises);
 
     // Build array of {companyId, calls}
@@ -214,12 +206,12 @@ export async function getTopCompaniesAllTime(limit = 20) {
 
     // Get scores for all companies
     const companyIds = keys.map((key) => key.replace("mcp:usage:alltime:", ""));
-    
+
     // Fetch scores in parallel
     const scorePromises = companyIds.map((companyId) =>
       redis.zScore(`mcp:usage:alltime:${companyId}`, companyId)
     );
-    
+
     const scores = await Promise.all(scorePromises);
 
     // Build array of {companyId, calls}
@@ -398,11 +390,14 @@ export async function getRecentConnections(limit = 100) {
   }
 
   try {
-    const connections = await redis.lRange("mcp:connections:recent", 0, limit - 1);
+    const connections = await redis.lRange(
+      "mcp:connections:recent",
+      0,
+      limit - 1
+    );
     return connections.map((conn) => JSON.parse(conn));
   } catch (err) {
     logger.error("[STATS] Error getting recent connections:", err.message);
     return [];
   }
 }
-

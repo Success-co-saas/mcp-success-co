@@ -111,3 +111,6 @@ export {
   getUserWorkload,
   getCompanyInsights,
 } from "./insightsTools.js";
+
+// Help & Discovery
+export { getSampleQuestions } from "./helpTools.js";
