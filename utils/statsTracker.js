@@ -12,6 +12,7 @@ import { logger } from "./logger.js";
  * @param {number} callData.duration - Duration of the call in milliseconds
  * @param {boolean} callData.success - Whether the call succeeded
  * @param {string} [callData.error] - Error message if the call failed
+ * @param {string} [callData.client] - AI client/assistant name
  */
 export async function trackToolCall({
   toolName,
@@ -21,6 +22,7 @@ export async function trackToolCall({
   duration,
   success,
   error = null,
+  client = null,
 }) {
   // Skip if stats tracking is not available
   if (!isStatsAvailable()) {
@@ -45,6 +47,7 @@ export async function trackToolCall({
       duration,
       success,
       error,
+      client,
     };
 
     const callDataJson = JSON.stringify(callData);
@@ -296,6 +299,98 @@ export async function getTopToolsAllTime(limit = 20) {
     }));
   } catch (err) {
     logger.error("[STATS] Error getting top tools (all-time):", err.message);
+    return [];
+  }
+}
+
+/**
+ * Get top AI clients by usage (30-day period)
+ * @param {number} [limit=20] - Maximum number of clients to retrieve
+ * @returns {Promise<Array>} - Array of {client, connections} objects
+ */
+export async function getTopClients30d(limit = 20) {
+  if (!isStatsAvailable()) {
+    return [];
+  }
+
+  const redis = getStatsRedis();
+  if (!redis) {
+    return [];
+  }
+
+  try {
+    // Get top clients from sorted set (highest scores first)
+    const results = await redis.zRangeWithScores(
+      "mcp:clients:30d",
+      0,
+      limit - 1,
+      { REV: true }
+    );
+
+    return results.map((item) => ({
+      client: item.value,
+      connections: parseInt(item.score),
+    }));
+  } catch (err) {
+    logger.error("[STATS] Error getting top clients (30d):", err.message);
+    return [];
+  }
+}
+
+/**
+ * Get top AI clients by usage (all-time)
+ * @param {number} [limit=20] - Maximum number of clients to retrieve
+ * @returns {Promise<Array>} - Array of {client, connections} objects
+ */
+export async function getTopClientsAllTime(limit = 20) {
+  if (!isStatsAvailable()) {
+    return [];
+  }
+
+  const redis = getStatsRedis();
+  if (!redis) {
+    return [];
+  }
+
+  try {
+    // Get top clients from sorted set (highest scores first)
+    const results = await redis.zRangeWithScores(
+      "mcp:clients:alltime",
+      0,
+      limit - 1,
+      { REV: true }
+    );
+
+    return results.map((item) => ({
+      client: item.value,
+      connections: parseInt(item.score),
+    }));
+  } catch (err) {
+    logger.error("[STATS] Error getting top clients (all-time):", err.message);
+    return [];
+  }
+}
+
+/**
+ * Get recent client connections
+ * @param {number} [limit=100] - Maximum number of connections to retrieve
+ * @returns {Promise<Array>} - Array of connection objects
+ */
+export async function getRecentConnections(limit = 100) {
+  if (!isStatsAvailable()) {
+    return [];
+  }
+
+  const redis = getStatsRedis();
+  if (!redis) {
+    return [];
+  }
+
+  try {
+    const connections = await redis.lRange("mcp:connections:recent", 0, limit - 1);
+    return connections.map((conn) => JSON.parse(conn));
+  } catch (err) {
+    logger.error("[STATS] Error getting recent connections:", err.message);
     return [];
   }
 }
