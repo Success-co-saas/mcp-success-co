@@ -10,6 +10,11 @@ import {
 import { runWithAuthContext, getAuthContext, getDatabase } from "../tools.js";
 import { registerToolsOnServer } from "../toolDefinitions.js";
 import { VERSION } from "../config.js";
+import {
+  parseAIClient,
+  trackClientConnection,
+} from "../utils/clientDetection.js";
+import { getStatsRedis, isStatsAvailable } from "../utils/redisClient.js";
 
 /**
  * Create a fresh MCP server instance with all tools registered
@@ -259,6 +264,18 @@ export async function mcpHandler(req, res) {
 
       // Track MCP connection in database
       const authContext = req.oauth || {};
+
+      // Parse client information from User-Agent
+      const userAgent = req.headers["user-agent"] || "";
+      const clientInfo = parseAIClient(userAgent);
+
+      logger.info("[MCP] Client connected", {
+        client: clientInfo.client,
+        version: clientInfo.version,
+        userId: authContext.userId,
+        companyId: authContext.companyId,
+      });
+
       if (
         authContext.userId &&
         authContext.companyId &&
@@ -289,6 +306,17 @@ export async function mcpHandler(req, res) {
                 userId: authContext.userId,
                 companyId: authContext.companyId,
               }
+            );
+          }
+
+          // Track client connection in Redis for stats
+          if (isStatsAvailable()) {
+            const redis = getStatsRedis();
+            await trackClientConnection(
+              redis,
+              clientInfo.client,
+              authContext.userId,
+              authContext.companyId
             );
           }
         } catch (error) {
@@ -322,6 +350,13 @@ export async function mcpHandler(req, res) {
 
     // Set up authentication context
     const authContext = req.oauth || {};
+
+    // Add client information to auth context
+    const userAgent = req.headers["user-agent"] || "";
+    const clientInfo = parseAIClient(userAgent);
+    authContext.client = clientInfo.client;
+    authContext.clientVersion = clientInfo.version;
+
     logger.debug(
       `[MCP] Processing request with auth context:`,
       authContext.isApiKeyMode
@@ -601,6 +636,13 @@ export async function mcpGetHandler(req, res) {
     }
 
     const authContext = req.oauth || {};
+
+    // Add client information to auth context
+    const userAgent = req.headers["user-agent"] || "";
+    const clientInfo = parseAIClient(userAgent);
+    authContext.client = clientInfo.client;
+    authContext.clientVersion = clientInfo.version;
+
     await runWithAuthContext(authContext, async () => {
       await transport.handleRequest(req, res);
     });
@@ -635,6 +677,13 @@ export async function mcpDeleteHandler(req, res) {
     }
 
     const authContext = req.oauth || {};
+
+    // Add client information to auth context
+    const userAgent = req.headers["user-agent"] || "";
+    const clientInfo = parseAIClient(userAgent);
+    authContext.client = clientInfo.client;
+    authContext.clientVersion = clientInfo.version;
+
     await runWithAuthContext(authContext, async () => {
       await transport.handleRequest(req, res);
     });
