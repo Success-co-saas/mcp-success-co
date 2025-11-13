@@ -2886,6 +2886,7 @@ export function registerToolsOnServer(server) {
         const auth = getAuthContext();
         const userId = auth?.userId || null;
         const companyId = auth?.companyId || null;
+        const client = auth?.client || null;
 
         // Track the call asynchronously (fire-and-forget)
         trackToolCall({
@@ -2896,6 +2897,7 @@ export function registerToolsOnServer(server) {
           duration,
           success,
           error,
+          client,
         }).catch(() => {
           // Silently ignore stats tracking errors
         });
