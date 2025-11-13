@@ -47,6 +47,7 @@ import {
   getExecutionHealth,
   getUserWorkload,
   getCompanyInsights,
+  getSampleQuestions,
   getAuthContext,
 } from "./tools.js";
 import { trackToolCall } from "./utils/statsTracker.js";
@@ -2854,6 +2855,21 @@ export const toolDefinitions = [
       openWorldHint: true,
     },
     handler: async () => await getCompanyInsights({}),
+    schema: {},
+    required: [],
+  },
+  {
+    name: "getSampleQuestions",
+    description:
+      "Get example questions users can ask about their Success.co data. Use this when users ask 'What can I ask you?', 'What questions can I ask?', 'What can you help me with?', 'Show me examples', or similar queries. Returns a comprehensive list of categorized sample questions covering all Success.co features including Vision/V/TO, Accountability Chart, Scorecard, Rocks, To-Dos, Issues, Meetings, Headlines, and more.",
+    readOnly: true,
+    annotations: {
+      title: "Get Sample Questions",
+      readOnlyHint: true,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+    handler: async () => await getSampleQuestions(),
     schema: {},
     required: [],
   },
