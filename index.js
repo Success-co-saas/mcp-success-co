@@ -17,6 +17,7 @@ import { authMiddleware } from "./middleware/auth.js";
 import { healthHandler } from "./routes/health.js";
 import { mcpHandler, mcpGetHandler, mcpDeleteHandler } from "./routes/mcp.js";
 import { sseHandler, sseMessagesHandler } from "./routes/sse.js";
+import { debugClientsHandler } from "./routes/debug.js";
 import { registerToolsOnServer } from "./toolDefinitions.js";
 import { sessionManager } from "./utils/sessionManager.js";
 
@@ -122,6 +123,9 @@ app.use("/mcp", authMiddleware);
 app.post("/mcp", mcpHandler);
 app.get("/mcp", mcpGetHandler);
 app.delete("/mcp", mcpDeleteHandler);
+
+// MCP Debug endpoint (under /mcp path, already has auth from middleware above)
+app.get("/mcp/debug/clients", debugClientsHandler);
 
 // Legacy SSE endpoints (with authentication)
 app.use("/sse", authMiddleware);

@@ -272,6 +272,7 @@ export async function mcpHandler(req, res) {
       logger.info("[MCP] Client connected", {
         client: clientInfo.client,
         version: clientInfo.version,
+        userAgent: userAgent || "MISSING",
         userId: authContext.userId,
         companyId: authContext.companyId,
       });

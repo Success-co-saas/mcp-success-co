@@ -83,12 +83,23 @@ export async function trackToolCall({
       multi.zIncrBy("mcp:tools:alltime", 1, toolName);
     }
 
+    // 4. Track AI client usage (30-day and all-time)
+    if (client) {
+      // 30-day client stats
+      multi.zIncrBy("mcp:clients:30d", 1, client);
+      multi.expire("mcp:clients:30d", 35 * 24 * 60 * 60); // 35 days TTL
+
+      // All-time client stats
+      multi.zIncrBy("mcp:clients:alltime", 1, client);
+    }
+
     // Execute the multi command
     await multi.exec();
 
     logger.debug("[STATS] Tracked tool call:", {
       toolName,
       companyId,
+      client: client || "none",
       success,
       duration,
     });
