@@ -1,4 +1,5 @@
 import express from "express";
+import compression from "compression";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { initOAuthValidator } from "./oauth-validator.js";
@@ -107,7 +108,17 @@ registerToolsOnServer(server);
 const app = express();
 
 // Middleware
-app.use(express.json());
+// Increase JSON payload limit for large tool definitions
+app.use(express.json({ limit: "10mb" }));
+
+// Enable gzip compression for responses (reduces payload size)
+app.use(
+  compression({
+    threshold: 1024, // Only compress responses larger than 1KB
+    level: 6, // Compression level (0-9, 6 is default balance)
+  })
+);
+
 app.use(requestLoggerMiddleware);
 app.use(corsMiddleware);
 

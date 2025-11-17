@@ -4,13 +4,14 @@
   "type": "module",
   "main": "index.js",
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.7.0",
+    "@modelcontextprotocol/sdk": "^1.22.0",
+    "compression": "^1.7.4",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
-    "jose": "^6.1.0",
+    "jose": "^6.1.2",
     "postgres": "^3.4.7",
-    "redis": "^4.6.12",
-    "zod": "^3.24.2"
+    "redis": "^4.7.1",
+    "zod": "^3.25.76"
   },
   "scripts": {
     "start": "node index.js",
