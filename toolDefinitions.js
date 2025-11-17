@@ -1384,30 +1384,24 @@ export const toolDefinitions = [
     },
     required: ["coreFocusId"],
   },
-  // {
-  //   name: "updateVTOThreeYearGoal",
-  //   description:
-  //     "Update a VTO Three-Year Goal. Three-year goals define where the company will be in three years. Can also be 1-year or 10-year goals. You can update the goal name, target date, or cascade settings.",
-  //   readOnly: false,
-  //   annotations: {
-  //     title: "Update VTO Three-Year Goal",
-  //   },
-  //   handler: async ({ goalId, name, futureDate, cascadeAll }) =>
-  //     await updateVTOThreeYearGoal({ goalId, name, futureDate, cascadeAll }),
-  //   schema: {
-  //     goalId: z.string().describe("Three-Year Goal ID (required)"),
-  //     name: z.string().optional().describe("Update goal name"),
-  //     futureDate: z
-  //       .string()
-  //       .optional()
-  //       .describe("Update target date in ISO date format like 2027-12-31"),
-  //     cascadeAll: z
-  //       .boolean()
-  //       .optional()
-  //       .describe("Whether to cascade this goal to all teams"),
-  //   },
-  //   required: ["goalId"],
-  // },
+  {
+    name: "updateVTOThreeYearGoal",
+    description:
+      "Update VTO Three-Year Goal name, target date, or cascade settings",
+    readOnly: false,
+    annotations: {
+      title: "Update VTO 3-Year Goal",
+    },
+    handler: async ({ goalId, name, futureDate, cascadeAll }) =>
+      await updateVTOThreeYearGoal({ goalId, name, futureDate, cascadeAll }),
+    schema: {
+      goalId: z.string().describe("Goal ID"),
+      name: z.string().optional().describe("Goal name"),
+      futureDate: z.string().optional().describe("Target date (YYYY-MM-DD)"),
+      cascadeAll: z.boolean().optional().describe("Cascade to all teams"),
+    },
+    required: ["goalId"],
+  },
   {
     name: "updateVTOMarketStrategy",
     description:
