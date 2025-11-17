@@ -18,6 +18,11 @@ import {
   getMeetingInfos,
   getMeetingAgendas,
   getLeadershipVTO,
+  updateVTOCoreValue,
+  updateVTOCoreValueDetail,
+  updateVTOCoreFocus,
+  updateVTOThreeYearGoal,
+  updateVTOMarketStrategy,
   getAccountabilityChart,
   getMeetingDetails,
   getOrgCheckups,
@@ -1303,6 +1308,150 @@ export const toolDefinitions = [
     handler: async () => await getLeadershipVTO({}),
     schema: {},
     required: [],
+  },
+  {
+    name: "updateVTOCoreValue",
+    description: "Update VTO Core Value name or cascade settings",
+    readOnly: false,
+    annotations: {
+      title: "Update VTO Core Value",
+    },
+    handler: async ({ coreValueId, name, cascadeAll }) =>
+      await updateVTOCoreValue({ coreValueId, name, cascadeAll }),
+    schema: {
+      coreValueId: z.string().describe("Core Value ID"),
+      name: z.string().optional().describe("Value name"),
+      cascadeAll: z.boolean().optional().describe("Cascade to all teams"),
+    },
+    required: ["coreValueId"],
+  },
+  {
+    name: "updateVTOCoreValueDetail",
+    description:
+      "Update VTO Core Value Detail name, description, position, or cascade settings",
+    readOnly: false,
+    annotations: {
+      title: "Update VTO Core Value Detail",
+    },
+    handler: async ({ coreValueDetailId, name, desc, position, cascadeAll }) =>
+      await updateVTOCoreValueDetail({
+        coreValueDetailId,
+        name,
+        desc,
+        position,
+        cascadeAll,
+      }),
+    schema: {
+      coreValueDetailId: z.string().describe("Detail ID"),
+      name: z.string().optional().describe("Detail name"),
+      desc: z.string().optional().describe("Detail description"),
+      position: z.number().int().optional().describe("Position for sorting"),
+      cascadeAll: z.boolean().optional().describe("Cascade to all teams"),
+    },
+    required: ["coreValueDetailId"],
+  },
+  {
+    name: "updateVTOCoreFocus",
+    description: "Update VTO Core Focus name, description, or cascade settings",
+    readOnly: false,
+    annotations: {
+      title: "Update VTO Core Focus",
+    },
+    handler: async ({ coreFocusId, name, desc, coreFocusName, cascadeAll }) =>
+      await updateVTOCoreFocus({
+        coreFocusId,
+        name,
+        desc,
+        coreFocusName,
+        cascadeAll,
+      }),
+    schema: {
+      coreFocusId: z.string().describe("Core Focus ID"),
+      name: z.string().optional().describe("Focus name"),
+      desc: z.string().optional().describe("Focus description"),
+      coreFocusName: z.string().optional().describe("Focus name field"),
+      cascadeAll: z.boolean().optional().describe("Cascade to all teams"),
+    },
+    required: ["coreFocusId"],
+  },
+  // {
+  //   name: "updateVTOThreeYearGoal",
+  //   description:
+  //     "Update a VTO Three-Year Goal. Three-year goals define where the company will be in three years. Can also be 1-year or 10-year goals. You can update the goal name, target date, or cascade settings.",
+  //   readOnly: false,
+  //   annotations: {
+  //     title: "Update VTO Three-Year Goal",
+  //   },
+  //   handler: async ({ goalId, name, futureDate, cascadeAll }) =>
+  //     await updateVTOThreeYearGoal({ goalId, name, futureDate, cascadeAll }),
+  //   schema: {
+  //     goalId: z.string().describe("Three-Year Goal ID (required)"),
+  //     name: z.string().optional().describe("Update goal name"),
+  //     futureDate: z
+  //       .string()
+  //       .optional()
+  //       .describe("Update target date in ISO date format like 2027-12-31"),
+  //     cascadeAll: z
+  //       .boolean()
+  //       .optional()
+  //       .describe("Whether to cascade this goal to all teams"),
+  //   },
+  //   required: ["goalId"],
+  // },
+  {
+    name: "updateVTOMarketStrategy",
+    description:
+      "Update VTO Marketing Strategy including ideal customer, proven process, guarantee, and unique value proposition",
+    readOnly: false,
+    annotations: {
+      title: "Update VTO Marketing Strategy",
+    },
+    handler: async ({
+      marketStrategyId,
+      name,
+      idealCustomer,
+      idealCustomerDesc,
+      provenProcess,
+      provenProcessDesc,
+      guarantee,
+      guaranteeDesc,
+      uniqueValueProposition,
+      showProvenProcess,
+      showGuarantee,
+      cascadeAll,
+    }) =>
+      await updateVTOMarketStrategy({
+        marketStrategyId,
+        name,
+        idealCustomer,
+        idealCustomerDesc,
+        provenProcess,
+        provenProcessDesc,
+        guarantee,
+        guaranteeDesc,
+        uniqueValueProposition,
+        showProvenProcess,
+        showGuarantee,
+        cascadeAll,
+      }),
+    schema: {
+      marketStrategyId: z.string().describe("Market Strategy ID"),
+      name: z.string().optional().describe("Strategy name"),
+      idealCustomer: z.string().optional().describe("Target market"),
+      idealCustomerDesc: z.string().optional().describe("Customer description"),
+      provenProcess: z.string().optional().describe("Proven process"),
+      provenProcessDesc: z.string().optional().describe("Process description"),
+      guarantee: z.string().optional().describe("Guarantee"),
+      guaranteeDesc: z.string().optional().describe("Guarantee description"),
+      uniqueValueProposition: z
+        .string()
+        .optional()
+        .describe("Value proposition"),
+      showProvenProcess: z.boolean().optional().describe("Show proven process"),
+      showGuarantee: z.boolean().optional().describe("Show guarantee"),
+      cascadeAll: z.boolean().optional().describe("Cascade to all teams"),
+    },
+    required: ["marketStrategyId"],
   },
   {
     name: "getAccountabilityChart",
@@ -2942,86 +3091,108 @@ export function registerToolsOnServer(server) {
  * Convert tool definitions to JSON schema format
  */
 export function getToolsAsJsonSchema() {
-  return toolDefinitions
-    .map((tool) => ({
-      name: tool.name,
-      description: tool.description,
-      readOnly: tool.readOnly,
-      inputSchema: {
-        type: "object",
-        properties: Object.keys(tool.schema).reduce((props, key) => {
-          const zodSchema = tool.schema[key];
+  const result = toolDefinitions
+    .map((tool) => {
+      try {
+        return {
+          name: tool.name,
+          description: tool.description,
+          readOnly: tool.readOnly,
+          inputSchema: {
+            type: "object",
+            properties: Object.keys(tool.schema).reduce((props, key) => {
+              const zodSchema = tool.schema[key];
 
-          // Handle ZodDefault (when .default() is chained)
-          let schemaToProcess = zodSchema;
-          let defaultValue = undefined;
-          if (zodSchema._def?.typeName === "ZodDefault") {
-            defaultValue = zodSchema._def.defaultValue();
-            schemaToProcess = zodSchema._def.innerType;
-          }
+              // Handle ZodDefault (when .default() is chained)
+              let schemaToProcess = zodSchema;
+              let defaultValue = undefined;
+              if (zodSchema._def?.typeName === "ZodDefault") {
+                defaultValue = zodSchema._def.defaultValue();
+                schemaToProcess = zodSchema._def.innerType;
+              }
 
-          if (schemaToProcess._def?.typeName === "ZodString") {
-            props[key] = {
-              type: "string",
-              description: schemaToProcess.description || "",
-            };
-            if (defaultValue !== undefined) props[key].default = defaultValue;
-          } else if (schemaToProcess._def?.typeName === "ZodNumber") {
-            props[key] = {
-              type: schemaToProcess._def?.checks?.some((c) => c.kind === "int")
-                ? "integer"
-                : "number",
-              description: schemaToProcess.description || "",
-            };
-            if (defaultValue !== undefined) props[key].default = defaultValue;
-          } else if (schemaToProcess._def?.typeName === "ZodBoolean") {
-            props[key] = {
-              type: "boolean",
-              description: schemaToProcess.description || "",
-            };
-            if (defaultValue !== undefined) props[key].default = defaultValue;
-          } else if (schemaToProcess._def?.typeName === "ZodEnum") {
-            props[key] = {
-              type: "string",
-              enum: schemaToProcess._def.values,
-              description: schemaToProcess.description || "",
-            };
-            if (defaultValue !== undefined) props[key].default = defaultValue;
-          } else if (schemaToProcess._def?.typeName === "ZodOptional") {
-            const innerSchema = schemaToProcess._def.innerType;
-            if (innerSchema._def?.typeName === "ZodString") {
-              props[key] = {
-                type: "string",
-                description: innerSchema.description || "",
-              };
-              if (defaultValue !== undefined) props[key].default = defaultValue;
-            } else if (innerSchema._def?.typeName === "ZodNumber") {
-              props[key] = {
-                type: innerSchema._def?.checks?.some((c) => c.kind === "int")
-                  ? "integer"
-                  : "number",
-                description: innerSchema.description || "",
-              };
-              if (defaultValue !== undefined) props[key].default = defaultValue;
-            } else if (innerSchema._def?.typeName === "ZodBoolean") {
-              props[key] = {
-                type: "boolean",
-                description: innerSchema.description || "",
-              };
-              if (defaultValue !== undefined) props[key].default = defaultValue;
-            } else if (innerSchema._def?.typeName === "ZodEnum") {
-              props[key] = {
-                type: "string",
-                enum: innerSchema._def.values,
-                description: innerSchema.description || "",
-              };
-              if (defaultValue !== undefined) props[key].default = defaultValue;
-            }
-          }
-          return props;
-        }, {}),
-        required: tool.required,
-      },
-    }))
+              if (schemaToProcess._def?.typeName === "ZodString") {
+                props[key] = {
+                  type: "string",
+                  description: schemaToProcess.description || "",
+                };
+                if (defaultValue !== undefined)
+                  props[key].default = defaultValue;
+              } else if (schemaToProcess._def?.typeName === "ZodNumber") {
+                props[key] = {
+                  type: schemaToProcess._def?.checks?.some(
+                    (c) => c.kind === "int"
+                  )
+                    ? "integer"
+                    : "number",
+                  description: schemaToProcess.description || "",
+                };
+                if (defaultValue !== undefined)
+                  props[key].default = defaultValue;
+              } else if (schemaToProcess._def?.typeName === "ZodBoolean") {
+                props[key] = {
+                  type: "boolean",
+                  description: schemaToProcess.description || "",
+                };
+                if (defaultValue !== undefined)
+                  props[key].default = defaultValue;
+              } else if (schemaToProcess._def?.typeName === "ZodEnum") {
+                props[key] = {
+                  type: "string",
+                  enum: schemaToProcess._def.values,
+                  description: schemaToProcess.description || "",
+                };
+                if (defaultValue !== undefined)
+                  props[key].default = defaultValue;
+              } else if (schemaToProcess._def?.typeName === "ZodOptional") {
+                const innerSchema = schemaToProcess._def.innerType;
+                if (innerSchema._def?.typeName === "ZodString") {
+                  props[key] = {
+                    type: "string",
+                    description: innerSchema.description || "",
+                  };
+                  if (defaultValue !== undefined)
+                    props[key].default = defaultValue;
+                } else if (innerSchema._def?.typeName === "ZodNumber") {
+                  props[key] = {
+                    type: innerSchema._def?.checks?.some(
+                      (c) => c.kind === "int"
+                    )
+                      ? "integer"
+                      : "number",
+                    description: innerSchema.description || "",
+                  };
+                  if (defaultValue !== undefined)
+                    props[key].default = defaultValue;
+                } else if (innerSchema._def?.typeName === "ZodBoolean") {
+                  props[key] = {
+                    type: "boolean",
+                    description: innerSchema.description || "",
+                  };
+                  if (defaultValue !== undefined)
+                    props[key].default = defaultValue;
+                } else if (innerSchema._def?.typeName === "ZodEnum") {
+                  props[key] = {
+                    type: "string",
+                    enum: innerSchema._def.values,
+                    description: innerSchema.description || "",
+                  };
+                  if (defaultValue !== undefined)
+                    props[key].default = defaultValue;
+                }
+              }
+              return props;
+            }, {}),
+            required: tool.required,
+          },
+        };
+      } catch (error) {
+        console.error(`Error processing tool ${tool.name}:`, error);
+        console.error(`Tool description:`, JSON.stringify(tool.description));
+        throw error;
+      }
+    })
     .sort((a, b) => a.name.localeCompare(b.name));
+
+  return result;
 }
