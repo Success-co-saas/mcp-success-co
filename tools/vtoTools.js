@@ -1,7 +1,7 @@
 // Vision/Traction Organizer (VTO) Tools
 // Tools for working with company vision, core values, core focus, goals, and strategies
 
-import { callSuccessCoGraphQL } from "./core.js";
+import { callSuccessCoGraphQL, getUserContext } from "./core.js";
 import { validateStateId } from "../utils/helpers.js";
 
 /**
@@ -406,4 +406,1592 @@ export async function getLeadershipVTO(args) {
       ],
     };
   }
+}
+
+/**
+ * Update a VTO Core Value
+ * @param {Object} args - Arguments object
+ * @param {string} args.coreValueId - Core Value ID (required)
+ * @param {string} [args.name] - Update core value name
+ * @param {boolean} [args.cascadeAll] - Whether to cascade to all teams
+ * @returns {Promise<{content: Array<{type: string, text: string}>}>}
+ */
+export async function updateVTOCoreValue(args) {
+  const { coreValueId, name, cascadeAll } = args;
+
+  if (!coreValueId) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: "Error: Core Value ID is required",
+        },
+      ],
+    };
+  }
+
+  // Get user context (works with OAuth or API key)
+  const context = await getUserContext();
+  if (!context) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: "Error: Authentication required. No valid OAuth token or API key found.",
+        },
+      ],
+    };
+  }
+
+  const mutation = `
+    mutation UpdateVisionCoreValue($input: UpdateVisionCoreValueInput!) {
+      updateVisionCoreValue(input: $input) {
+        visionCoreValue {
+          id
+          name
+          cascadeAll
+          visionId
+          stateId
+        }
+      }
+    }
+  `;
+
+  const updates = {};
+  if (name) updates.name = name;
+  if (cascadeAll !== undefined) updates.cascadeAll = cascadeAll;
+
+  if (Object.keys(updates).length === 0) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: "Error: No updates specified. Provide at least one field to update.",
+        },
+      ],
+    };
+  }
+
+  const variables = {
+    input: {
+      id: coreValueId,
+      patch: updates,
+    },
+  };
+
+  const result = await callSuccessCoGraphQL(mutation, variables);
+
+  if (!result.ok) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error updating core value: ${result.error}`,
+        },
+      ],
+    };
+  }
+
+  const updatedCoreValue =
+    result.data?.data?.updateVisionCoreValue?.visionCoreValue;
+
+  if (!updatedCoreValue) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error: Core value update failed. ${JSON.stringify(
+            result.data,
+            null,
+            2
+          )}`,
+        },
+      ],
+    };
+  }
+
+  return {
+    content: [
+      {
+        type: "text",
+        text: `✅ Core value updated successfully!\n\n**ID:** ${
+          updatedCoreValue.id
+        }\n**Name:** ${
+          updatedCoreValue.name || "N/A"
+        }\n**Cascade to all teams:** ${
+          updatedCoreValue.cascadeAll ? "Yes" : "No"
+        }`,
+      },
+    ],
+  };
+}
+
+/**
+ * Update a VTO Core Value Detail (the actual core value like "Be awesome")
+ * @param {Object} args - Arguments object
+ * @param {string} args.coreValueDetailId - Core Value Detail ID (required)
+ * @param {string} [args.name] - Update core value detail name
+ * @param {string} [args.desc] - Update core value detail description
+ * @param {number} [args.position] - Update position/order
+ * @param {boolean} [args.cascadeAll] - Whether to cascade to all teams
+ * @returns {Promise<{content: Array<{type: string, text: string}>}>}
+ */
+export async function updateVTOCoreValueDetail(args) {
+  const { coreValueDetailId, name, desc, position, cascadeAll } = args;
+
+  if (!coreValueDetailId) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: "Error: Core Value Detail ID is required",
+        },
+      ],
+    };
+  }
+
+  // Get user context (works with OAuth or API key)
+  const context = await getUserContext();
+  if (!context) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: "Error: Authentication required. No valid OAuth token or API key found.",
+        },
+      ],
+    };
+  }
+
+  const mutation = `
+    mutation UpdateVisionCoreValueDetail($input: UpdateVisionCoreValueDetailInput!) {
+      updateVisionCoreValueDetail(input: $input) {
+        visionCoreValueDetail {
+          id
+          name
+          desc
+          position
+          cascadeAll
+          visionCoreValueId
+          stateId
+        }
+      }
+    }
+  `;
+
+  const updates = {};
+  if (name) updates.name = name;
+  if (desc !== undefined) updates.desc = desc;
+  if (position !== undefined) updates.position = position;
+  if (cascadeAll !== undefined) updates.cascadeAll = cascadeAll;
+
+  if (Object.keys(updates).length === 0) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: "Error: No updates specified. Provide at least one field to update.",
+        },
+      ],
+    };
+  }
+
+  const variables = {
+    input: {
+      id: coreValueDetailId,
+      patch: updates,
+    },
+  };
+
+  const result = await callSuccessCoGraphQL(mutation, variables);
+
+  if (!result.ok) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error updating core value detail: ${result.error}`,
+        },
+      ],
+    };
+  }
+
+  const updatedDetail =
+    result.data?.data?.updateVisionCoreValueDetail?.visionCoreValueDetail;
+
+  if (!updatedDetail) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error: Core value detail update failed. ${JSON.stringify(
+            result.data,
+            null,
+            2
+          )}`,
+        },
+      ],
+    };
+  }
+
+  return {
+    content: [
+      {
+        type: "text",
+        text: `✅ Core value detail updated successfully!\n\n**ID:** ${
+          updatedDetail.id
+        }\n**Name:** ${updatedDetail.name || "N/A"}\n**Description:** ${
+          updatedDetail.desc || "N/A"
+        }\n**Position:** ${updatedDetail.position}\n**Cascade to all teams:** ${
+          updatedDetail.cascadeAll ? "Yes" : "No"
+        }`,
+      },
+    ],
+  };
+}
+
+/**
+ * Update a VTO Core Focus Type
+ * @param {Object} args - Arguments object
+ * @param {string} args.coreFocusId - Core Focus Type ID (required)
+ * @param {string} [args.name] - Update core focus name
+ * @param {string} [args.desc] - Update core focus description
+ * @param {string} [args.coreFocusName] - Update core focus name field
+ * @param {boolean} [args.cascadeAll] - Whether to cascade to all teams
+ * @returns {Promise<{content: Array<{type: string, text: string}>}>}
+ */
+export async function updateVTOCoreFocus(args) {
+  const { coreFocusId, name, desc, coreFocusName, cascadeAll } = args;
+
+  if (!coreFocusId) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: "Error: Core Focus ID is required",
+        },
+      ],
+    };
+  }
+
+  // Get user context (works with OAuth or API key)
+  const context = await getUserContext();
+  if (!context) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: "Error: Authentication required. No valid OAuth token or API key found.",
+        },
+      ],
+    };
+  }
+
+  const mutation = `
+    mutation UpdateVisionCoreFocusType($input: UpdateVisionCoreFocusTypeInput!) {
+      updateVisionCoreFocusType(input: $input) {
+        visionCoreFocusType {
+          id
+          name
+          coreFocusName
+          desc
+          type
+          cascadeAll
+          visionId
+          stateId
+        }
+      }
+    }
+  `;
+
+  const updates = {};
+  if (name) updates.name = name;
+  if (desc !== undefined) updates.desc = desc;
+  if (coreFocusName) updates.coreFocusName = coreFocusName;
+  if (cascadeAll !== undefined) updates.cascadeAll = cascadeAll;
+
+  if (Object.keys(updates).length === 0) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: "Error: No updates specified. Provide at least one field to update.",
+        },
+      ],
+    };
+  }
+
+  const variables = {
+    input: {
+      id: coreFocusId,
+      patch: updates,
+    },
+  };
+
+  const result = await callSuccessCoGraphQL(mutation, variables);
+
+  if (!result.ok) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error updating core focus: ${result.error}`,
+        },
+      ],
+    };
+  }
+
+  const updatedCoreFocus =
+    result.data?.data?.updateVisionCoreFocusType?.visionCoreFocusType;
+
+  if (!updatedCoreFocus) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error: Core focus update failed. ${JSON.stringify(
+            result.data,
+            null,
+            2
+          )}`,
+        },
+      ],
+    };
+  }
+
+  return {
+    content: [
+      {
+        type: "text",
+        text: `✅ Core focus updated successfully!\n\n**ID:** ${
+          updatedCoreFocus.id
+        }\n**Name:** ${updatedCoreFocus.name || "N/A"}\n**Core Focus Name:** ${
+          updatedCoreFocus.coreFocusName || "N/A"
+        }\n**Type:** ${updatedCoreFocus.type}\n**Description:** ${
+          updatedCoreFocus.desc || "N/A"
+        }\n**Cascade to all teams:** ${
+          updatedCoreFocus.cascadeAll ? "Yes" : "No"
+        }`,
+      },
+    ],
+  };
+}
+
+/**
+ * Update a VTO Three Year Goal
+ * @param {Object} args - Arguments object
+ * @param {string} args.goalId - Three Year Goal ID (required)
+ * @param {string} [args.name] - Update goal name
+ * @param {string} [args.futureDate] - Update target date (ISO date string)
+ * @param {boolean} [args.cascadeAll] - Whether to cascade to all teams
+ * @returns {Promise<{content: Array<{type: string, text: string}>}>}
+ */
+export async function updateVTOThreeYearGoal(args) {
+  const { goalId, name, futureDate, cascadeAll } = args;
+
+  if (!goalId) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: "Error: Goal ID is required",
+        },
+      ],
+    };
+  }
+
+  // Get user context (works with OAuth or API key)
+  const context = await getUserContext();
+  if (!context) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: "Error: Authentication required. No valid OAuth token or API key found.",
+        },
+      ],
+    };
+  }
+
+  const mutation = `
+    mutation UpdateVisionThreeYearGoal($input: UpdateVisionThreeYearGoalInput!) {
+      updateVisionThreeYearGoal(input: $input) {
+        visionThreeYearGoal {
+          id
+          name
+          futureDate
+          type
+          cascadeAll
+          visionId
+          stateId
+        }
+      }
+    }
+  `;
+
+  const updates = {};
+  if (name) updates.name = name;
+  if (futureDate) updates.futureDate = futureDate;
+  if (cascadeAll !== undefined) updates.cascadeAll = cascadeAll;
+
+  if (Object.keys(updates).length === 0) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: "Error: No updates specified. Provide at least one field to update.",
+        },
+      ],
+    };
+  }
+
+  const variables = {
+    input: {
+      id: goalId,
+      patch: updates,
+    },
+  };
+
+  const result = await callSuccessCoGraphQL(mutation, variables);
+
+  if (!result.ok) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error updating goal: ${result.error}`,
+        },
+      ],
+    };
+  }
+
+  const updatedGoal =
+    result.data?.data?.updateVisionThreeYearGoal?.visionThreeYearGoal;
+
+  if (!updatedGoal) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error: Goal update failed. ${JSON.stringify(
+            result.data,
+            null,
+            2
+          )}`,
+        },
+      ],
+    };
+  }
+
+  return {
+    content: [
+      {
+        type: "text",
+        text: `✅ Three-year goal updated successfully!\n\n**ID:** ${
+          updatedGoal.id
+        }\n**Name:** ${updatedGoal.name || "N/A"}\n**Target Date:** ${
+          updatedGoal.futureDate
+            ? new Date(updatedGoal.futureDate).toLocaleDateString()
+            : "N/A"
+        }\n**Type:** ${updatedGoal.type}\n**Cascade to all teams:** ${
+          updatedGoal.cascadeAll ? "Yes" : "No"
+        }`,
+      },
+    ],
+  };
+}
+
+/**
+ * Update a VTO Market Strategy
+ * @param {Object} args - Arguments object
+ * @param {string} args.marketStrategyId - Market Strategy ID (required)
+ * @param {string} [args.name] - Update strategy name
+ * @param {string} [args.idealCustomer] - Update target market/ideal customer
+ * @param {string} [args.idealCustomerDesc] - Update ideal customer description
+ * @param {string} [args.provenProcess] - Update proven process
+ * @param {string} [args.provenProcessDesc] - Update proven process description
+ * @param {string} [args.guarantee] - Update guarantee
+ * @param {string} [args.guaranteeDesc] - Update guarantee description
+ * @param {string} [args.uniqueValueProposition] - Update unique value proposition
+ * @param {boolean} [args.showProvenProcess] - Whether to show proven process
+ * @param {boolean} [args.showGuarantee] - Whether to show guarantee
+ * @param {boolean} [args.cascadeAll] - Whether to cascade to all teams
+ * @returns {Promise<{content: Array<{type: string, text: string}>}>}
+ */
+export async function updateVTOMarketStrategy(args) {
+  const {
+    marketStrategyId,
+    name,
+    idealCustomer,
+    idealCustomerDesc,
+    provenProcess,
+    provenProcessDesc,
+    guarantee,
+    guaranteeDesc,
+    uniqueValueProposition,
+    showProvenProcess,
+    showGuarantee,
+    cascadeAll,
+  } = args;
+
+  if (!marketStrategyId) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: "Error: Market Strategy ID is required",
+        },
+      ],
+    };
+  }
+
+  // Get user context (works with OAuth or API key)
+  const context = await getUserContext();
+  if (!context) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: "Error: Authentication required. No valid OAuth token or API key found.",
+        },
+      ],
+    };
+  }
+
+  const mutation = `
+    mutation UpdateVisionMarketStrategy($input: UpdateVisionMarketStrategyInput!) {
+      updateVisionMarketStrategy(input: $input) {
+        visionMarketStrategy {
+          id
+          name
+          idealCustomer
+          idealCustomerDesc
+          provenProcess
+          provenProcessDesc
+          guarantee
+          guaranteeDesc
+          uniqueValueProposition
+          showProvenProcess
+          showGuarantee
+          cascadeAll
+          visionId
+          stateId
+        }
+      }
+    }
+  `;
+
+  const updates = {};
+  if (name) updates.name = name;
+  if (idealCustomer !== undefined) updates.idealCustomer = idealCustomer;
+  if (idealCustomerDesc !== undefined)
+    updates.idealCustomerDesc = idealCustomerDesc;
+  if (provenProcess !== undefined) updates.provenProcess = provenProcess;
+  if (provenProcessDesc !== undefined)
+    updates.provenProcessDesc = provenProcessDesc;
+  if (guarantee !== undefined) updates.guarantee = guarantee;
+  if (guaranteeDesc !== undefined) updates.guaranteeDesc = guaranteeDesc;
+  if (uniqueValueProposition !== undefined)
+    updates.uniqueValueProposition = uniqueValueProposition;
+  if (showProvenProcess !== undefined)
+    updates.showProvenProcess = showProvenProcess;
+  if (showGuarantee !== undefined) updates.showGuarantee = showGuarantee;
+  if (cascadeAll !== undefined) updates.cascadeAll = cascadeAll;
+
+  if (Object.keys(updates).length === 0) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: "Error: No updates specified. Provide at least one field to update.",
+        },
+      ],
+    };
+  }
+
+  const variables = {
+    input: {
+      id: marketStrategyId,
+      patch: updates,
+    },
+  };
+
+  const result = await callSuccessCoGraphQL(mutation, variables);
+
+  if (!result.ok) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error updating market strategy: ${result.error}`,
+        },
+      ],
+    };
+  }
+
+  const updatedStrategy =
+    result.data?.data?.updateVisionMarketStrategy?.visionMarketStrategy;
+
+  if (!updatedStrategy) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error: Market strategy update failed. ${JSON.stringify(
+            result.data,
+            null,
+            2
+          )}`,
+        },
+      ],
+    };
+  }
+
+  return {
+    content: [
+      {
+        type: "text",
+        text: `✅ Market strategy updated successfully!\n\n**ID:** ${
+          updatedStrategy.id
+        }\n**Name:** ${updatedStrategy.name || "N/A"}\n**Target Market:** ${
+          updatedStrategy.idealCustomer || "N/A"
+        }\n**Unique Value Proposition:** ${
+          updatedStrategy.uniqueValueProposition || "N/A"
+        }\n**Proven Process:** ${
+          updatedStrategy.provenProcess || "N/A"
+        }\n**Guarantee:** ${
+          updatedStrategy.guarantee || "N/A"
+        }\n**Cascade to all teams:** ${
+          updatedStrategy.cascadeAll ? "Yes" : "No"
+        }`,
+      },
+    ],
+  };
+}
+
+// ============================================================================
+// CREATE FUNCTIONS
+// ============================================================================
+
+/**
+ * Create a new VTO Core Value
+ */
+export async function createVTOCoreValue(args) {
+  const { visionId, name, cascadeAll = false } = args;
+
+  if (!visionId || !name) {
+    return {
+      content: [
+        { type: "text", text: "Error: Vision ID and name are required" },
+      ],
+    };
+  }
+
+  const context = await getUserContext();
+  if (!context) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: "Error: Authentication required",
+        },
+      ],
+    };
+  }
+
+  const mutation = `
+    mutation CreateVisionCoreValue($input: CreateVisionCoreValueInput!) {
+      createVisionCoreValue(input: $input) {
+        visionCoreValue {
+          id
+          name
+          cascadeAll
+          visionId
+          stateId
+        }
+      }
+    }
+  `;
+
+  const variables = {
+    input: {
+      visionCoreValue: {
+        visionId,
+        name,
+        cascadeAll,
+        stateId: "ACTIVE",
+        companyId: context.companyId,
+      },
+    },
+  };
+
+  const result = await callSuccessCoGraphQL(mutation, variables);
+
+  if (!result.ok) {
+    return {
+      content: [
+        { type: "text", text: `Error creating core value: ${result.error}` },
+      ],
+    };
+  }
+
+  const created = result.data?.data?.createVisionCoreValue?.visionCoreValue;
+
+  if (!created) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error: Core value creation failed. ${JSON.stringify(
+            result.data,
+            null,
+            2
+          )}`,
+        },
+      ],
+    };
+  }
+
+  return {
+    content: [
+      {
+        type: "text",
+        text: `✅ Core value created successfully!\n\n**ID:** ${
+          created.id
+        }\n**Name:** ${created.name}\n**Cascade to all teams:** ${
+          created.cascadeAll ? "Yes" : "No"
+        }`,
+      },
+    ],
+  };
+}
+
+/**
+ * Create a new VTO Core Value Detail
+ */
+export async function createVTOCoreValueDetail(args) {
+  const { coreValueId, name, desc, position = 1, cascadeAll = false } = args;
+
+  if (!coreValueId || !name) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: "Error: Core Value ID and name are required",
+        },
+      ],
+    };
+  }
+
+  const context = await getUserContext();
+  if (!context) {
+    return {
+      content: [{ type: "text", text: "Error: Authentication required" }],
+    };
+  }
+
+  const mutation = `
+    mutation CreateVisionCoreValueDetail($input: CreateVisionCoreValueDetailInput!) {
+      createVisionCoreValueDetail(input: $input) {
+        visionCoreValueDetail {
+          id
+          name
+          desc
+          position
+          cascadeAll
+          visionCoreValueId
+          stateId
+        }
+      }
+    }
+  `;
+
+  const variables = {
+    input: {
+      visionCoreValueDetail: {
+        visionCoreValueId: coreValueId,
+        name,
+        desc,
+        position,
+        cascadeAll,
+        stateId: "ACTIVE",
+        companyId: context.companyId,
+      },
+    },
+  };
+
+  const result = await callSuccessCoGraphQL(mutation, variables);
+
+  if (!result.ok) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error creating core value detail: ${result.error}`,
+        },
+      ],
+    };
+  }
+
+  const created =
+    result.data?.data?.createVisionCoreValueDetail?.visionCoreValueDetail;
+
+  if (!created) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error: Core value detail creation failed. ${JSON.stringify(
+            result.data,
+            null,
+            2
+          )}`,
+        },
+      ],
+    };
+  }
+
+  return {
+    content: [
+      {
+        type: "text",
+        text: `✅ Core value detail created successfully!\n\n**ID:** ${
+          created.id
+        }\n**Name:** ${created.name}\n**Description:** ${
+          created.desc || "N/A"
+        }\n**Position:** ${created.position}`,
+      },
+    ],
+  };
+}
+
+/**
+ * Create a new VTO Core Focus
+ */
+export async function createVTOCoreFocus(args) {
+  const {
+    visionId,
+    name,
+    desc,
+    cascadeAll = false,
+    focusType = "niche",
+  } = args;
+
+  if (!visionId || !name) {
+    return {
+      content: [
+        { type: "text", text: "Error: Vision ID and name are required" },
+      ],
+    };
+  }
+
+  const context = await getUserContext();
+  if (!context) {
+    return {
+      content: [{ type: "text", text: "Error: Authentication required" }],
+    };
+  }
+
+  const mutation = `
+    mutation CreateVisionCoreFocusType($input: CreateVisionCoreFocusTypeInput!) {
+      createVisionCoreFocusType(input: $input) {
+        visionCoreFocusType {
+          id
+          name
+          desc
+          cascadeAll
+          visionId
+          stateId
+        }
+      }
+    }
+  `;
+
+  const variables = {
+    input: {
+      visionCoreFocusType: {
+        visionId,
+        name,
+        desc,
+        type: focusType,
+        cascadeAll,
+        stateId: "ACTIVE",
+        companyId: context.companyId,
+      },
+    },
+  };
+
+  const result = await callSuccessCoGraphQL(mutation, variables);
+
+  if (!result.ok) {
+    return {
+      content: [
+        { type: "text", text: `Error creating core focus: ${result.error}` },
+      ],
+    };
+  }
+
+  const created =
+    result.data?.data?.createVisionCoreFocusType?.visionCoreFocusType;
+
+  if (!created) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error: Core focus creation failed. ${JSON.stringify(
+            result.data,
+            null,
+            2
+          )}`,
+        },
+      ],
+    };
+  }
+
+  return {
+    content: [
+      {
+        type: "text",
+        text: `✅ Core focus created successfully!\n\n**ID:** ${
+          created.id
+        }\n**Name:** ${created.name}\n**Description:** ${
+          created.desc || "N/A"
+        }`,
+      },
+    ],
+  };
+}
+
+/**
+ * Create a new VTO Three-Year Goal
+ */
+export async function createVTOThreeYearGoal(args) {
+  const {
+    visionId,
+    name,
+    futureDate,
+    cascadeAll = false,
+    goalType = "revenue",
+  } = args;
+
+  if (!visionId || !name) {
+    return {
+      content: [
+        { type: "text", text: "Error: Vision ID and name are required" },
+      ],
+    };
+  }
+
+  const context = await getUserContext();
+  if (!context) {
+    return {
+      content: [{ type: "text", text: "Error: Authentication required" }],
+    };
+  }
+
+  const mutation = `
+    mutation CreateVisionThreeYearGoal($input: CreateVisionThreeYearGoalInput!) {
+      createVisionThreeYearGoal(input: $input) {
+        visionThreeYearGoal {
+          id
+          name
+          futureDate
+          cascadeAll
+          visionId
+          stateId
+        }
+      }
+    }
+  `;
+
+  const variables = {
+    input: {
+      visionThreeYearGoal: {
+        visionId,
+        name,
+        futureDate,
+        type: goalType,
+        cascadeAll,
+        stateId: "ACTIVE",
+        companyId: context.companyId,
+      },
+    },
+  };
+
+  const result = await callSuccessCoGraphQL(mutation, variables);
+
+  if (!result.ok) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error creating three-year goal: ${result.error}`,
+        },
+      ],
+    };
+  }
+
+  const created =
+    result.data?.data?.createVisionThreeYearGoal?.visionThreeYearGoal;
+
+  if (!created) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error: Three-year goal creation failed. ${JSON.stringify(
+            result.data,
+            null,
+            2
+          )}`,
+        },
+      ],
+    };
+  }
+
+  return {
+    content: [
+      {
+        type: "text",
+        text: `✅ Three-year goal created successfully!\n\n**ID:** ${
+          created.id
+        }\n**Name:** ${created.name}\n**Target Date:** ${
+          created.futureDate || "N/A"
+        }`,
+      },
+    ],
+  };
+}
+
+/**
+ * Create a new VTO Market Strategy
+ */
+export async function createVTOMarketStrategy(args) {
+  const {
+    visionId,
+    name,
+    idealCustomer,
+    idealCustomerDesc,
+    provenProcess,
+    provenProcessDesc,
+    guarantee,
+    guaranteeDesc,
+    uniqueValueProposition,
+    showProvenProcess = true,
+    showGuarantee = true,
+    cascadeAll = false,
+  } = args;
+
+  if (!visionId || !name) {
+    return {
+      content: [
+        { type: "text", text: "Error: Vision ID and name are required" },
+      ],
+    };
+  }
+
+  const context = await getUserContext();
+  if (!context) {
+    return {
+      content: [{ type: "text", text: "Error: Authentication required" }],
+    };
+  }
+
+  const mutation = `
+    mutation CreateVisionMarketStrategy($input: CreateVisionMarketStrategyInput!) {
+      createVisionMarketStrategy(input: $input) {
+        visionMarketStrategy {
+          id
+          name
+          idealCustomer
+          idealCustomerDesc
+          provenProcess
+          provenProcessDesc
+          guarantee
+          guaranteeDesc
+          uniqueValueProposition
+          showProvenProcess
+          showGuarantee
+          cascadeAll
+          visionId
+          stateId
+        }
+      }
+    }
+  `;
+
+  const variables = {
+    input: {
+      visionMarketStrategy: {
+        visionId,
+        name,
+        idealCustomer,
+        idealCustomerDesc,
+        provenProcess,
+        provenProcessDesc,
+        guarantee,
+        guaranteeDesc,
+        uniqueValueProposition,
+        showProvenProcess,
+        showGuarantee,
+        cascadeAll,
+        stateId: "ACTIVE",
+        companyId: context.companyId,
+      },
+    },
+  };
+
+  const result = await callSuccessCoGraphQL(mutation, variables);
+
+  if (!result.ok) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error creating market strategy: ${result.error}`,
+        },
+      ],
+    };
+  }
+
+  const created =
+    result.data?.data?.createVisionMarketStrategy?.visionMarketStrategy;
+
+  if (!created) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error: Market strategy creation failed. ${JSON.stringify(
+            result.data,
+            null,
+            2
+          )}`,
+        },
+      ],
+    };
+  }
+
+  return {
+    content: [
+      {
+        type: "text",
+        text: `✅ Market strategy created successfully!\n\n**ID:** ${
+          created.id
+        }\n**Name:** ${created.name}\n**Target Market:** ${
+          created.idealCustomer || "N/A"
+        }`,
+      },
+    ],
+  };
+}
+
+// ============================================================================
+// DELETE FUNCTIONS
+// ============================================================================
+
+/**
+ * Delete a VTO Core Value (marks as DELETED)
+ */
+export async function deleteVTOCoreValue(args) {
+  const { coreValueId } = args;
+
+  if (!coreValueId) {
+    return {
+      content: [{ type: "text", text: "Error: Core Value ID is required" }],
+    };
+  }
+
+  const context = await getUserContext();
+  if (!context) {
+    return {
+      content: [{ type: "text", text: "Error: Authentication required" }],
+    };
+  }
+
+  // Use UPDATE mutation to set stateId to DELETED
+  const mutation = `
+    mutation UpdateVisionCoreValue($input: UpdateVisionCoreValueInput!) {
+      updateVisionCoreValue(input: $input) {
+        visionCoreValue {
+          id
+          name
+          stateId
+        }
+      }
+    }
+  `;
+
+  const variables = {
+    input: {
+      id: coreValueId,
+      patch: {
+        stateId: "DELETED",
+      },
+    },
+  };
+
+  const result = await callSuccessCoGraphQL(mutation, variables);
+
+  if (!result.ok) {
+    return {
+      content: [
+        { type: "text", text: `Error deleting core value: ${result.error}` },
+      ],
+    };
+  }
+
+  const deleted = result.data?.data?.updateVisionCoreValue?.visionCoreValue;
+
+  if (!deleted) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error: Core value deletion failed. ${JSON.stringify(
+            result.data,
+            null,
+            2
+          )}`,
+        },
+      ],
+    };
+  }
+
+  return {
+    content: [
+      {
+        type: "text",
+        text: `✅ Core value deleted successfully!\n\n**ID:** ${deleted.id}\n**Name:** ${deleted.name}\n**Status:** ${deleted.stateId}`,
+      },
+    ],
+  };
+}
+
+/**
+ * Delete a VTO Core Value Detail (marks as DELETED)
+ */
+export async function deleteVTOCoreValueDetail(args) {
+  const { detailId } = args;
+
+  if (!detailId) {
+    return {
+      content: [{ type: "text", text: "Error: Detail ID is required" }],
+    };
+  }
+
+  const context = await getUserContext();
+  if (!context) {
+    return {
+      content: [{ type: "text", text: "Error: Authentication required" }],
+    };
+  }
+
+  // Use UPDATE mutation to set stateId to DELETED
+  const mutation = `
+    mutation UpdateVisionCoreValueDetail($input: UpdateVisionCoreValueDetailInput!) {
+      updateVisionCoreValueDetail(input: $input) {
+        visionCoreValueDetail {
+          id
+          name
+          stateId
+        }
+      }
+    }
+  `;
+
+  const variables = {
+    input: {
+      id: detailId,
+      patch: {
+        stateId: "DELETED",
+      },
+    },
+  };
+
+  const result = await callSuccessCoGraphQL(mutation, variables);
+
+  if (!result.ok) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error deleting core value detail: ${result.error}`,
+        },
+      ],
+    };
+  }
+
+  const deleted =
+    result.data?.data?.updateVisionCoreValueDetail?.visionCoreValueDetail;
+
+  if (!deleted) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error: Core value detail deletion failed. ${JSON.stringify(
+            result.data,
+            null,
+            2
+          )}`,
+        },
+      ],
+    };
+  }
+
+  return {
+    content: [
+      {
+        type: "text",
+        text: `✅ Core value detail deleted successfully!\n\n**ID:** ${deleted.id}\n**Name:** ${deleted.name}\n**Status:** ${deleted.stateId}`,
+      },
+    ],
+  };
+}
+
+/**
+ * Delete a VTO Core Focus (marks as DELETED)
+ */
+export async function deleteVTOCoreFocus(args) {
+  const { coreFocusId } = args;
+
+  if (!coreFocusId) {
+    return {
+      content: [{ type: "text", text: "Error: Core Focus ID is required" }],
+    };
+  }
+
+  const context = await getUserContext();
+  if (!context) {
+    return {
+      content: [{ type: "text", text: "Error: Authentication required" }],
+    };
+  }
+
+  // Use UPDATE mutation to set stateId to DELETED
+  const mutation = `
+    mutation UpdateVisionCoreFocusType($input: UpdateVisionCoreFocusTypeInput!) {
+      updateVisionCoreFocusType(input: $input) {
+        visionCoreFocusType {
+          id
+          name
+          stateId
+        }
+      }
+    }
+  `;
+
+  const variables = {
+    input: {
+      id: coreFocusId,
+      patch: {
+        stateId: "DELETED",
+      },
+    },
+  };
+
+  const result = await callSuccessCoGraphQL(mutation, variables);
+
+  if (!result.ok) {
+    return {
+      content: [
+        { type: "text", text: `Error deleting core focus: ${result.error}` },
+      ],
+    };
+  }
+
+  const deleted =
+    result.data?.data?.updateVisionCoreFocusType?.visionCoreFocusType;
+
+  if (!deleted) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error: Core focus deletion failed. ${JSON.stringify(
+            result.data,
+            null,
+            2
+          )}`,
+        },
+      ],
+    };
+  }
+
+  return {
+    content: [
+      {
+        type: "text",
+        text: `✅ Core focus deleted successfully!\n\n**ID:** ${deleted.id}\n**Name:** ${deleted.name}\n**Status:** ${deleted.stateId}`,
+      },
+    ],
+  };
+}
+
+/**
+ * Delete a VTO Three-Year Goal (marks as DELETED)
+ */
+export async function deleteVTOThreeYearGoal(args) {
+  const { goalId } = args;
+
+  if (!goalId) {
+    return {
+      content: [{ type: "text", text: "Error: Goal ID is required" }],
+    };
+  }
+
+  const context = await getUserContext();
+  if (!context) {
+    return {
+      content: [{ type: "text", text: "Error: Authentication required" }],
+    };
+  }
+
+  // Use UPDATE mutation to set stateId to DELETED
+  const mutation = `
+    mutation UpdateVisionThreeYearGoal($input: UpdateVisionThreeYearGoalInput!) {
+      updateVisionThreeYearGoal(input: $input) {
+        visionThreeYearGoal {
+          id
+          name
+          stateId
+        }
+      }
+    }
+  `;
+
+  const variables = {
+    input: {
+      id: goalId,
+      patch: {
+        stateId: "DELETED",
+      },
+    },
+  };
+
+  const result = await callSuccessCoGraphQL(mutation, variables);
+
+  if (!result.ok) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error deleting three-year goal: ${result.error}`,
+        },
+      ],
+    };
+  }
+
+  const deleted =
+    result.data?.data?.updateVisionThreeYearGoal?.visionThreeYearGoal;
+
+  if (!deleted) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error: Three-year goal deletion failed. ${JSON.stringify(
+            result.data,
+            null,
+            2
+          )}`,
+        },
+      ],
+    };
+  }
+
+  return {
+    content: [
+      {
+        type: "text",
+        text: `✅ Three-year goal deleted successfully!\n\n**ID:** ${deleted.id}\n**Name:** ${deleted.name}\n**Status:** ${deleted.stateId}`,
+      },
+    ],
+  };
+}
+
+/**
+ * Delete a VTO Market Strategy (marks as DELETED)
+ */
+export async function deleteVTOMarketStrategy(args) {
+  const { marketStrategyId } = args;
+
+  if (!marketStrategyId) {
+    return {
+      content: [
+        { type: "text", text: "Error: Market Strategy ID is required" },
+      ],
+    };
+  }
+
+  const context = await getUserContext();
+  if (!context) {
+    return {
+      content: [{ type: "text", text: "Error: Authentication required" }],
+    };
+  }
+
+  // Use UPDATE mutation to set stateId to DELETED
+  const mutation = `
+    mutation UpdateVisionMarketStrategy($input: UpdateVisionMarketStrategyInput!) {
+      updateVisionMarketStrategy(input: $input) {
+        visionMarketStrategy {
+          id
+          name
+          stateId
+        }
+      }
+    }
+  `;
+
+  const variables = {
+    input: {
+      id: marketStrategyId,
+      patch: {
+        stateId: "DELETED",
+      },
+    },
+  };
+
+  const result = await callSuccessCoGraphQL(mutation, variables);
+
+  if (!result.ok) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error deleting market strategy: ${result.error}`,
+        },
+      ],
+    };
+  }
+
+  const deleted =
+    result.data?.data?.updateVisionMarketStrategy?.visionMarketStrategy;
+
+  if (!deleted) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error: Market strategy deletion failed. ${JSON.stringify(
+            result.data,
+            null,
+            2
+          )}`,
+        },
+      ],
+    };
+  }
+
+  return {
+    content: [
+      {
+        type: "text",
+        text: `✅ Market strategy deleted successfully!\n\n**ID:** ${deleted.id}\n**Name:** ${deleted.name}\n**Status:** ${deleted.stateId}`,
+      },
+    ],
+  };
 }
