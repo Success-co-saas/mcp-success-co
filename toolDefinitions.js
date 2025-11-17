@@ -18,6 +18,18 @@ import {
   getMeetingInfos,
   getMeetingAgendas,
   getLeadershipVTO,
+  createCoreValue,
+  updateCoreValue,
+  deleteCoreValue,
+  createCoreFocus,
+  updateCoreFocus,
+  deleteCoreFocus,
+  createVTOGoal,
+  updateVTOGoal,
+  deleteVTOGoal,
+  createMarketStrategy,
+  updateMarketStrategy,
+  deleteMarketStrategy,
   getAccountabilityChart,
   getMeetingDetails,
   getOrgCheckups,
@@ -1303,6 +1315,492 @@ export const toolDefinitions = [
     handler: async () => await getLeadershipVTO({}),
     schema: {},
     required: [],
+  },
+  {
+    name: "createCoreValue",
+    description:
+      "Create a new core value for the leadership vision. Perfect for queries like 'Add a core value: Do the right thing' or 'Create a core value called Be Awesome'. Core values are the fundamental beliefs and principles that guide your company culture.",
+    readOnly: false,
+    annotations: {
+      title: "Create Core Value",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: true,
+    },
+    handler: async ({ name, desc, position, cascadeAll }) =>
+      await createCoreValue({ name, desc, position, cascadeAll }),
+    schema: {
+      name: z
+        .string()
+        .describe(
+          "Core value name (required). Keep it concise, e.g., 'Be Awesome', 'Do the Right Thing', 'Give a Shit'"
+        ),
+      desc: z
+        .string()
+        .optional()
+        .describe(
+          "Optional description or explanation of what this core value means"
+        ),
+      position: z
+        .number()
+        .int()
+        .optional()
+        .describe(
+          "Optional position/order for display (lower numbers appear first). Defaults to 20000."
+        ),
+      cascadeAll: z
+        .boolean()
+        .optional()
+        .describe(
+          "Whether this core value cascades to all teams (defaults to false, meaning leadership only)"
+        ),
+    },
+    required: ["name"],
+  },
+  {
+    name: "updateCoreValue",
+    description:
+      "Update an existing core value in the leadership vision. Perfect for queries like 'Update the Be Awesome core value description' or 'Change the position of the integrity core value'. Use getLeadershipVTO to find the core value ID.",
+    readOnly: false,
+    annotations: {
+      title: "Update Core Value",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
+    handler: async ({ coreValueId, name, desc, position }) =>
+      await updateCoreValue({ coreValueId, name, desc, position }),
+    schema: {
+      coreValueId: z
+        .string()
+        .describe(
+          "Core value ID (required). Use getLeadershipVTO to find the ID."
+        ),
+      name: z.string().optional().describe("Update the core value name"),
+      desc: z.string().optional().describe("Update the core value description"),
+      position: z
+        .number()
+        .int()
+        .optional()
+        .describe("Update the position/order for display"),
+    },
+    required: ["coreValueId"],
+  },
+  {
+    name: "deleteCoreValue",
+    description:
+      "Delete a core value from the leadership vision. This is a soft delete that marks the core value as DELETED. Perfect for queries like 'Delete the outdated core value' or 'Remove the integrity core value'. Use getLeadershipVTO to find the core value ID.",
+    readOnly: false,
+    annotations: {
+      title: "Delete Core Value",
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
+    handler: async ({ coreValueId }) => await deleteCoreValue({ coreValueId }),
+    schema: {
+      coreValueId: z
+        .string()
+        .describe(
+          "Core value ID (required). Use getLeadershipVTO to find the ID."
+        ),
+    },
+    required: ["coreValueId"],
+  },
+  {
+    name: "createCoreFocus",
+    description:
+      "Create a new core focus item for the leadership vision. Perfect for queries like 'Add our purpose to the VTO' or 'Create a core focus item'. Core focus typically includes Purpose, Niche, and Core Focus (what you do and who you serve).",
+    readOnly: false,
+    annotations: {
+      title: "Create Core Focus",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: true,
+    },
+    handler: async ({ name, type, desc, coreFocusName, cascadeAll }) =>
+      await createCoreFocus({ name, type, desc, coreFocusName, cascadeAll }),
+    schema: {
+      name: z.string().describe("Core focus item name (required)"),
+      type: z
+        .enum(["PURPOSE", "NICHE", "CORE_FOCUS", "PASSION", "SWEET_SPOT"])
+        .optional()
+        .describe(
+          "Type of core focus item. Common types: PURPOSE (why you exist), NICHE (who you serve), CORE_FOCUS (what you're best at). Defaults to 'CORE_FOCUS'."
+        ),
+      desc: z
+        .string()
+        .optional()
+        .describe("Description or explanation of this core focus item"),
+      coreFocusName: z
+        .string()
+        .optional()
+        .describe("Optional core focus name/label"),
+      cascadeAll: z
+        .boolean()
+        .optional()
+        .describe(
+          "Whether this cascades to all teams (defaults to false, meaning leadership only)"
+        ),
+    },
+    required: ["name"],
+  },
+  {
+    name: "updateCoreFocus",
+    description:
+      "Update an existing core focus item in the leadership vision. Perfect for queries like 'Update the purpose statement' or 'Change the niche description'. Use getLeadershipVTO to find the core focus ID.",
+    readOnly: false,
+    annotations: {
+      title: "Update Core Focus",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
+    handler: async ({ coreFocusId, name, desc, type, coreFocusName }) =>
+      await updateCoreFocus({ coreFocusId, name, desc, type, coreFocusName }),
+    schema: {
+      coreFocusId: z
+        .string()
+        .describe(
+          "Core focus ID (required). Use getLeadershipVTO to find the ID."
+        ),
+      name: z.string().optional().describe("Update the core focus name"),
+      desc: z.string().optional().describe("Update the description"),
+      type: z
+        .enum(["PURPOSE", "NICHE", "CORE_FOCUS", "PASSION", "SWEET_SPOT"])
+        .optional()
+        .describe("Update the type"),
+      coreFocusName: z
+        .string()
+        .optional()
+        .describe("Update the core focus name/label"),
+    },
+    required: ["coreFocusId"],
+  },
+  {
+    name: "deleteCoreFocus",
+    description:
+      "Delete a core focus item from the leadership vision. This is a soft delete that marks the item as DELETED. Perfect for queries like 'Delete the outdated purpose statement'. Use getLeadershipVTO to find the core focus ID.",
+    readOnly: false,
+    annotations: {
+      title: "Delete Core Focus",
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
+    handler: async ({ coreFocusId }) => await deleteCoreFocus({ coreFocusId }),
+    schema: {
+      coreFocusId: z
+        .string()
+        .describe(
+          "Core focus ID (required). Use getLeadershipVTO to find the ID."
+        ),
+    },
+    required: ["coreFocusId"],
+  },
+  {
+    name: "createVTOGoal",
+    description:
+      "Create a new goal in the leadership VTO. Goals can be 3-year picture, 1-year plan, or 90-day goals. Perfect for queries like 'Add a 3-year goal: Reach $10M in revenue' or 'Create a 1-year plan item'.",
+    readOnly: false,
+    annotations: {
+      title: "Create VTO Goal",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: true,
+    },
+    handler: async ({ name, type, futureDate, cascadeAll }) =>
+      await createVTOGoal({ name, type, futureDate, cascadeAll }),
+    schema: {
+      name: z
+        .string()
+        .describe(
+          "Goal name/description (required). Be specific and measurable, e.g., 'Reach $10M in annual revenue', '50 employees', 'Open 3 new locations'"
+        ),
+      type: z
+        .enum([
+          "3_YEAR_PICTURE",
+          "1_YEAR_PLAN",
+          "90_DAY_PLAN",
+          "10_YEAR_TARGET",
+          "MARKETING_STRATEGY",
+        ])
+        .optional()
+        .describe(
+          "Goal type. Common types: 3_YEAR_PICTURE (3-year vision), 1_YEAR_PLAN (annual goals), 90_DAY_PLAN (quarterly rocks at VTO level). Defaults to '3_YEAR_PICTURE'."
+        ),
+      futureDate: z
+        .string()
+        .optional()
+        .describe(
+          "Target date for this goal in YYYY-MM-DD format (e.g., 2027-12-31)"
+        ),
+      cascadeAll: z
+        .boolean()
+        .optional()
+        .describe(
+          "Whether this cascades to all teams (defaults to false, meaning leadership only)"
+        ),
+    },
+    required: ["name"],
+  },
+  {
+    name: "updateVTOGoal",
+    description:
+      "Update an existing goal in the leadership VTO. Perfect for queries like 'Update the 3-year revenue goal' or 'Change the target date for the expansion goal'. Use getLeadershipVTO to find the goal ID.",
+    readOnly: false,
+    annotations: {
+      title: "Update VTO Goal",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
+    handler: async ({ goalId, name, type, futureDate }) =>
+      await updateVTOGoal({ goalId, name, type, futureDate }),
+    schema: {
+      goalId: z
+        .string()
+        .describe("Goal ID (required). Use getLeadershipVTO to find the ID."),
+      name: z.string().optional().describe("Update the goal name/description"),
+      type: z
+        .enum([
+          "3_YEAR_PICTURE",
+          "1_YEAR_PLAN",
+          "90_DAY_PLAN",
+          "10_YEAR_TARGET",
+          "MARKETING_STRATEGY",
+        ])
+        .optional()
+        .describe("Update the goal type"),
+      futureDate: z
+        .string()
+        .optional()
+        .describe("Update the target date (YYYY-MM-DD format)"),
+    },
+    required: ["goalId"],
+  },
+  {
+    name: "deleteVTOGoal",
+    description:
+      "Delete a goal from the leadership VTO. This is a soft delete that marks the goal as DELETED. Perfect for queries like 'Delete the outdated revenue goal'. Use getLeadershipVTO to find the goal ID.",
+    readOnly: false,
+    annotations: {
+      title: "Delete VTO Goal",
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
+    handler: async ({ goalId }) => await deleteVTOGoal({ goalId }),
+    schema: {
+      goalId: z
+        .string()
+        .describe("Goal ID (required). Use getLeadershipVTO to find the ID."),
+    },
+    required: ["goalId"],
+  },
+  {
+    name: "createMarketStrategy",
+    description:
+      "Create a new marketing strategy for the leadership vision. Perfect for queries like 'Add our target market to the VTO' or 'Create a marketing strategy'. Includes target market, proven process, guarantee, and unique value proposition.",
+    readOnly: false,
+    annotations: {
+      title: "Create Market Strategy",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: true,
+    },
+    handler: async ({
+      name,
+      idealCustomer,
+      idealCustomerDesc,
+      provenProcess,
+      provenProcessDesc,
+      guarantee,
+      guaranteeDesc,
+      uniqueValueProposition,
+      showProvenProcess,
+      showGuarantee,
+      cascadeAll,
+    }) =>
+      await createMarketStrategy({
+        name,
+        idealCustomer,
+        idealCustomerDesc,
+        provenProcess,
+        provenProcessDesc,
+        guarantee,
+        guaranteeDesc,
+        uniqueValueProposition,
+        showProvenProcess,
+        showGuarantee,
+        cascadeAll,
+      }),
+    schema: {
+      name: z.string().describe("Marketing strategy name (required)"),
+      idealCustomer: z
+        .string()
+        .optional()
+        .describe(
+          "Target market / ideal customer (e.g., 'Small businesses with 10-50 employees')"
+        ),
+      idealCustomerDesc: z
+        .string()
+        .optional()
+        .describe("Detailed description of your ideal customer"),
+      provenProcess: z
+        .string()
+        .optional()
+        .describe(
+          "Your proven process or methodology (e.g., 'The EOS Process', '5-Step Onboarding')"
+        ),
+      provenProcessDesc: z
+        .string()
+        .optional()
+        .describe("Detailed description of your proven process"),
+      guarantee: z
+        .string()
+        .optional()
+        .describe("Your guarantee or promise to customers"),
+      guaranteeDesc: z
+        .string()
+        .optional()
+        .describe("Detailed description of your guarantee"),
+      uniqueValueProposition: z
+        .string()
+        .optional()
+        .describe(
+          "What makes you unique / your unique value proposition (UVP)"
+        ),
+      showProvenProcess: z
+        .boolean()
+        .optional()
+        .describe("Whether to show the proven process (defaults to true)"),
+      showGuarantee: z
+        .boolean()
+        .optional()
+        .describe("Whether to show the guarantee (defaults to true)"),
+      cascadeAll: z
+        .boolean()
+        .optional()
+        .describe(
+          "Whether this cascades to all teams (defaults to false, meaning leadership only)"
+        ),
+    },
+    required: ["name"],
+  },
+  {
+    name: "updateMarketStrategy",
+    description:
+      "Update an existing marketing strategy in the leadership vision. Perfect for queries like 'Update our target market description' or 'Change the unique value proposition'. Use getLeadershipVTO to find the strategy ID.",
+    readOnly: false,
+    annotations: {
+      title: "Update Market Strategy",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
+    handler: async ({
+      strategyId,
+      name,
+      idealCustomer,
+      idealCustomerDesc,
+      provenProcess,
+      provenProcessDesc,
+      guarantee,
+      guaranteeDesc,
+      uniqueValueProposition,
+      showProvenProcess,
+      showGuarantee,
+    }) =>
+      await updateMarketStrategy({
+        strategyId,
+        name,
+        idealCustomer,
+        idealCustomerDesc,
+        provenProcess,
+        provenProcessDesc,
+        guarantee,
+        guaranteeDesc,
+        uniqueValueProposition,
+        showProvenProcess,
+        showGuarantee,
+      }),
+    schema: {
+      strategyId: z
+        .string()
+        .describe(
+          "Marketing strategy ID (required). Use getLeadershipVTO to find the ID."
+        ),
+      name: z.string().optional().describe("Update the strategy name"),
+      idealCustomer: z
+        .string()
+        .optional()
+        .describe("Update the target market / ideal customer"),
+      idealCustomerDesc: z
+        .string()
+        .optional()
+        .describe("Update the ideal customer description"),
+      provenProcess: z
+        .string()
+        .optional()
+        .describe("Update the proven process"),
+      provenProcessDesc: z
+        .string()
+        .optional()
+        .describe("Update the proven process description"),
+      guarantee: z.string().optional().describe("Update the guarantee"),
+      guaranteeDesc: z
+        .string()
+        .optional()
+        .describe("Update the guarantee description"),
+      uniqueValueProposition: z
+        .string()
+        .optional()
+        .describe("Update the unique value proposition"),
+      showProvenProcess: z
+        .boolean()
+        .optional()
+        .describe("Update whether to show the proven process"),
+      showGuarantee: z
+        .boolean()
+        .optional()
+        .describe("Update whether to show the guarantee"),
+    },
+    required: ["strategyId"],
+  },
+  {
+    name: "deleteMarketStrategy",
+    description:
+      "Delete a marketing strategy from the leadership vision. This is a soft delete that marks the strategy as DELETED. Perfect for queries like 'Delete the outdated marketing strategy'. Use getLeadershipVTO to find the strategy ID.",
+    readOnly: false,
+    annotations: {
+      title: "Delete Market Strategy",
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
+    handler: async ({ strategyId }) =>
+      await deleteMarketStrategy({ strategyId }),
+    schema: {
+      strategyId: z
+        .string()
+        .describe(
+          "Marketing strategy ID (required). Use getLeadershipVTO to find the ID."
+        ),
+    },
+    required: ["strategyId"],
   },
   {
     name: "getAccountabilityChart",

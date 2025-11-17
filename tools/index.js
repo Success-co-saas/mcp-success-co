@@ -89,7 +89,21 @@ export {
 export { getOrgCheckups } from "./orgCheckupsTools.js";
 
 // Vision/Traction Organizer
-export { getLeadershipVTO } from "./vtoTools.js";
+export {
+  getLeadershipVTO,
+  createCoreValue,
+  updateCoreValue,
+  deleteCoreValue,
+  createCoreFocus,
+  updateCoreFocus,
+  deleteCoreFocus,
+  createVTOGoal,
+  updateVTOGoal,
+  deleteVTOGoal,
+  createMarketStrategy,
+  updateMarketStrategy,
+  deleteMarketStrategy,
+} from "./vtoTools.js";
 
 // Accountability Chart
 export { getAccountabilityChart } from "./accountabilityChartTools.js";
