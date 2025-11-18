@@ -133,4 +133,12 @@ export {
 export { getSampleQuestions } from "./helpTools.js";
 
 // GraphQL Direct Access
-export { getGraphQLSchema, executeGraphQL } from "./graphqlTools.js";
+export {
+  getGraphQLOverview,
+  listGraphQLTypes,
+  getGraphQLType,
+  listGraphQLQueries,
+  listGraphQLMutations,
+  searchGraphQLSchema,
+  executeGraphQL,
+} from "./graphqlTools.js";
