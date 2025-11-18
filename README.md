@@ -1066,6 +1066,24 @@ mutation {
 - You want to batch multiple operations
 - You need more control over the exact data returned
 - The specialized tools are too restrictive
+- **Working with V/TO data** (specialized V/TO tools are disabled in favor of GraphQL)
+
+### Note on V/TO Tools
+
+The specialized V/TO tools (create/update/delete for CoreValue, CoreFocus, ThreeYearGoal, etc.) have been **disabled** in favor of the more flexible `executeGraphQL` tool. This provides:
+
+- ✅ **More flexibility** - Access ANY V/TO field, not just those exposed by specialized tools
+- ✅ **Better control** - Full GraphQL query power for complex operations
+- ✅ **Simpler codebase** - Fewer specialized tools to maintain
+- ✅ **Batch operations** - Update multiple V/TO items in one API call
+
+**To re-enable V/TO tools if needed:**
+1. Open `toolDefinitions.js`
+2. Find lines 1323-1661 (commented V/TO section)
+3. Uncomment the tools (remove `/*` and `*/`)
+4. Restart the MCP server
+
+All V/TO code is preserved and can be re-enabled anytime.
 
 ---
 
