@@ -65,11 +65,6 @@ import {
   getSampleQuestions,
   getAuthContext,
   getGraphQLOverview,
-  listGraphQLTypes,
-  getGraphQLType,
-  listGraphQLQueries,
-  listGraphQLMutations,
-  searchGraphQLSchema,
   executeGraphQL,
 } from "./tools.js";
 import { trackToolCall } from "./utils/statsTracker.js";
@@ -3239,7 +3234,7 @@ export const toolDefinitions = [
   {
     name: "getGraphQLOverview",
     description:
-      "Get an overview of the Success.co GraphQL API including endpoint info, common patterns, usage examples, and next steps. This is the starting point for discovering the API. Use this first to understand how to work with the GraphQL schema, then use other tools like 'listGraphQLTypes', 'getGraphQLType', 'listGraphQLQueries', or 'searchGraphQLSchema' to explore specific parts of the API.",
+      "Get an overview of the Success.co GraphQL API including introspection query examples, common patterns, usage examples, and tips. This is the starting point for discovering the API. The overview teaches you how to use GraphQL introspection to explore the schema dynamically using executeGraphQL. Use this first to learn about introspection queries like __schema, __type, and how to discover types, queries, and mutations on-demand.",
     readOnly: true,
     annotations: {
       title: "Get GraphQL Overview",
@@ -3252,118 +3247,9 @@ export const toolDefinitions = [
     required: [],
   },
   {
-    name: "listGraphQLTypes",
-    description:
-      "List GraphQL types available in the Success.co API. Filter by category: 'entities' (default, shows main business objects like Todo, Rock, CoreValue), 'inputs' (input objects for mutations), 'enums' (enumeration types), or 'all' (everything). Use this to discover what data types are available, then use 'getGraphQLType' to explore a specific type's fields and relationships.",
-    readOnly: true,
-    annotations: {
-      title: "List GraphQL Types",
-      readOnlyHint: true,
-      idempotentHint: true,
-      openWorldHint: true,
-    },
-    handler: async ({ category }) => await listGraphQLTypes({ category }),
-    schema: {
-      category: z
-        .enum(["entities", "inputs", "enums", "all"])
-        .optional()
-        .default("entities")
-        .describe(
-          "Category of types to list: 'entities' (business objects), 'inputs' (mutation inputs), 'enums' (enumerations), or 'all'"
-        ),
-    },
-    required: [],
-  },
-  {
-    name: "getGraphQLType",
-    description:
-      "Get detailed information about a specific GraphQL type including all its fields, their types, descriptions, and relationships. Use this after discovering a type with 'listGraphQLTypes' or 'searchGraphQLSchema' to understand its structure. Example types: 'Todo', 'Rock', 'CoreValue', 'Meeting', 'User', etc.",
-    readOnly: true,
-    annotations: {
-      title: "Get GraphQL Type Details",
-      readOnlyHint: true,
-      idempotentHint: true,
-      openWorldHint: true,
-    },
-    handler: async ({ typeName }) => await getGraphQLType({ typeName }),
-    schema: {
-      typeName: z
-        .string()
-        .describe(
-          "Name of the GraphQL type to inspect (e.g., 'Todo', 'Rock', 'CoreValue', 'Meeting')"
-        ),
-    },
-    required: ["typeName"],
-  },
-  {
-    name: "listGraphQLQueries",
-    description:
-      "List all available GraphQL query operations (read operations). Optionally filter by search term to find specific queries. Each query includes its name, description, arguments, and return type. Use this to discover what data you can fetch from the API. Common queries: 'todos', 'rocks', 'issues', 'meetings', 'leaderships', etc.",
-    readOnly: true,
-    annotations: {
-      title: "List GraphQL Queries",
-      readOnlyHint: true,
-      idempotentHint: true,
-      openWorldHint: true,
-    },
-    handler: async ({ search }) => await listGraphQLQueries({ search }),
-    schema: {
-      search: z
-        .string()
-        .optional()
-        .describe(
-          "Optional search term to filter queries by name or description (e.g., 'todo', 'rock', 'meeting')"
-        ),
-    },
-    required: [],
-  },
-  {
-    name: "listGraphQLMutations",
-    description:
-      "List all available GraphQL mutation operations (write operations). Optionally filter by search term to find specific mutations. Each mutation includes its name, description, arguments, and return type. Use this to discover what data you can create, update, or delete. Common mutations: 'createTodo', 'updateRock', 'deleteCoreValue', etc.",
-    readOnly: true,
-    annotations: {
-      title: "List GraphQL Mutations",
-      readOnlyHint: true,
-      idempotentHint: true,
-      openWorldHint: true,
-    },
-    handler: async ({ search }) => await listGraphQLMutations({ search }),
-    schema: {
-      search: z
-        .string()
-        .optional()
-        .describe(
-          "Optional search term to filter mutations by name or description (e.g., 'create', 'update', 'delete', 'todo')"
-        ),
-    },
-    required: [],
-  },
-  {
-    name: "searchGraphQLSchema",
-    description:
-      "Search the entire GraphQL schema for types, queries, mutations, or fields matching a keyword. Returns matches from types, queries, mutations, and fields with their descriptions. Use this when you know what you're looking for but don't know the exact name or location in the schema. Example searches: 'core value', 'measurable', 'user', 'meeting', etc.",
-    readOnly: true,
-    annotations: {
-      title: "Search GraphQL Schema",
-      readOnlyHint: true,
-      idempotentHint: true,
-      openWorldHint: true,
-    },
-    handler: async ({ keyword }) => await searchGraphQLSchema({ keyword }),
-    schema: {
-      keyword: z
-        .string()
-        .describe(
-          "Keyword to search for across types, queries, mutations, and fields (e.g., 'core value', 'todo', 'measurable')"
-        ),
-    },
-    required: ["keyword"],
-  },
-  {
     name: "executeGraphQL",
     description:
-      "Execute any GraphQL query or mutation against the Success.co API. This tool provides direct access to the GraphQL API, allowing you to perform any operation supported by the API. Use this when existing tools are insufficient or when you need more flexibility. Common use cases: complex queries with custom filtering/sorting, batch operations, accessing fields not exposed by other tools, or performing operations on entities not covered by specialized tools. Authentication is handled automatically. Use 'getGraphQLOverview', 'searchGraphQLSchema', or 'getGraphQLType' first to discover the available schema.",
+      "Execute any GraphQL query or mutation against the Success.co API. This tool provides direct access to the GraphQL API, allowing you to perform any operation supported by the API including GraphQL introspection queries. Use introspection queries (__schema, __type) to explore the schema, or regular queries/mutations to interact with data. Common use cases: schema introspection, complex queries with custom filtering/sorting, batch operations, V/TO updates, or any operation the API supports. Authentication is handled automatically. Use 'getGraphQLOverview' first to learn about introspection and see examples.",
     readOnly: false,
     annotations: {
       title: "Execute GraphQL Query/Mutation",
