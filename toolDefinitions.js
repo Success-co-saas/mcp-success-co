@@ -64,6 +64,8 @@ import {
   getCompanyInsights,
   getSampleQuestions,
   getAuthContext,
+  getGraphQLSchema,
+  executeGraphQL,
 } from "./tools.js";
 import { trackToolCall } from "./utils/statsTracker.js";
 
@@ -1304,6 +1306,21 @@ export const toolDefinitions = [
     },
     required: [],
   },
+  // ============================================================================
+  // V/TO TOOLS - TEMPORARILY DISABLED
+  // ============================================================================
+  // These specialized V/TO tools have been disabled in favor of the new
+  // executeGraphQL() tool which provides more flexibility and power for V/TO
+  // operations. The direct GraphQL access allows AI assistants to perform any
+  // V/TO operation with full control over fields and relationships.
+  //
+  // To re-enable these tools:
+  // 1. Uncomment the tools below (lines 1309-1645)
+  // 2. Restart the MCP server
+  //
+  // NOTE: The code is preserved below for easy re-enablement if needed.
+  // ============================================================================
+  /*
   {
     name: "getLeadershipVTO",
     description:
@@ -1641,6 +1658,10 @@ export const toolDefinitions = [
     },
     required: ["marketStrategyId"],
   },
+  */
+  // ============================================================================
+  // END V/TO TOOLS (DISABLED)
+  // ============================================================================
   {
     name: "getAccountabilityChart",
     description:
@@ -3210,6 +3231,49 @@ export const toolDefinitions = [
     schema: {},
     required: [],
   },
+  {
+    name: "getGraphQLSchema",
+    description:
+      "Get the complete GraphQL schema for the Success.co API. This provides the full API schema, documentation on how to use it, common patterns, and examples. Use this tool when you need to construct custom GraphQL queries or mutations, or when the existing tools don't provide the exact functionality needed. The schema includes all Success.co entities (Rocks, To-Dos, Issues, Meetings, V/TO, Scorecard, etc.) and their available fields, relationships, and operations. Authentication and company scoping are automatically handled.",
+    readOnly: true,
+    annotations: {
+      title: "Get GraphQL Schema",
+      readOnlyHint: true,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
+    handler: async () => await getGraphQLSchema(),
+    schema: {},
+    required: [],
+  },
+  {
+    name: "executeGraphQL",
+    description:
+      "Execute any GraphQL query or mutation against the Success.co API. This tool provides direct access to the GraphQL API, allowing you to perform any operation supported by the API. Use this when existing tools are insufficient or when you need more flexibility. Common use cases: complex queries with custom filtering/sorting, batch operations, accessing fields not exposed by other tools, or performing operations on entities not covered by specialized tools. Authentication is handled automatically. Use getGraphQLSchema first to understand the available schema.",
+    readOnly: false,
+    annotations: {
+      title: "Execute GraphQL Query/Mutation",
+      readOnlyHint: false,
+      idempotentHint: false,
+      openWorldHint: true,
+    },
+    handler: async ({ query, variables }) =>
+      await executeGraphQL({ query, variables }),
+    schema: {
+      query: z
+        .string()
+        .describe(
+          "The GraphQL query or mutation string. Must be a valid GraphQL operation. Example query: 'query { todos(first: 10) { nodes { id desc } } }'. Example mutation: 'mutation UpdateTodo($id: ID!, $desc: String!) { updateTodo(input: { id: $id, todoPatch: { desc: $desc } }) { todo { id desc } } }'"
+        ),
+      variables: z
+        .record(z.any())
+        .optional()
+        .describe(
+          "Optional variables object for parameterized queries. Keys should match the variable names in your query (without the $ prefix). Example: { id: 'WyJ0b2RvcyIsIjEyMyJd', desc: 'Updated description' }"
+        ),
+    },
+    required: ["query"],
+  },
 ];
 
 /**
@@ -3332,12 +3396,24 @@ export function getToolsAsJsonSchema() {
                 };
                 if (defaultValue !== undefined)
                   props[key].default = defaultValue;
+              } else if (schemaToProcess._def?.typeName === "ZodRecord") {
+                // Handle ZodRecord (for objects with dynamic keys like variables)
+                props[key] = {
+                  type: "object",
+                  description: schemaToProcess.description || "",
+                };
+                if (defaultValue !== undefined)
+                  props[key].default = defaultValue;
               } else if (schemaToProcess._def?.typeName === "ZodOptional") {
                 const innerSchema = schemaToProcess._def.innerType;
+                // Try to get description from outer schema first, then inner schema
+                const description =
+                  schemaToProcess.description || innerSchema.description || "";
+
                 if (innerSchema._def?.typeName === "ZodString") {
                   props[key] = {
                     type: "string",
-                    description: innerSchema.description || "",
+                    description: description,
                   };
                   if (defaultValue !== undefined)
                     props[key].default = defaultValue;
@@ -3348,14 +3424,14 @@ export function getToolsAsJsonSchema() {
                     )
                       ? "integer"
                       : "number",
-                    description: innerSchema.description || "",
+                    description: description,
                   };
                   if (defaultValue !== undefined)
                     props[key].default = defaultValue;
                 } else if (innerSchema._def?.typeName === "ZodBoolean") {
                   props[key] = {
                     type: "boolean",
-                    description: innerSchema.description || "",
+                    description: description,
                   };
                   if (defaultValue !== undefined)
                     props[key].default = defaultValue;
@@ -3363,7 +3439,15 @@ export function getToolsAsJsonSchema() {
                   props[key] = {
                     type: "string",
                     enum: innerSchema._def.values,
-                    description: innerSchema.description || "",
+                    description: description,
+                  };
+                  if (defaultValue !== undefined)
+                    props[key].default = defaultValue;
+                } else if (innerSchema._def?.typeName === "ZodRecord") {
+                  // Handle optional ZodRecord
+                  props[key] = {
+                    type: "object",
+                    description: description,
                   };
                   if (defaultValue !== undefined)
                     props[key].default = defaultValue;

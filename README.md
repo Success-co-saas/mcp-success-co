@@ -796,6 +796,279 @@ When creating or updating an entity, re-fetch it to return the full data structu
 
 **Example**: After `createTodo()`, query the created todo again to return it with all fields populated the same way `getTodos()` would return it.
 
+---
+
+## 🔌 GraphQL Direct Access
+
+For advanced use cases where the specialized tools don't provide the exact functionality needed, you can use the direct GraphQL access tools to construct and execute any valid GraphQL query or mutation.
+
+### Why Use Direct GraphQL Access?
+
+The MCP server includes **70+ specialized tools** for common operations (getTodos, createRock, updateIssue, etc.). However, there are scenarios where direct GraphQL access is more appropriate:
+
+- **Complex queries** with custom filtering, sorting, or relationships
+- **Batch operations** that need to update multiple entities at once
+- **Access to fields** not exposed by specialized tools
+- **Operations on entities** not covered by existing tools
+- **Advanced filtering** using PostGraphile's powerful query capabilities
+- **Flexibility** when the existing tools are too restrictive
+
+### Available Tools
+
+#### 1. **getGraphQLSchema** - Get Complete API Schema
+
+Retrieves the full GraphQL schema, documentation, examples, and common patterns.
+
+**When to use:**
+- Before constructing custom GraphQL queries
+- To understand available types, fields, and relationships
+- To see what operations are possible
+
+**Returns:**
+- Complete GraphQL schema (PostGraphile introspection format)
+- API endpoint information
+- Usage examples and common patterns
+- Tips for working with the Success.co GraphQL API
+
+**Example:**
+```javascript
+// The AI assistant can call this to understand the schema
+getGraphQLSchema()
+// Returns: Full schema + documentation + examples
+```
+
+#### 2. **executeGraphQL** - Execute Any Query/Mutation
+
+Execute any valid GraphQL query or mutation against the Success.co API.
+
+**Parameters:**
+- `query` (required): The GraphQL query or mutation string
+- `variables` (optional): Variables object for parameterized queries
+
+**Authentication:** Automatically handled - uses the same OAuth token or API key as other tools
+
+**Example Queries:**
+
+```graphql
+# Get todos with custom filtering
+query GetMyTodos {
+  todos(
+    first: 10
+    condition: { stateId: "active", priority: "HIGH" }
+    orderBy: DUE_AT_ASC
+  ) {
+    nodes {
+      id
+      desc
+      dueAt
+      priority
+      user {
+        name
+        email
+      }
+    }
+  }
+}
+
+# Get V/TO data with nested relationships
+query GetCompleteVTO {
+  visionId: leaderships(first: 1) {
+    nodes {
+      id
+      coreValues {
+        nodes {
+          id
+          value
+          coreValueDetails {
+            nodes {
+              id
+              detail
+            }
+          }
+        }
+      }
+      coreFocuses {
+        nodes {
+          id
+          focus
+        }
+      }
+      threeYearGoals {
+        nodes {
+          id
+          goal
+        }
+      }
+    }
+  }
+}
+
+# Update multiple fields at once
+mutation UpdateVTOCoreValue($id: ID!, $value: String!, $detail: String!) {
+  updateCoreValue(
+    input: {
+      id: $id
+      coreValuePatch: {
+        value: $value
+        detail: $detail
+      }
+    }
+  ) {
+    coreValue {
+      id
+      value
+      detail
+    }
+  }
+}
+```
+
+**Example with Variables:**
+
+```javascript
+executeGraphQL({
+  query: `
+    mutation UpdateTodo($id: ID!, $desc: String!, $priority: String!) {
+      updateTodo(
+        input: {
+          id: $id
+          todoPatch: {
+            desc: $desc
+            priority: $priority
+          }
+        }
+      ) {
+        todo {
+          id
+          desc
+          priority
+          updatedAt
+        }
+      }
+    }
+  `,
+  variables: {
+    id: "WyJ0b2RvcyIsIjEyMzQ1Il0=",
+    desc: "Updated description",
+    priority: "HIGH"
+  }
+})
+```
+
+### Common GraphQL Patterns
+
+#### Filtering with Conditions
+```graphql
+query {
+  todos(condition: { userId: "123", stateId: "active" }) {
+    nodes { id desc }
+  }
+}
+```
+
+#### Sorting
+```graphql
+query {
+  rocks(orderBy: [DUE_AT_DESC, PRIORITY_ASC]) {
+    nodes { id desc }
+  }
+}
+```
+
+#### Pagination
+```graphql
+query {
+  issues(first: 50, offset: 0) {
+    nodes { id desc }
+    totalCount
+  }
+}
+```
+
+#### Nested Relationships
+```graphql
+query {
+  rocks {
+    nodes {
+      id
+      desc
+      user {
+        name
+        email
+      }
+      team {
+        name
+      }
+    }
+  }
+}
+```
+
+#### Create Operations
+```graphql
+mutation {
+  createTodo(input: {
+    todo: {
+      desc: "New todo"
+      userId: "123"
+      companyId: "456"
+      stateId: "active"
+    }
+  }) {
+    todo { id desc }
+  }
+}
+```
+
+#### Update Operations
+```graphql
+mutation {
+  updateRock(input: {
+    id: "WyJyb2NrcyIsIjEyMyJd"
+    rockPatch: {
+      desc: "Updated description"
+      status: "COMPLETE"
+    }
+  }) {
+    rock { id desc status }
+  }
+}
+```
+
+#### Delete Operations
+```graphql
+mutation {
+  deleteIssue(input: { id: "WyJpc3N1ZXMiLCIxMjMiXQ==" }) {
+    deletedIssueId
+  }
+}
+```
+
+### Important Notes
+
+- **Authentication is automatic** - No need to pass tokens manually
+- **Company scoping is enforced** - You can only access data from your company
+- **Row-level security** - The API enforces permissions based on your user role
+- **PostGraphile conventions** - All tables are pluralized (todos, rocks, issues)
+- **Node IDs** - All IDs are global node IDs (base64-encoded strings)
+- **Mutations use Patch objects** - Updates use `[type]Patch` (todoPatch, rockPatch, etc.)
+
+### When to Use Specialized Tools vs. Direct GraphQL
+
+**Use Specialized Tools when:**
+- The operation is straightforward (get, create, update, delete)
+- The tool provides all the fields you need
+- You want simpler, more guided interactions
+
+**Use Direct GraphQL when:**
+- You need complex filtering or relationships
+- You need to access fields not exposed by specialized tools
+- You want to batch multiple operations
+- You need more control over the exact data returned
+- The specialized tools are too restrictive
+
+---
+
 ## Cross-functional Queries
 
 These complex queries combine multiple tools to provide comprehensive insights:
