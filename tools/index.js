@@ -131,3 +131,6 @@ export {
 
 // Help & Discovery
 export { getSampleQuestions } from "./helpTools.js";
+
+// GraphQL Direct Access
+export { getGraphQLOverview, executeGraphQL } from "./graphqlTools.js";
