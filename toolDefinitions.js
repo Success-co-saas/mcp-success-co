@@ -82,7 +82,7 @@ export const toolDefinitions = [
       title: "Get Teams",
       readOnlyHint: true,
       idempotentHint: true,
-      openWorldHint: true,
+      openWorldHint: false,
     },
     handler: async ({ first, offset, keyword }) =>
       await getTeams({ first, offset, keyword }),
@@ -112,7 +112,7 @@ export const toolDefinitions = [
       title: "Get Users",
       readOnlyHint: true,
       idempotentHint: true,
-      openWorldHint: true,
+      openWorldHint: false,
     },
     handler: async ({ first, offset, teamId, leadershipTeam }) =>
       await getUsers({ first, offset, teamId, leadershipTeam }),
@@ -158,7 +158,7 @@ export const toolDefinitions = [
       title: "Get Todos",
       readOnlyHint: true,
       idempotentHint: true,
-      openWorldHint: true,
+      openWorldHint: false,
     },
     handler: async ({
       first,
@@ -295,7 +295,7 @@ export const toolDefinitions = [
       title: "Get Rocks",
       readOnlyHint: true,
       idempotentHint: true,
-      openWorldHint: true,
+      openWorldHint: false,
     },
     handler: async ({
       first,
@@ -406,7 +406,7 @@ export const toolDefinitions = [
       title: "Get Meetings",
       readOnlyHint: true,
       idempotentHint: true,
-      openWorldHint: true,
+      openWorldHint: false,
     },
     handler: async ({
       first,
@@ -484,7 +484,7 @@ export const toolDefinitions = [
       title: "Get Issues",
       readOnlyHint: true,
       idempotentHint: true,
-      openWorldHint: true,
+      openWorldHint: false,
     },
     handler: async ({
       first,
@@ -606,7 +606,7 @@ export const toolDefinitions = [
       title: "Get Headlines",
       readOnlyHint: true,
       idempotentHint: true,
-      openWorldHint: true,
+      openWorldHint: false,
     },
     handler: async ({
       first,
@@ -722,7 +722,7 @@ export const toolDefinitions = [
       title: "Get Milestones",
       readOnlyHint: true,
       idempotentHint: true,
-      openWorldHint: true,
+      openWorldHint: false,
     },
     handler: async ({
       first,
@@ -799,7 +799,7 @@ export const toolDefinitions = [
       title: "Search",
       readOnlyHint: true,
       idempotentHint: true,
-      openWorldHint: true,
+      openWorldHint: false,
     },
     handler: async (args) => await search(args),
     schema: {
@@ -819,7 +819,7 @@ export const toolDefinitions = [
       title: "Fetch Item",
       readOnlyHint: true,
       idempotentHint: true,
-      openWorldHint: true,
+      openWorldHint: false,
     },
     handler: async ({ id }) => await fetch({ id }),
     schema: {
@@ -836,7 +836,7 @@ export const toolDefinitions = [
       title: "Get Scorecard Measurables",
       readOnlyHint: true,
       idempotentHint: true,
-      openWorldHint: true,
+      openWorldHint: false,
     },
     handler: async ({
       first,
@@ -958,7 +958,7 @@ export const toolDefinitions = [
       readOnlyHint: false,
       destructiveHint: false,
       idempotentHint: false,
-      openWorldHint: true,
+      openWorldHint: false,
     },
     handler: async ({
       name,
@@ -1085,7 +1085,7 @@ export const toolDefinitions = [
       readOnlyHint: false,
       destructiveHint: false,
       idempotentHint: true,
-      openWorldHint: true,
+      openWorldHint: false,
     },
     handler: async ({
       measurableId,
@@ -1185,7 +1185,7 @@ export const toolDefinitions = [
       readOnlyHint: false,
       destructiveHint: true,
       idempotentHint: true,
-      openWorldHint: true,
+      openWorldHint: false,
     },
     handler: async ({ measurableId }) =>
       await deleteScorecardMeasurable({ measurableId }),
@@ -1207,7 +1207,7 @@ export const toolDefinitions = [
       title: "Get Meeting Infos",
       readOnlyHint: true,
       idempotentHint: true,
-      openWorldHint: true,
+      openWorldHint: false,
     },
     handler: async ({
       first,
@@ -1254,7 +1254,7 @@ export const toolDefinitions = [
       title: "Get Meeting Agendas",
       readOnlyHint: true,
       idempotentHint: true,
-      openWorldHint: true,
+      openWorldHint: false,
     },
     handler: async ({
       first,
@@ -1330,7 +1330,7 @@ export const toolDefinitions = [
       title: "Get Leadership VTO",
       readOnlyHint: true,
       idempotentHint: true,
-      openWorldHint: true,
+      openWorldHint: false,
     },
     handler: async () => await getLeadershipVTO({}),
     schema: {},
@@ -1671,7 +1671,7 @@ export const toolDefinitions = [
       title: "Get Accountability Chart",
       readOnlyHint: true,
       idempotentHint: true,
-      openWorldHint: true,
+      openWorldHint: false,
     },
     handler: async ({ teamId }) => await getAccountabilityChart({ teamId }),
     schema: {
@@ -1691,7 +1691,7 @@ export const toolDefinitions = [
       title: "Get Meeting Details",
       readOnlyHint: true,
       idempotentHint: true,
-      openWorldHint: true,
+      openWorldHint: false,
     },
     handler: async ({ meetingId, lastFinishedL10, teamId, leadershipTeam }) =>
       await getMeetingDetails({
@@ -1738,7 +1738,7 @@ export const toolDefinitions = [
       title: "Get Organization Checkups",
       readOnlyHint: true,
       idempotentHint: true,
-      openWorldHint: true,
+      openWorldHint: false,
     },
     handler: async ({
       first,
@@ -1800,7 +1800,7 @@ export const toolDefinitions = [
       readOnlyHint: false,
       destructiveHint: false,
       idempotentHint: false,
-      openWorldHint: true,
+      openWorldHint: false,
     },
     handler: async ({
       name,
@@ -1901,7 +1901,7 @@ export const toolDefinitions = [
       readOnlyHint: false,
       destructiveHint: false,
       idempotentHint: false,
-      openWorldHint: true,
+      openWorldHint: false,
     },
     handler: async ({
       name,
@@ -1967,7 +1967,7 @@ export const toolDefinitions = [
       readOnlyHint: false,
       destructiveHint: false,
       idempotentHint: false,
-      openWorldHint: true,
+      openWorldHint: false,
     },
     handler: async ({
       name,
@@ -2076,7 +2076,7 @@ export const toolDefinitions = [
       readOnlyHint: false,
       destructiveHint: false,
       idempotentHint: true,
-      openWorldHint: true,
+      openWorldHint: false,
     },
     handler: async ({ todoId, todoStatusId, name, desc, dueDate, priority }) =>
       await updateTodo({ todoId, todoStatusId, name, desc, dueDate, priority }),
@@ -2113,7 +2113,7 @@ export const toolDefinitions = [
       readOnlyHint: false,
       destructiveHint: false,
       idempotentHint: false,
-      openWorldHint: true,
+      openWorldHint: false,
     },
     handler: async ({
       name,
@@ -2211,7 +2211,7 @@ export const toolDefinitions = [
       readOnlyHint: false,
       destructiveHint: false,
       idempotentHint: false,
-      openWorldHint: true,
+      openWorldHint: false,
     },
     handler: async ({
       date,
@@ -2293,7 +2293,7 @@ export const toolDefinitions = [
       readOnlyHint: false,
       destructiveHint: false,
       idempotentHint: true,
-      openWorldHint: true,
+      openWorldHint: false,
     },
     handler: async ({
       issueId,
@@ -2386,7 +2386,7 @@ export const toolDefinitions = [
       readOnlyHint: false,
       destructiveHint: false,
       idempotentHint: true,
-      openWorldHint: true,
+      openWorldHint: false,
     },
     handler: async ({
       rockId,
@@ -2472,7 +2472,7 @@ export const toolDefinitions = [
       readOnlyHint: false,
       destructiveHint: false,
       idempotentHint: true,
-      openWorldHint: true,
+      openWorldHint: false,
     },
     handler: async ({
       headlineId,
@@ -2561,7 +2561,7 @@ export const toolDefinitions = [
       readOnlyHint: false,
       destructiveHint: false,
       idempotentHint: true,
-      openWorldHint: true,
+      openWorldHint: false,
     },
     handler: async ({ meetingId, date, time, state, meetingStatusId }) =>
       await updateMeeting({
@@ -2612,7 +2612,7 @@ export const toolDefinitions = [
       readOnlyHint: false,
       destructiveHint: false,
       idempotentHint: false,
-      openWorldHint: true,
+      openWorldHint: false,
     },
     handler: async ({ dataFieldId, value, startDate, note, overwrite }) =>
       await createScorecardMeasurableEntry({
@@ -2664,7 +2664,7 @@ export const toolDefinitions = [
       readOnlyHint: false,
       destructiveHint: false,
       idempotentHint: true,
-      openWorldHint: true,
+      openWorldHint: false,
     },
     handler: async ({ entryId, value, note }) =>
       await updateScorecardMeasurableEntry({
@@ -2703,7 +2703,7 @@ export const toolDefinitions = [
       readOnlyHint: false,
       destructiveHint: true,
       idempotentHint: true,
-      openWorldHint: true,
+      openWorldHint: false,
     },
     handler: async ({ todoId }) => await deleteTodo({ todoId }),
     schema: {
@@ -2725,7 +2725,7 @@ export const toolDefinitions = [
       readOnlyHint: false,
       destructiveHint: true,
       idempotentHint: true,
-      openWorldHint: true,
+      openWorldHint: false,
     },
     handler: async ({ issueId }) => await deleteIssue({ issueId }),
     schema: {
@@ -2747,7 +2747,7 @@ export const toolDefinitions = [
       readOnlyHint: false,
       destructiveHint: true,
       idempotentHint: true,
-      openWorldHint: true,
+      openWorldHint: false,
     },
     handler: async ({ rockId }) => await deleteRock({ rockId }),
     schema: {
@@ -2769,7 +2769,7 @@ export const toolDefinitions = [
       readOnlyHint: false,
       destructiveHint: true,
       idempotentHint: true,
-      openWorldHint: true,
+      openWorldHint: false,
     },
     handler: async ({ headlineId }) => await deleteHeadline({ headlineId }),
     schema: {
@@ -2791,7 +2791,7 @@ export const toolDefinitions = [
       readOnlyHint: false,
       destructiveHint: false,
       idempotentHint: false,
-      openWorldHint: true,
+      openWorldHint: false,
     },
     handler: async ({ name, rockId, dueDate, userId, currentUser }) => {
       // Validate that both userId and currentUser are not provided
@@ -2856,7 +2856,7 @@ export const toolDefinitions = [
       readOnlyHint: false,
       destructiveHint: false,
       idempotentHint: true,
-      openWorldHint: true,
+      openWorldHint: false,
     },
     handler: async ({
       milestoneId,
@@ -2931,7 +2931,7 @@ export const toolDefinitions = [
       readOnlyHint: false,
       destructiveHint: true,
       idempotentHint: true,
-      openWorldHint: true,
+      openWorldHint: false,
     },
     handler: async ({ milestoneId }) => await deleteMilestone({ milestoneId }),
     schema: {
@@ -2952,7 +2952,7 @@ export const toolDefinitions = [
       title: "Get Comments",
       readOnlyHint: true,
       idempotentHint: true,
-      openWorldHint: true,
+      openWorldHint: false,
     },
     handler: async ({
       first,
@@ -3048,7 +3048,7 @@ export const toolDefinitions = [
       readOnlyHint: false,
       destructiveHint: false,
       idempotentHint: false,
-      openWorldHint: true,
+      openWorldHint: false,
     },
     handler: async ({ comment, entityType, entityId }) =>
       await createComment({ comment, entityType, entityId }),
@@ -3077,7 +3077,7 @@ export const toolDefinitions = [
       readOnlyHint: false,
       destructiveHint: false,
       idempotentHint: true,
-      openWorldHint: true,
+      openWorldHint: false,
     },
     handler: async ({ commentId, comment }) =>
       await updateComment({ commentId, comment }),
@@ -3101,7 +3101,7 @@ export const toolDefinitions = [
       readOnlyHint: false,
       destructiveHint: true,
       idempotentHint: true,
-      openWorldHint: true,
+      openWorldHint: false,
     },
     handler: async ({ commentId }) => await deleteComment({ commentId }),
     schema: {
@@ -3122,7 +3122,7 @@ export const toolDefinitions = [
       title: "Get Execution Health",
       readOnlyHint: true,
       idempotentHint: true,
-      openWorldHint: true,
+      openWorldHint: false,
     },
     handler: async ({ teamId, leadershipTeam }) =>
       await getExecutionHealth({ teamId, leadershipTeam }),
@@ -3149,7 +3149,7 @@ export const toolDefinitions = [
       title: "Get User Workload",
       readOnlyHint: true,
       idempotentHint: true,
-      openWorldHint: true,
+      openWorldHint: false,
     },
     handler: async ({ teamId, leadershipTeam, userId, currentUser }) => {
       // Validate that both userId and currentUser are not provided
@@ -3210,7 +3210,7 @@ export const toolDefinitions = [
       title: "Get Company Insights",
       readOnlyHint: true,
       idempotentHint: true,
-      openWorldHint: true,
+      openWorldHint: false,
     },
     handler: async () => await getCompanyInsights({}),
     schema: {},
@@ -3240,7 +3240,7 @@ export const toolDefinitions = [
       title: "Get GraphQL Overview",
       readOnlyHint: true,
       idempotentHint: true,
-      openWorldHint: true,
+      openWorldHint: false,
     },
     handler: async () => await getGraphQLOverview(),
     schema: {},
@@ -3255,7 +3255,7 @@ export const toolDefinitions = [
       title: "Execute GraphQL Query/Mutation",
       readOnlyHint: false,
       idempotentHint: false,
-      openWorldHint: true,
+      openWorldHint: false,
     },
     handler: async ({ query, variables }) =>
       await executeGraphQL({ query, variables }),
