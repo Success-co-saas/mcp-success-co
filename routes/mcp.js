@@ -100,6 +100,7 @@ function createFreshMcpServer() {
     {
       name: "current-user-context",
       description: "Get context about the currently authenticated user",
+      arguments: [],
     },
     async () => {
       const auth = getAuthContext();
