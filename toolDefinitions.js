@@ -81,6 +81,7 @@ export const toolDefinitions = [
     annotations: {
       title: "Get Teams",
       readOnlyHint: true,
+      destructiveHint: false,
       idempotentHint: true,
       openWorldHint: false,
     },
@@ -111,6 +112,7 @@ export const toolDefinitions = [
     annotations: {
       title: "Get Users",
       readOnlyHint: true,
+      destructiveHint: false,
       idempotentHint: true,
       openWorldHint: false,
     },
@@ -142,6 +144,7 @@ export const toolDefinitions = [
     annotations: {
       title: "Get Current User",
       readOnlyHint: true,
+      destructiveHint: false,
       idempotentHint: true,
       openWorldHint: false,
     },
@@ -157,6 +160,7 @@ export const toolDefinitions = [
     annotations: {
       title: "Get Todos",
       readOnlyHint: true,
+      destructiveHint: false,
       idempotentHint: true,
       openWorldHint: false,
     },
@@ -294,6 +298,7 @@ export const toolDefinitions = [
     annotations: {
       title: "Get Rocks",
       readOnlyHint: true,
+      destructiveHint: false,
       idempotentHint: true,
       openWorldHint: false,
     },
@@ -405,6 +410,7 @@ export const toolDefinitions = [
     annotations: {
       title: "Get Meetings",
       readOnlyHint: true,
+      destructiveHint: false,
       idempotentHint: true,
       openWorldHint: false,
     },
@@ -483,6 +489,7 @@ export const toolDefinitions = [
     annotations: {
       title: "Get Issues",
       readOnlyHint: true,
+      destructiveHint: false,
       idempotentHint: true,
       openWorldHint: false,
     },
@@ -605,6 +612,7 @@ export const toolDefinitions = [
     annotations: {
       title: "Get Headlines",
       readOnlyHint: true,
+      destructiveHint: false,
       idempotentHint: true,
       openWorldHint: false,
     },
@@ -721,6 +729,7 @@ export const toolDefinitions = [
     annotations: {
       title: "Get Milestones",
       readOnlyHint: true,
+      destructiveHint: false,
       idempotentHint: true,
       openWorldHint: false,
     },
@@ -798,6 +807,7 @@ export const toolDefinitions = [
     annotations: {
       title: "Search",
       readOnlyHint: true,
+      destructiveHint: false,
       idempotentHint: true,
       openWorldHint: false,
     },
@@ -818,6 +828,7 @@ export const toolDefinitions = [
     annotations: {
       title: "Fetch Item",
       readOnlyHint: true,
+      destructiveHint: false,
       idempotentHint: true,
       openWorldHint: false,
     },
@@ -835,6 +846,7 @@ export const toolDefinitions = [
     annotations: {
       title: "Get Scorecard Measurables",
       readOnlyHint: true,
+      destructiveHint: false,
       idempotentHint: true,
       openWorldHint: false,
     },
@@ -1178,7 +1190,7 @@ export const toolDefinitions = [
   {
     name: "deleteScorecardMeasurable",
     description:
-      "Delete a scorecard measurable (KPI/metric). This is a soft delete that marks the measurable and all its associated data values as DELETED. Perfect for queries like 'Delete the Revenue measurable' or 'Remove the customer satisfaction KPI'. Use getScorecardMeasurables to find the measurable ID. WARNING: This will also delete all historical data values associated with this measurable.",
+      "Delete a scorecard measurable (KPI/metric). This operation performs a soft delete - the measurable and all its associated data values are removed from normal views but not immediately permanently deleted. Perfect for queries like 'Delete the Revenue measurable' or 'Remove the customer satisfaction KPI'. Use getScorecardMeasurables to find the measurable ID. WARNING: This will also soft delete all historical data values associated with this measurable.",
     readOnly: false,
     annotations: {
       title: "Delete Scorecard Measurable",
@@ -1206,6 +1218,7 @@ export const toolDefinitions = [
     annotations: {
       title: "Get Meeting Infos",
       readOnlyHint: true,
+      destructiveHint: false,
       idempotentHint: true,
       openWorldHint: false,
     },
@@ -1253,6 +1266,7 @@ export const toolDefinitions = [
     annotations: {
       title: "Get Meeting Agendas",
       readOnlyHint: true,
+      destructiveHint: false,
       idempotentHint: true,
       openWorldHint: false,
     },
@@ -1329,6 +1343,7 @@ export const toolDefinitions = [
     annotations: {
       title: "Get Leadership VTO",
       readOnlyHint: true,
+      destructiveHint: false,
       idempotentHint: true,
       openWorldHint: false,
     },
@@ -1342,6 +1357,10 @@ export const toolDefinitions = [
     readOnly: false,
     annotations: {
       title: "Update VTO Core Value",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
     },
     handler: async ({ coreValueId, name, cascadeAll }) =>
       await updateVTOCoreValue({ coreValueId, name, cascadeAll }),
@@ -1359,6 +1378,10 @@ export const toolDefinitions = [
     readOnly: false,
     annotations: {
       title: "Update VTO Core Value Detail",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
     },
     handler: async ({ coreValueDetailId, name, desc, position, cascadeAll }) =>
       await updateVTOCoreValueDetail({
@@ -1383,6 +1406,10 @@ export const toolDefinitions = [
     readOnly: false,
     annotations: {
       title: "Update VTO Core Focus",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
     },
     handler: async ({ coreFocusId, name, desc, coreFocusName, cascadeAll }) =>
       await updateVTOCoreFocus({
@@ -1408,6 +1435,10 @@ export const toolDefinitions = [
     readOnly: false,
     annotations: {
       title: "Update VTO 3-Year Goal",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
     },
     handler: async ({ goalId, name, futureDate, cascadeAll }) =>
       await updateVTOThreeYearGoal({ goalId, name, futureDate, cascadeAll }),
@@ -1426,6 +1457,10 @@ export const toolDefinitions = [
     readOnly: false,
     annotations: {
       title: "Update VTO Marketing Strategy",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
     },
     handler: async ({
       marketStrategyId,
@@ -1479,7 +1514,13 @@ export const toolDefinitions = [
     name: "createVTOCoreValue",
     description: "Create new VTO Core Value",
     readOnly: false,
-    annotations: { title: "Create VTO Core Value" },
+    annotations: {
+      title: "Create VTO Core Value",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: false,
+    },
     handler: async ({ visionId, name, cascadeAll }) =>
       await createVTOCoreValue({ visionId, name, cascadeAll }),
     schema: {
@@ -1493,7 +1534,13 @@ export const toolDefinitions = [
     name: "createVTOCoreValueDetail",
     description: "Create new VTO Core Value Detail",
     readOnly: false,
-    annotations: { title: "Create VTO Core Value Detail" },
+    annotations: {
+      title: "Create VTO Core Value Detail",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: false,
+    },
     handler: async ({ coreValueId, name, desc, position, cascadeAll }) =>
       await createVTOCoreValueDetail({
         coreValueId,
@@ -1515,7 +1562,13 @@ export const toolDefinitions = [
     name: "createVTOCoreFocus",
     description: "Create new VTO Core Focus",
     readOnly: false,
-    annotations: { title: "Create VTO Core Focus" },
+    annotations: {
+      title: "Create VTO Core Focus",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: false,
+    },
     handler: async ({ visionId, name, desc, focusType, cascadeAll }) =>
       await createVTOCoreFocus({ visionId, name, desc, focusType, cascadeAll }),
     schema: {
@@ -1531,7 +1584,13 @@ export const toolDefinitions = [
     name: "createVTOThreeYearGoal",
     description: "Create new VTO Three-Year Goal",
     readOnly: false,
-    annotations: { title: "Create VTO 3-Year Goal" },
+    annotations: {
+      title: "Create VTO 3-Year Goal",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: false,
+    },
     handler: async ({ visionId, name, futureDate, goalType, cascadeAll }) =>
       await createVTOThreeYearGoal({
         visionId,
@@ -1553,7 +1612,13 @@ export const toolDefinitions = [
     name: "createVTOMarketStrategy",
     description: "Create new VTO Market Strategy",
     readOnly: false,
-    annotations: { title: "Create VTO Market Strategy" },
+    annotations: {
+      title: "Create VTO Market Strategy",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: false,
+    },
     handler: async ({
       visionId,
       name,
@@ -1601,9 +1666,15 @@ export const toolDefinitions = [
   // DELETE VTO Tools
   {
     name: "deleteVTOCoreValue",
-    description: "Delete VTO Core Value",
+    description: "Delete VTO Core Value. This operation performs a soft delete. The record is removed from normal views but not immediately permanently deleted.",
     readOnly: false,
-    annotations: { title: "Delete VTO Core Value" },
+    annotations: {
+      title: "Delete VTO Core Value",
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
     handler: async ({ coreValueId }) =>
       await deleteVTOCoreValue({ coreValueId }),
     schema: {
@@ -1613,9 +1684,15 @@ export const toolDefinitions = [
   },
   {
     name: "deleteVTOCoreValueDetail",
-    description: "Delete VTO Core Value Detail",
+    description: "Delete VTO Core Value Detail. This operation performs a soft delete. The record is removed from normal views but not immediately permanently deleted.",
     readOnly: false,
-    annotations: { title: "Delete VTO Core Value Detail" },
+    annotations: {
+      title: "Delete VTO Core Value Detail",
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
     handler: async ({ detailId }) =>
       await deleteVTOCoreValueDetail({ detailId }),
     schema: {
@@ -1625,9 +1702,15 @@ export const toolDefinitions = [
   },
   {
     name: "deleteVTOCoreFocus",
-    description: "Delete VTO Core Focus",
+    description: "Delete VTO Core Focus. This operation performs a soft delete. The record is removed from normal views but not immediately permanently deleted.",
     readOnly: false,
-    annotations: { title: "Delete VTO Core Focus" },
+    annotations: {
+      title: "Delete VTO Core Focus",
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
     handler: async ({ coreFocusId }) =>
       await deleteVTOCoreFocus({ coreFocusId }),
     schema: {
@@ -1637,9 +1720,15 @@ export const toolDefinitions = [
   },
   {
     name: "deleteVTOThreeYearGoal",
-    description: "Delete VTO Three-Year Goal",
+    description: "Delete VTO Three-Year Goal. This operation performs a soft delete. The record is removed from normal views but not immediately permanently deleted.",
     readOnly: false,
-    annotations: { title: "Delete VTO 3-Year Goal" },
+    annotations: {
+      title: "Delete VTO 3-Year Goal",
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
     handler: async ({ goalId }) => await deleteVTOThreeYearGoal({ goalId }),
     schema: {
       goalId: z.string().describe("Goal ID"),
@@ -1648,9 +1737,15 @@ export const toolDefinitions = [
   },
   {
     name: "deleteVTOMarketStrategy",
-    description: "Delete VTO Market Strategy",
+    description: "Delete VTO Market Strategy. This operation performs a soft delete. The record is removed from normal views but not immediately permanently deleted.",
     readOnly: false,
-    annotations: { title: "Delete VTO Market Strategy" },
+    annotations: {
+      title: "Delete VTO Market Strategy",
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
     handler: async ({ marketStrategyId }) =>
       await deleteVTOMarketStrategy({ marketStrategyId }),
     schema: {
@@ -1670,6 +1765,7 @@ export const toolDefinitions = [
     annotations: {
       title: "Get Accountability Chart",
       readOnlyHint: true,
+      destructiveHint: false,
       idempotentHint: true,
       openWorldHint: false,
     },
@@ -1690,6 +1786,7 @@ export const toolDefinitions = [
     annotations: {
       title: "Get Meeting Details",
       readOnlyHint: true,
+      destructiveHint: false,
       idempotentHint: true,
       openWorldHint: false,
     },
@@ -1737,6 +1834,7 @@ export const toolDefinitions = [
     annotations: {
       title: "Get Organization Checkups",
       readOnlyHint: true,
+      destructiveHint: false,
       idempotentHint: true,
       openWorldHint: false,
     },
@@ -2696,7 +2794,7 @@ export const toolDefinitions = [
   {
     name: "deleteTodo",
     description:
-      "Delete a todo in Success.co. This marks the todo as DELETED. Perfect for queries like 'Delete the todo about follow up with vendor'. Use getTodos first to find the todo ID by searching for the todo name.",
+      "Delete a todo in Success.co. This operation performs a soft delete - the todo is removed from normal views but not immediately permanently deleted. Perfect for queries like 'Delete the todo about follow up with vendor'. Use getTodos first to find the todo ID by searching for the todo name.",
     readOnly: false,
     annotations: {
       title: "Delete Todo",
@@ -2718,7 +2816,7 @@ export const toolDefinitions = [
   {
     name: "deleteIssue",
     description:
-      "Delete an issue in Success.co. This marks the issue as DELETED. Perfect for queries like 'Delete the issue about customer churn'. Use getIssues first to find the issue ID by searching for the issue name.",
+      "Delete an issue in Success.co. This operation performs a soft delete - the issue is removed from normal views but not immediately permanently deleted. Perfect for queries like 'Delete the issue about customer churn'. Use getIssues first to find the issue ID by searching for the issue name.",
     readOnly: false,
     annotations: {
       title: "Delete Issue",
@@ -2740,7 +2838,7 @@ export const toolDefinitions = [
   {
     name: "deleteRock",
     description:
-      "Delete a rock in Success.co. This marks the rock as DELETED. Perfect for queries like 'Delete the marketing rock'. Use getRocks first to find the rock ID by searching for the rock name.",
+      "Delete a rock in Success.co. This operation performs a soft delete - the rock is removed from normal views but not immediately permanently deleted. Perfect for queries like 'Delete the marketing rock'. Use getRocks first to find the rock ID by searching for the rock name.",
     readOnly: false,
     annotations: {
       title: "Delete Rock",
@@ -2762,7 +2860,7 @@ export const toolDefinitions = [
   {
     name: "deleteHeadline",
     description:
-      "Delete a headline in Success.co. This marks the headline as DELETED. Perfect for queries like 'Delete the headline about ABC Corp'. Use getHeadlines first to find the headline ID by searching for the headline text.",
+      "Delete a headline in Success.co. This operation performs a soft delete - the headline is removed from normal views but not immediately permanently deleted. Perfect for queries like 'Delete the headline about ABC Corp'. Use getHeadlines first to find the headline ID by searching for the headline text.",
     readOnly: false,
     annotations: {
       title: "Delete Headline",
@@ -2924,7 +3022,7 @@ export const toolDefinitions = [
   {
     name: "deleteMilestone",
     description:
-      "Delete a milestone in Success.co. This marks the milestone as DELETED. Perfect for queries like 'Delete the first milestone on the marketing rock'. Use getMilestones to find the milestone ID.",
+      "Delete a milestone in Success.co. This operation performs a soft delete - the milestone is removed from normal views but not immediately permanently deleted. Perfect for queries like 'Delete the first milestone on the marketing rock'. Use getMilestones to find the milestone ID.",
     readOnly: false,
     annotations: {
       title: "Delete Milestone",
@@ -2951,6 +3049,7 @@ export const toolDefinitions = [
     annotations: {
       title: "Get Comments",
       readOnlyHint: true,
+      destructiveHint: false,
       idempotentHint: true,
       openWorldHint: false,
     },
@@ -3094,7 +3193,7 @@ export const toolDefinitions = [
   {
     name: "deleteComment",
     description:
-      "Delete a comment in Success.co. This marks the comment as DELETED. Perfect for queries like 'Delete my comment on the issue'. Use getComments to find the comment ID.",
+      "Delete a comment in Success.co. This operation performs a soft delete - the comment is removed from normal views but not immediately permanently deleted. Perfect for queries like 'Delete my comment on the issue'. Use getComments to find the comment ID.",
     readOnly: false,
     annotations: {
       title: "Delete Comment",
@@ -3121,6 +3220,7 @@ export const toolDefinitions = [
     annotations: {
       title: "Get Execution Health",
       readOnlyHint: true,
+      destructiveHint: false,
       idempotentHint: true,
       openWorldHint: false,
     },
@@ -3148,6 +3248,7 @@ export const toolDefinitions = [
     annotations: {
       title: "Get User Workload",
       readOnlyHint: true,
+      destructiveHint: false,
       idempotentHint: true,
       openWorldHint: false,
     },
@@ -3209,6 +3310,7 @@ export const toolDefinitions = [
     annotations: {
       title: "Get Company Insights",
       readOnlyHint: true,
+      destructiveHint: false,
       idempotentHint: true,
       openWorldHint: false,
     },
@@ -3224,6 +3326,7 @@ export const toolDefinitions = [
     annotations: {
       title: "Get Sample Questions",
       readOnlyHint: true,
+      destructiveHint: false,
       idempotentHint: true,
       openWorldHint: false,
     },
@@ -3239,6 +3342,7 @@ export const toolDefinitions = [
     annotations: {
       title: "Get GraphQL Overview",
       readOnlyHint: true,
+      destructiveHint: false,
       idempotentHint: true,
       openWorldHint: false,
     },
@@ -3254,6 +3358,7 @@ export const toolDefinitions = [
     annotations: {
       title: "Execute GraphQL Query/Mutation",
       readOnlyHint: false,
+      destructiveHint: true,
       idempotentHint: false,
       openWorldHint: false,
     },
